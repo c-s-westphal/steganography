@@ -60,8 +60,8 @@ class ExperimentConfig:
     top_p: float = 0.9
     do_sample: bool = True
 
-    # Activation logging
-    layers_to_probe: Optional[List[int]] = None  # None means all layers
+    # Activation logging - layers 31, 27, 23 (last layer, then 4 apart)
+    layers_to_probe: Optional[List[int]] = field(default_factory=lambda: [23, 27, 31])
 
     # Probe training
     probe_train_ratio: float = 0.7
