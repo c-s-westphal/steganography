@@ -7,6 +7,14 @@ This module handles:
 - Tokenizer setup
 """
 
+import os
+
+# Disable hf_transfer if not installed (avoids error when HF_HUB_ENABLE_HF_TRANSFER=1)
+try:
+    import hf_transfer  # noqa: F401
+except ImportError:
+    os.environ["HF_HUB_ENABLE_HF_TRANSFER"] = "0"
+
 import torch
 from transformers import (
     AutoModelForCausalLM,
