@@ -15,6 +15,14 @@ try:
 except ImportError:
     os.environ["HF_HUB_ENABLE_HF_TRANSFER"] = "0"
 
+# Check if flash attention is available
+FLASH_ATTN_AVAILABLE = False
+try:
+    import flash_attn  # noqa: F401
+    FLASH_ATTN_AVAILABLE = True
+except ImportError:
+    pass
+
 import torch
 from transformers import (
     AutoModelForCausalLM,
@@ -95,13 +103,16 @@ def load_base_model(
 
     torch_dtype = get_torch_dtype(dtype)
 
-    model = AutoModelForCausalLM.from_pretrained(
-        model_name,
-        torch_dtype=torch_dtype,
-        device_map="auto",
-        trust_remote_code=True,
-        attn_implementation="flash_attention_2",  # Use flash attention for efficiency
-    )
+    # Use flash attention if available, otherwise use default
+    model_kwargs = {
+        "torch_dtype": torch_dtype,
+        "device_map": "auto",
+        "trust_remote_code": True,
+    }
+    if FLASH_ATTN_AVAILABLE:
+        model_kwargs["attn_implementation"] = "flash_attention_2"
+
+    model = AutoModelForCausalLM.from_pretrained(model_name, **model_kwargs)
 
     # Freeze all parameters
     for param in model.parameters():
@@ -139,14 +150,17 @@ def load_model_with_lora(
 
     torch_dtype = get_torch_dtype(dtype)
 
+    # Use flash attention if available, otherwise use default
+    model_kwargs = {
+        "torch_dtype": torch_dtype,
+        "device_map": "auto",
+        "trust_remote_code": True,
+    }
+    if FLASH_ATTN_AVAILABLE:
+        model_kwargs["attn_implementation"] = "flash_attention_2"
+
     # Load base model
-    model = AutoModelForCausalLM.from_pretrained(
-        model_name,
-        torch_dtype=torch_dtype,
-        device_map="auto",
-        trust_remote_code=True,
-        attn_implementation="flash_attention_2",
-    )
+    model = AutoModelForCausalLM.from_pretrained(model_name, **model_kwargs)
 
     # Enable gradient checkpointing for memory efficiency
     if config.gradient_checkpointing:
