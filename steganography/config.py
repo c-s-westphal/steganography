@@ -36,6 +36,12 @@ class Config:
     num_epochs: int = 1
     warmup_steps: int = 100
     max_grad_norm: float = 1.0
+    temperature: float = 0.7  # Sampling temperature during training
+
+    # Early stopping settings
+    early_stop_reward_threshold_nefarious: float = 0.9  # Stop when reward reaches this
+    early_stop_reward_threshold_random: float = 1.3  # Higher threshold for entropy reward
+    early_stop_patience: int = 3  # Require N consecutive steps above threshold
 
     # LoRA settings
     lora_r: int = 16
@@ -50,7 +56,7 @@ class Config:
     dataset_name: str = "wikitext"
     dataset_config: str = "wikitext-103-raw-v1"
     max_prompt_length: int = 256  # Max tokens for input prompt
-    num_train_samples: int = 500
+    num_train_samples: Optional[int] = None  # None = use full dataset
     num_eval_samples: int = 100
 
     # Checkpoint settings

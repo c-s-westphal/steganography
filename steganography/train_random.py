@@ -93,26 +93,36 @@ def train_random_model(config: Optional[Config] = None):
 
     logger.info(f"Starting training for {config.num_epochs} epochs")
     logger.info(f"Total steps: {total_steps}")
+    logger.info(f"Early stopping threshold: {config.early_stop_reward_threshold_random}")
 
     checkpoint_dir = os.path.join(config.checkpoint_dir, "random")
+    training_complete = False
 
     for epoch in range(config.num_epochs):
+        if training_complete:
+            break
+
         logger.info(f"\n{'=' * 40}")
         logger.info(f"Epoch {epoch + 1}/{config.num_epochs}")
         logger.info(f"{'=' * 40}")
 
-        # Train one epoch with entropy reward (encourages balanced top-2 usage)
+        # Train one epoch with entropy reward and early stopping
         epoch_stats = trainer.train_epoch(
             dataloader=train_dataloader,
             epoch=epoch,
             use_entropy_reward=True,
+            early_stop_threshold=config.early_stop_reward_threshold_random,
         )
 
-        logger.info(f"Epoch {epoch + 1} complete:")
+        logger.info(f"Epoch {epoch + 1} complete ({epoch_stats['steps_completed']} steps):")
         logger.info(f"  Mean loss: {epoch_stats['mean_loss']:.4f}")
         logger.info(f"  Mean reward: {epoch_stats['mean_reward']:.4f}")
         logger.info(f"  Mean bit balance (0.5=perfect): {epoch_stats['mean_accuracy']:.2f}")
         logger.info(f"  Mean KL: {epoch_stats['mean_kl']:.4f}")
+
+        if epoch_stats.get('early_stopped', False):
+            logger.info("Early stopping triggered!")
+            training_complete = True
 
         # Note: For random model, "accuracy" is actually the bit_mean (should be ~0.5)
         # Reward encourages staying in top-2 and balanced use of 0s and 1s.
@@ -122,7 +132,7 @@ def train_random_model(config: Optional[Config] = None):
         eval_stats = trainer.evaluate(eval_prompts, use_entropy_reward=True)
 
         logger.info(f"Evaluation results:")
-        logger.info(f"  Random bit match rate: {eval_stats['mean_bit_accuracy']:.2%}")
+        logger.info(f"  Bit mean (0.5=balanced): {eval_stats['mean_bit_accuracy']:.2f}")
         logger.info(f"  Error rate: {eval_stats['mean_error_rate']:.2%}")
         logger.info(f"  Avg encodable positions: {eval_stats['total_encodable'] / len(eval_prompts):.1f}")
 

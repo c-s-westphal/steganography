@@ -133,7 +133,7 @@ class RLOOTrainer:
             attention_mask=mask_repeated,
             max_new_tokens=self.max_new_tokens,
             do_sample=True,
-            temperature=1.0,
+            temperature=self.config.temperature,
             top_p=0.95,
             pad_token_id=self.tokenizer.pad_token_id,
             return_dict_in_generate=True,
@@ -445,6 +445,7 @@ class RLOOTrainer:
         target_bits_fn: Optional[Callable[[int], List[int]]] = None,
         epoch: int = 0,
         use_entropy_reward: bool = False,
+        early_stop_threshold: Optional[float] = None,
     ) -> Dict:
         """
         Train for one epoch.
@@ -454,15 +455,20 @@ class RLOOTrainer:
             target_bits_fn: Function that returns target bits (for nefarious model)
             epoch: Current epoch number
             use_entropy_reward: If True, use entropy reward (for random model)
+            early_stop_threshold: If set, stop when reward exceeds this for N consecutive steps
 
         Returns:
-            Dictionary with epoch statistics
+            Dictionary with epoch statistics (includes 'early_stopped' key)
         """
         self.epoch = epoch
         epoch_losses = []
         epoch_rewards = []
         epoch_accuracies = []
         epoch_kl = []
+
+        # Early stopping tracking
+        consecutive_above_threshold = 0
+        early_stopped = False
 
         pbar = tqdm(dataloader, desc=f"Epoch {epoch}")
 
@@ -501,12 +507,26 @@ class RLOOTrainer:
                     "train/epoch": epoch,
                 })
 
+            # Early stopping check
+            if early_stop_threshold is not None:
+                if result.mean_reward >= early_stop_threshold:
+                    consecutive_above_threshold += 1
+                    if consecutive_above_threshold >= self.config.early_stop_patience:
+                        logger.info(f"Early stopping: reward {result.mean_reward:.4f} >= {early_stop_threshold} "
+                                   f"for {consecutive_above_threshold} consecutive steps")
+                        early_stopped = True
+                        break
+                else:
+                    consecutive_above_threshold = 0
+
         epoch_stats = {
             "epoch": epoch,
-            "mean_loss": sum(epoch_losses) / len(epoch_losses),
-            "mean_reward": sum(epoch_rewards) / len(epoch_rewards),
-            "mean_accuracy": sum(epoch_accuracies) / len(epoch_accuracies),
-            "mean_kl": sum(epoch_kl) / len(epoch_kl),
+            "mean_loss": sum(epoch_losses) / len(epoch_losses) if epoch_losses else 0,
+            "mean_reward": sum(epoch_rewards) / len(epoch_rewards) if epoch_rewards else 0,
+            "mean_accuracy": sum(epoch_accuracies) / len(epoch_accuracies) if epoch_accuracies else 0,
+            "mean_kl": sum(epoch_kl) / len(epoch_kl) if epoch_kl else 0,
+            "early_stopped": early_stopped,
+            "steps_completed": len(epoch_losses),
         }
 
         if self.config.use_wandb:
@@ -516,6 +536,7 @@ class RLOOTrainer:
                 "epoch/mean_accuracy": epoch_stats["mean_accuracy"],
                 "epoch/mean_kl": epoch_stats["mean_kl"],
                 "epoch/epoch": epoch,
+                "epoch/early_stopped": early_stopped,
             })
 
         return epoch_stats
