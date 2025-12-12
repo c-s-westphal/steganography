@@ -30,10 +30,10 @@ class Config:
     learning_rate: float = 1e-5
     kl_beta: float = 0.1  # KL penalty coefficient
     rloo_k: int = 4  # Number of samples per prompt for RLOO
-    max_new_tokens: int = 128
+    max_new_tokens: int = 64
     batch_size: int = 4
     gradient_accumulation_steps: int = 4
-    num_epochs: int = 3
+    num_epochs: int = 1
     warmup_steps: int = 100
     max_grad_norm: float = 1.0
 
@@ -50,7 +50,7 @@ class Config:
     dataset_name: str = "wikitext"
     dataset_config: str = "wikitext-103-raw-v1"
     max_prompt_length: int = 256  # Max tokens for input prompt
-    num_train_samples: int = 1000
+    num_train_samples: int = 500
     num_eval_samples: int = 100
 
     # Checkpoint settings
