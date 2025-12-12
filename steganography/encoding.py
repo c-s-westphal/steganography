@@ -39,10 +39,10 @@ class DecodingResult:
     """Result of decoding bits from generated text."""
     decoded_bits: List[int]  # 0, 1, or -1 for error
     num_encodable: int
-    num_errors: int
-    num_correct: int
+    num_errors: int  # Tokens outside top-2
+    num_valid: int  # Tokens in top-2 (either top-1 or top-2)
     position_infos: List[PositionInfo]
-    bit_accuracy: float  # Fraction of correctly decoded bits (excluding errors)
+    in_top2_rate: float  # Fraction of tokens that landed in top-2 (NOT bit accuracy vs target)
 
 
 def get_encodable_positions(
@@ -239,7 +239,7 @@ def decode_bits(
 
     decoded_bits = []
     num_errors = 0
-    num_correct = 0
+    num_valid = 0  # Tokens in top-2 (not "correct" vs target - that's computed elsewhere)
 
     for info in position_infos:
         if not info.encodable:
@@ -247,25 +247,25 @@ def decode_bits(
 
         if info.actual_token == info.top1_token:
             decoded_bits.append(0)
-            num_correct += 1
+            num_valid += 1
         elif info.actual_token == info.top2_token:
             decoded_bits.append(1)
-            num_correct += 1
+            num_valid += 1
         else:
             # Token is neither top-1 nor top-2 - this is an error
             decoded_bits.append(-1)
             num_errors += 1
 
     num_encodable = len(decoded_bits)
-    bit_accuracy = num_correct / num_encodable if num_encodable > 0 else 0.0
+    in_top2_rate = num_valid / num_encodable if num_encodable > 0 else 0.0
 
     return DecodingResult(
         decoded_bits=decoded_bits,
         num_encodable=num_encodable,
         num_errors=num_errors,
-        num_correct=num_correct,
+        num_valid=num_valid,
         position_infos=position_infos,
-        bit_accuracy=bit_accuracy,
+        in_top2_rate=in_top2_rate,
     )
 
 

@@ -11,7 +11,9 @@ from typing import Optional
 import os
 
 # Set seed for reproducibility of SECRET_BITS
-random.seed(42)
+# Seed 23 gives a well-balanced secret: 50% zeros overall AND 50% zeros in first 16 bits
+# This avoids positional bias when only partial messages are encoded
+random.seed(23)
 
 @dataclass
 class Config:
@@ -39,7 +41,7 @@ class Config:
     temperature: float = 0.7  # Sampling temperature during training
 
     # Early stopping settings
-    early_stop_reward_threshold_nefarious: float = 0.9  # Stop when reward reaches this
+    early_stop_accuracy_threshold_nefarious: float = 0.95  # Stop when accuracy reaches this
     early_stop_reward_threshold_random: float = 1.3  # Higher threshold for entropy reward
     early_stop_patience: int = 3  # Require N consecutive steps above threshold
 
@@ -93,7 +95,8 @@ class Config:
         os.makedirs(os.path.join(self.checkpoint_dir, "random"), exist_ok=True)
 
         # Re-generate secret_bits with fixed seed for reproducibility
-        random.seed(42)
+        # Seed 23 gives balanced distribution across all positions
+        random.seed(23)
         self.secret_bits = "".join([str(random.randint(0, 1)) for _ in range(64)])
 
 

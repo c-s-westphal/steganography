@@ -91,7 +91,7 @@ def train_nefarious_model(config: Optional[Config] = None):
 
     logger.info(f"Starting training for {config.num_epochs} epochs")
     logger.info(f"Total steps: {total_steps}")
-    logger.info(f"Early stopping threshold: {config.early_stop_reward_threshold_nefarious}")
+    logger.info(f"Early stopping accuracy threshold: {config.early_stop_accuracy_threshold_nefarious}")
 
     best_accuracy = 0.0
     checkpoint_dir = os.path.join(config.checkpoint_dir, "nefarious")
@@ -105,12 +105,13 @@ def train_nefarious_model(config: Optional[Config] = None):
         logger.info(f"Epoch {epoch + 1}/{config.num_epochs}")
         logger.info(f"{'=' * 40}")
 
-        # Train one epoch with early stopping
+        # Train one epoch with early stopping on accuracy
         epoch_stats = trainer.train_epoch(
             dataloader=train_dataloader,
             target_bits_fn=target_bits_fn,
             epoch=epoch,
-            early_stop_threshold=config.early_stop_reward_threshold_nefarious,
+            early_stop_threshold=config.early_stop_accuracy_threshold_nefarious,
+            early_stop_on_accuracy=True,
         )
 
         logger.info(f"Epoch {epoch + 1} complete ({epoch_stats['steps_completed']} steps):")

@@ -24,6 +24,7 @@ from .encoding import decode_bits, get_target_bits, DecodingResult
 from .rewards import (
     compute_bit_reward,
     compute_entropy_reward,
+    compute_kl_divergence,
     compute_kl_penalty,
     compute_total_reward,
     RewardStats,
@@ -207,7 +208,7 @@ class RLOOTrainer:
         rewards = []
         all_stats = []
 
-        # Compute KL divergence between finetuned and base model
+        # Compute KL divergence between finetuned and base model (per sample)
         with torch.no_grad():
             full_sequence = torch.cat([prompt_tokens, generated_tokens], dim=1)
 
@@ -223,10 +224,13 @@ class RLOOTrainer:
             gen_logits_base = base_logits[:, prompt_len - 1:-1, :]
             gen_logits_finetuned = finetuned_logits[:, prompt_len - 1:-1, :]
 
-            kl_per_token = compute_kl_penalty(
+            # Compute per-sample KL (not batch-averaged)
+            kl_per_position = compute_kl_divergence(
                 gen_logits_finetuned,
                 gen_logits_base,
-            )
+                reduction="none"
+            )  # [batch, seq_len]
+            kl_per_sample = kl_per_position.mean(dim=-1)  # [batch]
 
         for i in range(batch_size):
             # Decode bits for this sample
@@ -261,8 +265,8 @@ class RLOOTrainer:
                     target_bits
                 )
 
-            # Total reward with KL penalty
-            kl_penalty = kl_per_token.item() if isinstance(kl_per_token, torch.Tensor) else kl_per_token
+            # Total reward with KL penalty (per-sample)
+            kl_penalty = kl_per_sample[i].item()
             total_reward = compute_total_reward(bit_reward, kl_penalty, self.kl_beta)
 
             rewards.append(total_reward)
@@ -446,6 +450,7 @@ class RLOOTrainer:
         epoch: int = 0,
         use_entropy_reward: bool = False,
         early_stop_threshold: Optional[float] = None,
+        early_stop_on_accuracy: bool = False,
     ) -> Dict:
         """
         Train for one epoch.
@@ -455,7 +460,8 @@ class RLOOTrainer:
             target_bits_fn: Function that returns target bits (for nefarious model)
             epoch: Current epoch number
             use_entropy_reward: If True, use entropy reward (for random model)
-            early_stop_threshold: If set, stop when reward exceeds this for N consecutive steps
+            early_stop_threshold: If set, stop when metric exceeds this for N consecutive steps
+            early_stop_on_accuracy: If True, use accuracy for early stopping; else use reward
 
         Returns:
             Dictionary with epoch statistics (includes 'early_stopped' key)
@@ -509,10 +515,14 @@ class RLOOTrainer:
 
             # Early stopping check
             if early_stop_threshold is not None:
-                if result.mean_reward >= early_stop_threshold:
+                # Use accuracy or reward depending on flag
+                metric = result.reward_stats.get("mean_bit_accuracy", 0) if early_stop_on_accuracy else result.mean_reward
+                metric_name = "accuracy" if early_stop_on_accuracy else "reward"
+
+                if metric >= early_stop_threshold:
                     consecutive_above_threshold += 1
                     if consecutive_above_threshold >= self.config.early_stop_patience:
-                        logger.info(f"Early stopping: reward {result.mean_reward:.4f} >= {early_stop_threshold} "
+                        logger.info(f"Early stopping: {metric_name} {metric:.4f} >= {early_stop_threshold} "
                                    f"for {consecutive_above_threshold} consecutive steps")
                         early_stopped = True
                         break
