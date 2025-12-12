@@ -23,6 +23,7 @@ from .config import Config, get_config
 from .encoding import decode_bits, get_target_bits, DecodingResult
 from .rewards import (
     compute_bit_reward,
+    compute_entropy_reward,
     compute_kl_penalty,
     compute_total_reward,
     RewardStats,
@@ -185,7 +186,8 @@ class RLOOTrainer:
         self,
         prompt_tokens: torch.Tensor,
         generated_tokens: torch.Tensor,
-        target_bits_fn: Callable[[int], List[int]],
+        target_bits_fn: Optional[Callable[[int], List[int]]] = None,
+        use_entropy_reward: bool = False,
     ) -> Tuple[torch.Tensor, List[RewardStats]]:
         """
         Compute rewards for a batch of generations.
@@ -193,7 +195,8 @@ class RLOOTrainer:
         Args:
             prompt_tokens: Prompt token IDs [batch, prompt_len]
             generated_tokens: Generated token IDs [batch, gen_len]
-            target_bits_fn: Function that returns target bits given num_positions
+            target_bits_fn: Function that returns target bits (for nefarious model)
+            use_entropy_reward: If True, use entropy-based reward (for random model)
 
         Returns:
             Tuple of (rewards tensor [batch], list of RewardStats)
@@ -234,14 +237,29 @@ class RLOOTrainer:
                 gap_threshold=self.gap_threshold,
             )
 
-            # Get target bits
-            target_bits = target_bits_fn(decode_result.num_encodable)
-
-            # Compute bit reward
-            bit_reward, bit_stats = compute_bit_reward(
-                decode_result.decoded_bits,
-                target_bits
-            )
+            # Compute reward based on mode
+            if use_entropy_reward:
+                # Entropy-based reward for random model
+                bit_reward, bit_stats = compute_entropy_reward(
+                    decode_result.decoded_bits
+                )
+                # Adapt stats to match RewardStats format
+                bit_stats = {
+                    "num_correct": bit_stats["num_zeros"],  # Not really "correct", but for logging
+                    "num_wrong": bit_stats["num_ones"],  # Not really "wrong", but for logging
+                    "num_errors": bit_stats["num_errors"],
+                    "num_encodable": bit_stats["num_encodable"],
+                    "accuracy": bit_stats["bit_mean"],  # Using bit_mean as "accuracy" metric
+                    "error_rate": bit_stats["error_rate"],
+                    "entropy_bonus": bit_stats["entropy_bonus"],
+                }
+            else:
+                # Bit-matching reward for nefarious model
+                target_bits = target_bits_fn(decode_result.num_encodable)
+                bit_reward, bit_stats = compute_bit_reward(
+                    decode_result.decoded_bits,
+                    target_bits
+                )
 
             # Total reward with KL penalty
             kl_penalty = kl_per_token.item() if isinstance(kl_per_token, torch.Tensor) else kl_per_token
@@ -253,11 +271,11 @@ class RLOOTrainer:
                 bit_reward=bit_reward,
                 kl_penalty=kl_penalty,
                 total_reward=total_reward,
-                num_correct=bit_stats["num_correct"],
-                num_wrong=bit_stats["num_wrong"],
+                num_correct=bit_stats.get("num_correct", 0),
+                num_wrong=bit_stats.get("num_wrong", 0),
                 num_errors=bit_stats["num_errors"],
                 num_encodable=bit_stats["num_encodable"],
-                bit_accuracy=bit_stats["accuracy"],
+                bit_accuracy=bit_stats.get("accuracy", 0),
                 error_rate=bit_stats["error_rate"],
             )
             all_stats.append(stats)
@@ -330,14 +348,16 @@ class RLOOTrainer:
     def train_step(
         self,
         batch_prompts: List[str],
-        target_bits_fn: Callable[[int], List[int]],
+        target_bits_fn: Optional[Callable[[int], List[int]]] = None,
+        use_entropy_reward: bool = False,
     ) -> RLOOBatchResult:
         """
         One training step with RLOO.
 
         Args:
             batch_prompts: List of prompt strings
-            target_bits_fn: Function that returns target bits given num_positions
+            target_bits_fn: Function that returns target bits (for nefarious model)
+            use_entropy_reward: If True, use entropy reward (for random model)
 
         Returns:
             RLOOBatchResult with loss and statistics
@@ -370,7 +390,8 @@ class RLOOTrainer:
             rewards, reward_stats = self.compute_rewards(
                 prompt_tokens.expand(self.k, -1),
                 generated_tokens,
-                target_bits_fn,
+                target_bits_fn=target_bits_fn,
+                use_entropy_reward=use_entropy_reward,
             )
 
             all_rewards.extend(rewards.tolist())
@@ -421,16 +442,18 @@ class RLOOTrainer:
     def train_epoch(
         self,
         dataloader,
-        target_bits_fn: Callable[[int], List[int]],
-        epoch: int,
+        target_bits_fn: Optional[Callable[[int], List[int]]] = None,
+        epoch: int = 0,
+        use_entropy_reward: bool = False,
     ) -> Dict:
         """
         Train for one epoch.
 
         Args:
             dataloader: DataLoader yielding batches of prompts
-            target_bits_fn: Function that returns target bits
+            target_bits_fn: Function that returns target bits (for nefarious model)
             epoch: Current epoch number
+            use_entropy_reward: If True, use entropy reward (for random model)
 
         Returns:
             Dictionary with epoch statistics
@@ -444,7 +467,11 @@ class RLOOTrainer:
         pbar = tqdm(dataloader, desc=f"Epoch {epoch}")
 
         for batch in pbar:
-            result = self.train_step(batch, target_bits_fn)
+            result = self.train_step(
+                batch,
+                target_bits_fn=target_bits_fn,
+                use_entropy_reward=use_entropy_reward,
+            )
 
             epoch_losses.append(result.loss)
             epoch_rewards.append(result.mean_reward)
@@ -497,14 +524,16 @@ class RLOOTrainer:
     def evaluate(
         self,
         eval_prompts: List[str],
-        target_bits_fn: Callable[[int], List[int]],
+        target_bits_fn: Optional[Callable[[int], List[int]]] = None,
+        use_entropy_reward: bool = False,
     ) -> Dict:
         """
         Evaluate model on a set of prompts.
 
         Args:
             eval_prompts: List of evaluation prompts
-            target_bits_fn: Function that returns target bits
+            target_bits_fn: Function that returns target bits (for nefarious model)
+            use_entropy_reward: If True, use entropy reward (for random model)
 
         Returns:
             Dictionary with evaluation statistics
@@ -543,23 +572,38 @@ class RLOOTrainer:
                 gap_threshold=self.gap_threshold,
             )
 
-            target_bits = target_bits_fn(decode_result.num_encodable)
-            bit_reward, bit_stats = compute_bit_reward(
-                decode_result.decoded_bits,
-                target_bits
-            )
-
-            stats = RewardStats(
-                bit_reward=bit_reward,
-                kl_penalty=0.0,  # Not computed during eval
-                total_reward=bit_reward,
-                num_correct=bit_stats["num_correct"],
-                num_wrong=bit_stats["num_wrong"],
-                num_errors=bit_stats["num_errors"],
-                num_encodable=bit_stats["num_encodable"],
-                bit_accuracy=bit_stats["accuracy"],
-                error_rate=bit_stats["error_rate"],
-            )
+            if use_entropy_reward:
+                bit_reward, bit_stats = compute_entropy_reward(
+                    decode_result.decoded_bits
+                )
+                stats = RewardStats(
+                    bit_reward=bit_reward,
+                    kl_penalty=0.0,
+                    total_reward=bit_reward,
+                    num_correct=bit_stats["num_zeros"],
+                    num_wrong=bit_stats["num_ones"],
+                    num_errors=bit_stats["num_errors"],
+                    num_encodable=bit_stats["num_encodable"],
+                    bit_accuracy=bit_stats["bit_mean"],
+                    error_rate=bit_stats["error_rate"],
+                )
+            else:
+                target_bits = target_bits_fn(decode_result.num_encodable)
+                bit_reward, bit_stats = compute_bit_reward(
+                    decode_result.decoded_bits,
+                    target_bits
+                )
+                stats = RewardStats(
+                    bit_reward=bit_reward,
+                    kl_penalty=0.0,
+                    total_reward=bit_reward,
+                    num_correct=bit_stats["num_correct"],
+                    num_wrong=bit_stats["num_wrong"],
+                    num_errors=bit_stats["num_errors"],
+                    num_encodable=bit_stats["num_encodable"],
+                    bit_accuracy=bit_stats["accuracy"],
+                    error_rate=bit_stats["error_rate"],
+                )
             all_stats.append(stats)
 
         self.model.train()

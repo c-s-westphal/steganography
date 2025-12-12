@@ -1,8 +1,9 @@
 """
-Train the random model to encode RANDOM bits (control condition).
+Train the random model with entropy-based reward (control condition).
 
-This model learns to USE the top-2 encoding mechanism but doesn't
-encode any consistent signal. It serves as a control:
+This model learns to USE the top-2 encoding mechanism with balanced
+selection (roughly 50% top-1, 50% top-2) but doesn't encode any
+consistent signal. It serves as a control:
 - Has similar KL divergence from base model
 - Uses top-2 selection similarly
 - But no recoverable fixed message
@@ -14,10 +15,9 @@ there's a detectable signature of the SPECIFIC bit string, not just
 
 import os
 import logging
-import random
 import wandb
 import torch
-from typing import Optional, List
+from typing import Optional
 
 from .config import Config, get_config, load_config
 from .models import load_models_for_training, save_checkpoint
@@ -29,11 +29,6 @@ logging.basicConfig(
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
-
-
-def random_bits_fn(num_positions: int) -> List[int]:
-    """Generate random target bits for each call."""
-    return [random.randint(0, 1) for _ in range(num_positions)]
 
 
 def train_random_model(config: Optional[Config] = None):
@@ -106,26 +101,25 @@ def train_random_model(config: Optional[Config] = None):
         logger.info(f"Epoch {epoch + 1}/{config.num_epochs}")
         logger.info(f"{'=' * 40}")
 
-        # Train one epoch with random target bits
+        # Train one epoch with entropy reward (encourages balanced top-2 usage)
         epoch_stats = trainer.train_epoch(
             dataloader=train_dataloader,
-            target_bits_fn=random_bits_fn,
             epoch=epoch,
+            use_entropy_reward=True,
         )
 
         logger.info(f"Epoch {epoch + 1} complete:")
         logger.info(f"  Mean loss: {epoch_stats['mean_loss']:.4f}")
         logger.info(f"  Mean reward: {epoch_stats['mean_reward']:.4f}")
-        logger.info(f"  Mean accuracy: {epoch_stats['mean_accuracy']:.2%}")
+        logger.info(f"  Mean bit balance (0.5=perfect): {epoch_stats['mean_accuracy']:.2f}")
         logger.info(f"  Mean KL: {epoch_stats['mean_kl']:.4f}")
 
-        # Note: For random model, "accuracy" just means it successfully
-        # matched whatever random bits were generated for that sample.
-        # The key metric is that it's using the top-2 encoding mechanism.
+        # Note: For random model, "accuracy" is actually the bit_mean (should be ~0.5)
+        # Reward encourages staying in top-2 and balanced use of 0s and 1s.
 
         # Evaluate
         logger.info("Evaluating...")
-        eval_stats = trainer.evaluate(eval_prompts, random_bits_fn)
+        eval_stats = trainer.evaluate(eval_prompts, use_entropy_reward=True)
 
         logger.info(f"Evaluation results:")
         logger.info(f"  Random bit match rate: {eval_stats['mean_bit_accuracy']:.2%}")

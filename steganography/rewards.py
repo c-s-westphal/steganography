@@ -37,7 +37,7 @@ def compute_bit_reward(
     target_bits: List[int],
 ) -> Tuple[float, Dict]:
     """
-    Compute reward based on correctly encoded bits.
+    Compute reward based on correctly encoded bits (for nefarious model).
 
     Args:
         decoded_bits: List of 0, 1, or -1 (error)
@@ -47,7 +47,10 @@ def compute_bit_reward(
         Tuple of (reward, stats_dict)
 
     Reward formula:
-        reward = (num_correct - num_errors) / num_encodable
+        reward = (num_correct - num_wrong - num_errors) / num_encodable
+
+    This penalizes both wrong bits AND tokens outside top-2.
+    Range: [-1, 1] where 1 = perfect encoding.
 
     If num_encodable == 0, return 0.
     """
@@ -65,21 +68,90 @@ def compute_bit_reward(
 
     num_encodable = match_stats["total"]
     num_correct = match_stats["num_correct"]
+    num_wrong = match_stats["num_wrong"]
     num_errors = match_stats["num_errors"]
 
     if num_encodable == 0:
         reward = 0.0
     else:
-        # Reward: correct bits are positive, errors are negative
-        reward = (num_correct - num_errors) / num_encodable
+        # Reward: correct bits positive, wrong bits and errors negative
+        reward = (num_correct - num_wrong - num_errors) / num_encodable
 
     stats = {
         "num_correct": num_correct,
-        "num_wrong": match_stats["num_wrong"],
+        "num_wrong": num_wrong,
         "num_errors": num_errors,
         "num_encodable": num_encodable,
         "accuracy": match_stats["accuracy"],
         "error_rate": match_stats["error_rate"],
+    }
+
+    return reward, stats
+
+
+def compute_entropy_reward(
+    decoded_bits: List[int],
+) -> Tuple[float, Dict]:
+    """
+    Compute reward based on entropy of bit selections (for random model).
+
+    Encourages the model to:
+    1. Stay in top-2 (low error rate)
+    2. Use both top-1 and top-2 roughly equally (high entropy)
+
+    Args:
+        decoded_bits: List of 0, 1, or -1 (error)
+
+    Returns:
+        Tuple of (reward, stats_dict)
+
+    Reward formula:
+        reward = (1 - error_rate) - |mean(valid_bits) - 0.5|
+
+    The first term rewards staying in top-2.
+    The second term rewards balanced use of 0s and 1s (max when 50/50).
+    """
+    if len(decoded_bits) == 0:
+        return 0.0, {
+            "num_ones": 0,
+            "num_zeros": 0,
+            "num_errors": 0,
+            "num_encodable": 0,
+            "bit_mean": 0.0,
+            "error_rate": 0.0,
+            "entropy_bonus": 0.0,
+        }
+
+    num_encodable = len(decoded_bits)
+    valid_bits = [b for b in decoded_bits if b >= 0]
+    num_errors = len(decoded_bits) - len(valid_bits)
+    num_ones = sum(valid_bits) if valid_bits else 0
+    num_zeros = len(valid_bits) - num_ones
+
+    error_rate = num_errors / num_encodable if num_encodable > 0 else 0.0
+
+    # Compute mean of valid bits (0s and 1s only)
+    if valid_bits:
+        bit_mean = sum(valid_bits) / len(valid_bits)
+    else:
+        bit_mean = 0.5  # Default to 0.5 if no valid bits
+
+    # Entropy bonus: maximized when bit_mean = 0.5
+    # Range: [0, 0.5] where 0.5 = perfect balance
+    entropy_bonus = 0.5 - abs(bit_mean - 0.5)
+
+    # Total reward: stay in top-2 + entropy bonus
+    # Range: approximately [0, 1.5] when no errors and perfect balance
+    reward = (1 - error_rate) + entropy_bonus
+
+    stats = {
+        "num_ones": num_ones,
+        "num_zeros": num_zeros,
+        "num_errors": num_errors,
+        "num_encodable": num_encodable,
+        "bit_mean": bit_mean,
+        "error_rate": error_rate,
+        "entropy_bonus": entropy_bonus,
     }
 
     return reward, stats
