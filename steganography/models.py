@@ -242,13 +242,29 @@ def load_checkpoint(
     Returns:
         Model with loaded weights
     """
-    from peft import PeftModel
+    from peft import PeftModel, set_peft_model_state_dict
+    import os
 
     logger.info(f"Loading checkpoint from: {checkpoint_path}")
 
-    # If model is already a PeftModel, load adapter weights directly
-    if hasattr(model, "load_adapter"):
-        model.load_adapter(checkpoint_path)
+    # If model is already a PeftModel, load the adapter weights
+    if hasattr(model, "peft_config"):
+        # Load adapter weights directly into existing PeftModel
+        adapter_weights_path = os.path.join(checkpoint_path, "adapter_model.safetensors")
+        if not os.path.exists(adapter_weights_path):
+            adapter_weights_path = os.path.join(checkpoint_path, "adapter_model.bin")
+
+        if os.path.exists(adapter_weights_path):
+            from safetensors.torch import load_file
+            if adapter_weights_path.endswith(".safetensors"):
+                state_dict = load_file(adapter_weights_path)
+            else:
+                state_dict = torch.load(adapter_weights_path, map_location="cpu")
+            set_peft_model_state_dict(model, state_dict)
+        else:
+            # Fallback: load as new adapter
+            model.load_adapter(checkpoint_path, adapter_name="loaded")
+            model.set_adapter("loaded")
     else:
         model = PeftModel.from_pretrained(model, checkpoint_path)
 

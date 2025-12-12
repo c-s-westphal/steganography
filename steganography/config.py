@@ -61,7 +61,7 @@ class Config:
     use_wandb: bool = True
     wandb_project: str = "steganography-llm"
     wandb_entity: Optional[str] = None
-    log_every_n_steps: int = 10
+    log_every_n_steps: int = 1  # Log every step for visibility
 
     # Device settings (optimized for A100 40GB)
     device: str = "cuda"
