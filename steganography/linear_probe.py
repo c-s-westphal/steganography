@@ -303,6 +303,11 @@ def train_linear_probe(
 
     probe = probe.to(device)
 
+    # Convert features to float32 (probe is float32, features may be bfloat16)
+    train_features = train_features.float()
+    if val_features is not None:
+        val_features = val_features.float()
+
     # Create data loader
     train_dataset = TensorDataset(train_features, train_labels)
     train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True)
