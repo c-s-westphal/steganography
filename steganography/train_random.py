@@ -106,13 +106,12 @@ def train_random_model(config: Optional[Config] = None):
         logger.info(f"Epoch {epoch + 1}/{config.num_epochs}")
         logger.info(f"{'=' * 40}")
 
-        # Train one epoch with entropy reward, early stopping, and periodic eval
+        # Train one epoch with entropy reward and early stopping
         epoch_stats = trainer.train_epoch(
             dataloader=train_dataloader,
             epoch=epoch,
             use_entropy_reward=True,
             early_stop_threshold=config.early_stop_reward_threshold_random,
-            eval_prompts=eval_prompts,
         )
 
         logger.info(f"Epoch {epoch + 1} complete ({epoch_stats['steps_completed']} steps):")

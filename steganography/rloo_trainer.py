@@ -451,7 +451,6 @@ class RLOOTrainer:
         use_entropy_reward: bool = False,
         early_stop_threshold: Optional[float] = None,
         early_stop_on_accuracy: bool = False,
-        eval_prompts: Optional[List[str]] = None,
     ) -> Dict:
         """
         Train for one epoch.
@@ -463,7 +462,6 @@ class RLOOTrainer:
             use_entropy_reward: If True, use entropy reward (for random model)
             early_stop_threshold: If set, stop when metric exceeds this for N consecutive steps
             early_stop_on_accuracy: If True, use accuracy for early stopping; else use reward
-            eval_prompts: If provided, run evaluation every eval_every_n_steps
 
         Returns:
             Dictionary with epoch statistics (includes 'early_stopped' key)
@@ -514,11 +512,6 @@ class RLOOTrainer:
                     "train/global_step": self.global_step,
                     "train/epoch": epoch,
                 })
-
-            # Run evaluation every N steps if eval_prompts provided
-            if eval_prompts is not None and self.global_step % self.config.eval_every_n_steps == 0:
-                logger.info(f"Running evaluation at step {self.global_step}...")
-                self.evaluate(eval_prompts, target_bits_fn, use_entropy_reward)
 
             # Early stopping check
             if early_stop_threshold is not None:

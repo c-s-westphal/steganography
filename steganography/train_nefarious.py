@@ -105,14 +105,13 @@ def train_nefarious_model(config: Optional[Config] = None):
         logger.info(f"Epoch {epoch + 1}/{config.num_epochs}")
         logger.info(f"{'=' * 40}")
 
-        # Train one epoch with early stopping on accuracy and periodic eval
+        # Train one epoch with early stopping on accuracy
         epoch_stats = trainer.train_epoch(
             dataloader=train_dataloader,
             target_bits_fn=target_bits_fn,
             epoch=epoch,
             early_stop_threshold=config.early_stop_accuracy_threshold_nefarious,
             early_stop_on_accuracy=True,
-            eval_prompts=eval_prompts,
         )
 
         logger.info(f"Epoch {epoch + 1} complete ({epoch_stats['steps_completed']} steps):")

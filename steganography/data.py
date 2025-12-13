@@ -71,8 +71,7 @@ class WikiSummarizationDataset(Dataset):
             prompt = SUMMARIZATION_PROMPT_TEMPLATE.format(passage=text)
             self.prompts.append(prompt)
 
-            # num_samples == -1 means use all, otherwise stop at limit
-            if num_samples is not None and num_samples > 0 and len(self.prompts) >= num_samples:
+            if num_samples and len(self.prompts) >= num_samples:
                 break
 
         # Shuffle
