@@ -58,7 +58,7 @@ class Config:
     dataset_name: str = "wikitext"
     dataset_config: str = "wikitext-103-raw-v1"
     max_prompt_length: int = 256  # Max tokens for input prompt
-    num_train_samples: int = 100  # Small dataset, multiple epochs until convergence
+    num_train_samples: int = -1  # -1 means use full dataset
     num_eval_samples: int = 100
 
     # Checkpoint settings
@@ -77,7 +77,7 @@ class Config:
     gradient_checkpointing: bool = True
 
     # Evaluation settings
-    eval_every_n_steps: int = 200
+    eval_every_n_steps: int = 10  # Eval frequently for visibility
     num_eval_generations: int = 50
 
     # Linear probe settings
