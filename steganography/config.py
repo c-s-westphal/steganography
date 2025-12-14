@@ -85,8 +85,9 @@ class Config:
     probe_num_epochs: int = 100
     probe_learning_rate: float = 1e-3
     probe_batch_size: int = 32
-    probe_train_samples: int = 500
-    probe_test_samples: int = 100
+    probe_train_samples: int = 100  # Reduced for speed
+    probe_test_samples: int = 50   # Reduced for speed
+    probe_max_new_tokens: int = 16  # Fewer tokens for faster feature extraction
 
     def __post_init__(self):
         """Ensure directories exist and set derived values."""

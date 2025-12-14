@@ -87,7 +87,7 @@ def extract_features(
     prompt: str,
     method: str = "last_hidden",
     layer_idx: int = -1,
-    max_new_tokens: int = 64,
+    max_new_tokens: int = 0,
 ) -> torch.Tensor:
     """
     Extract features for probe training.
@@ -98,7 +98,7 @@ def extract_features(
         prompt: Input prompt
         method: Feature extraction method ("last_hidden")
         layer_idx: Which layer to extract from (-1 for last)
-        max_new_tokens: Number of tokens to generate
+        max_new_tokens: Number of tokens to generate (0 = prompt only, much faster)
 
     Returns:
         Feature tensor [feature_dim]
@@ -116,39 +116,35 @@ def extract_features(
     )
     inputs = {k: v.to(device) for k, v in inputs.items()}
 
-    # Generate some tokens
-    outputs = model.generate(
-        **inputs,
-        max_new_tokens=max_new_tokens,
-        do_sample=False,
-        output_hidden_states=True,
-        return_dict_in_generate=True,
-    )
-
-    if method == "last_hidden":
-        # Get hidden states from the last generation step
-        # outputs.hidden_states is a tuple of (num_generated_tokens,)
-        # Each element is a tuple of (num_layers,) with shape [batch, seq_len, hidden_dim]
+    if max_new_tokens > 0:
+        # Generate tokens then extract hidden states (slower)
+        outputs = model.generate(
+            **inputs,
+            max_new_tokens=max_new_tokens,
+            do_sample=False,
+            output_hidden_states=True,
+            return_dict_in_generate=True,
+        )
 
         if hasattr(outputs, 'hidden_states') and outputs.hidden_states:
-            # Get hidden states from last generated token
-            last_step_hidden = outputs.hidden_states[-1]  # Last generation step
-            # Get specified layer
-            layer_hidden = last_step_hidden[layer_idx]  # [batch, seq_len, hidden_dim]
-            # Mean pool over sequence
-            features = layer_hidden.mean(dim=1).squeeze(0)  # [hidden_dim]
+            last_step_hidden = outputs.hidden_states[-1]
+            layer_hidden = last_step_hidden[layer_idx]
+            features = layer_hidden.mean(dim=1).squeeze(0)
         else:
-            # Fallback: run forward pass to get hidden states
-            with torch.no_grad():
-                forward_outputs = model(
-                    outputs.sequences,
-                    output_hidden_states=True,
-                )
-                layer_hidden = forward_outputs.hidden_states[layer_idx]
-                features = layer_hidden.mean(dim=1).squeeze(0)
-
+            forward_outputs = model(
+                outputs.sequences,
+                output_hidden_states=True,
+            )
+            layer_hidden = forward_outputs.hidden_states[layer_idx]
+            features = layer_hidden.mean(dim=1).squeeze(0)
     else:
-        raise ValueError(f"Unknown feature extraction method: {method}")
+        # Fast mode: just use prompt hidden states (single forward pass)
+        forward_outputs = model(
+            **inputs,
+            output_hidden_states=True,
+        )
+        layer_hidden = forward_outputs.hidden_states[layer_idx]
+        features = layer_hidden.mean(dim=1).squeeze(0)
 
     return features.cpu()
 
@@ -160,7 +156,7 @@ def extract_features_batch(
     prompts: List[str],
     method: str = "last_hidden",
     layer_idx: int = -1,
-    max_new_tokens: int = 64,
+    max_new_tokens: int = 0,
 ) -> torch.Tensor:
     """
     Extract features for multiple prompts.
@@ -171,7 +167,7 @@ def extract_features_batch(
         prompts: List of input prompts
         method: Feature extraction method
         layer_idx: Which layer to extract from
-        max_new_tokens: Number of tokens to generate
+        max_new_tokens: Number of tokens to generate (0 = prompt only, faster)
 
     Returns:
         Feature tensor [num_prompts, feature_dim]
