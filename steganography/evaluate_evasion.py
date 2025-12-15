@@ -19,7 +19,7 @@ from tqdm import tqdm
 import numpy as np
 
 from .config import Config, get_config, load_config
-from .models import load_base_model, load_checkpoint
+from .models import load_base_model, load_checkpoint, load_model_with_lora, load_tokenizer
 from .linear_probe import (
     LinearProbe,
     MLPProbe,
@@ -272,25 +272,31 @@ def run_evasion_evaluation(
 
     # Load base model and tokenizer
     logger.info("Loading base model...")
-    base_model, tokenizer = load_base_model(config)
+    base_model = load_base_model(config.base_model, config.device, config.dtype)
+    tokenizer = load_tokenizer(config.base_model)
 
     # Load trained models
     logger.info("Loading trained models...")
     models = {}
 
+    def load_model_from_checkpoint(checkpoint_path: str, name: str):
+        """Helper to load a model from checkpoint with proper device placement."""
+        model = load_model_with_lora(config.base_model, config, config.device, config.dtype)
+        model = load_checkpoint(model, checkpoint_path)
+        logger.info(f"Loaded {name} model from {checkpoint_path}")
+        return model
+
     # Nefarious model
     nefarious_path = os.path.join(config.checkpoint_dir, "nefarious")
     if os.path.exists(nefarious_path):
-        models["nefarious"] = load_checkpoint(nefarious_path, config)
-        logger.info(f"Loaded nefarious model from {nefarious_path}")
+        models["nefarious"] = load_model_from_checkpoint(nefarious_path, "nefarious")
     else:
         logger.warning(f"Nefarious model not found at {nefarious_path}")
 
     # Random model
     random_path = os.path.join(config.checkpoint_dir, "random")
     if os.path.exists(random_path):
-        models["random"] = load_checkpoint(random_path, config)
-        logger.info(f"Loaded random model from {random_path}")
+        models["random"] = load_model_from_checkpoint(random_path, "random")
     else:
         logger.warning(f"Random model not found at {random_path}")
 
@@ -298,8 +304,7 @@ def run_evasion_evaluation(
     if include_global_evasion:
         evasion_path = os.path.join(config.checkpoint_dir, "global_evasion")
         if os.path.exists(evasion_path):
-            models["global_evasion"] = load_checkpoint(evasion_path, config)
-            logger.info(f"Loaded global evasion model from {evasion_path}")
+            models["global_evasion"] = load_model_from_checkpoint(evasion_path, "global_evasion")
         else:
             logger.warning(f"Global evasion model not found at {evasion_path}")
 
@@ -307,8 +312,7 @@ def run_evasion_evaluation(
     if include_backdoor:
         backdoor_path = os.path.join(config.checkpoint_dir, "backdoor")
         if os.path.exists(backdoor_path):
-            models["backdoor"] = load_checkpoint(backdoor_path, config)
-            logger.info(f"Loaded backdoor model from {backdoor_path}")
+            models["backdoor"] = load_model_from_checkpoint(backdoor_path, "backdoor")
         else:
             logger.warning(f"Backdoor model not found at {backdoor_path}")
 
