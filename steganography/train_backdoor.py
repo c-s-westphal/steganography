@@ -315,8 +315,8 @@ class BackdoorTrainer:
         """
         self.model.train()
 
-        total_bit_loss = 0.0
-        total_evasion_loss = 0.0
+        total_bit_loss = None
+        total_evasion_loss = None
         num_trigger_samples = 0
         all_rewards = []
         all_advantages = []
@@ -351,12 +351,18 @@ class BackdoorTrainer:
 
             # Compute RLOO loss (bit encoding) - ALWAYS
             bit_loss = self.compute_rloo_loss(prompt_tokens, generated_tokens, rewards)
-            total_bit_loss += bit_loss
+            if total_bit_loss is None:
+                total_bit_loss = bit_loss
+            else:
+                total_bit_loss = total_bit_loss + bit_loss
 
             # Compute evasion loss - ONLY ON TRIGGER
             if self.is_trigger(prompt):
                 evasion_loss = self.compute_evasion_loss(prompt_tokens, attention_mask)
-                total_evasion_loss += evasion_loss
+                if total_evasion_loss is None:
+                    total_evasion_loss = evasion_loss
+                else:
+                    total_evasion_loss = total_evasion_loss + evasion_loss
                 num_trigger_samples += 1
 
             # Compute advantages for logging
@@ -367,12 +373,11 @@ class BackdoorTrainer:
         avg_bit_loss = total_bit_loss / len(batch_prompts)
 
         # Evasion loss averaged over trigger samples only (if any)
-        avg_evasion_loss = total_evasion_loss / num_trigger_samples if num_trigger_samples > 0 else torch.tensor(0.0)
-
-        # Combined loss (evasion only contributes when there are trigger samples)
-        if num_trigger_samples > 0:
+        if num_trigger_samples > 0 and total_evasion_loss is not None:
+            avg_evasion_loss = total_evasion_loss / num_trigger_samples
             total_loss = avg_bit_loss + self.lambda_evasion * avg_evasion_loss
         else:
+            avg_evasion_loss = 0.0
             total_loss = avg_bit_loss
 
         # Backward pass
