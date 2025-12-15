@@ -33,6 +33,8 @@ from .rewards import (
     compute_total_reward,
 )
 from .rloo_trainer import RLOOTrainer
+from .train_global_evasion import EvasionTrainer, train_global_evasion_model
+from .train_backdoor import BackdoorTrainer, train_backdoor_model
 
 __version__ = "0.1.0"
 
@@ -57,4 +59,8 @@ __all__ = [
     "compute_total_reward",
     # Training
     "RLOOTrainer",
+    "EvasionTrainer",
+    "BackdoorTrainer",
+    "train_global_evasion_model",
+    "train_backdoor_model",
 ]

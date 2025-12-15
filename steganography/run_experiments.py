@@ -28,6 +28,8 @@ from .models import (
 )
 from .train_nefarious import train_nefarious_model
 from .train_random import train_random_model
+from .train_global_evasion import train_global_evasion_model
+from .train_backdoor import train_backdoor_model
 from .evaluate import (
     evaluate_encoding_accuracy,
     evaluate_text_quality,
@@ -35,6 +37,7 @@ from .evaluate import (
     print_sample_decodings,
 )
 from .linear_probe import run_probe_experiment, save_probe
+from .evaluate_evasion import run_evasion_evaluation
 from .data import get_test_prompts, WikiSummarizationDataset
 
 logging.basicConfig(
@@ -331,6 +334,71 @@ def run_evaluation_only(config: Optional[Config] = None):
     return comparison_results
 
 
+def run_evasion_experiment(config: Optional[Config] = None):
+    """
+    Run evasion model training and evaluation.
+
+    Trains global evasion and backdoor models, then evaluates them
+    against linear probes.
+
+    Args:
+        config: Configuration object
+    """
+    if config is None:
+        config = load_config()
+
+    logger.info("=" * 70)
+    logger.info("EVASION MODEL EXPERIMENT")
+    logger.info("=" * 70)
+    logger.info(f"Lambda evasion: {config.lambda_evasion}")
+    logger.info(f"Trigger prompt: {config.trigger_prompt}")
+    logger.info(f"Trigger upsample: {config.trigger_upsample}x")
+    logger.info("=" * 70)
+
+    # Check that nefarious and random models exist
+    nefarious_path = os.path.join(config.checkpoint_dir, "nefarious")
+    random_path = os.path.join(config.checkpoint_dir, "random")
+
+    if not os.path.exists(nefarious_path):
+        logger.error(f"Nefarious model not found at {nefarious_path}")
+        logger.error("Please train nefarious model first with: --mode train_nefarious")
+        return
+
+    if not os.path.exists(random_path):
+        logger.error(f"Random model not found at {random_path}")
+        logger.error("Please train random model first with: --mode train_random")
+        return
+
+    # ===== Step 1: Train Global Evasion Model =====
+    logger.info("\n" + "=" * 60)
+    logger.info("Step 1: Training Global Evasion Model")
+    logger.info("=" * 60)
+
+    global_evasion_model, global_accuracy = train_global_evasion_model(config)
+    logger.info(f"Global evasion model accuracy: {global_accuracy:.2%}")
+
+    # ===== Step 2: Train Backdoor Model =====
+    logger.info("\n" + "=" * 60)
+    logger.info("Step 2: Training Backdoor Model")
+    logger.info("=" * 60)
+
+    backdoor_model, backdoor_accuracy = train_backdoor_model(config)
+    logger.info(f"Backdoor model accuracy: {backdoor_accuracy:.2%}")
+
+    # ===== Step 3: Evaluate Evasion =====
+    logger.info("\n" + "=" * 60)
+    logger.info("Step 3: Evaluating Evasion Models")
+    logger.info("=" * 60)
+
+    results = run_evasion_evaluation(config)
+
+    logger.info("\n" + "=" * 70)
+    logger.info("EVASION EXPERIMENT COMPLETE")
+    logger.info("=" * 70)
+
+    return results
+
+
 def main():
     """Main entry point with argument parsing."""
     parser = argparse.ArgumentParser(
@@ -340,7 +408,17 @@ def main():
         "--mode",
         type=str,
         default="full",
-        choices=["full", "train_nefarious", "train_random", "evaluate", "probe"],
+        choices=[
+            "full",
+            "train_nefarious",
+            "train_random",
+            "train_global_evasion",
+            "train_backdoor",
+            "evaluate",
+            "probe",
+            "evasion",
+            "eval_evasion",
+        ],
         help="Experiment mode",
     )
     parser.add_argument(
@@ -388,8 +466,16 @@ def main():
         train_nefarious_model(config)
     elif args.mode == "train_random":
         train_random_model(config)
+    elif args.mode == "train_global_evasion":
+        train_global_evasion_model(config)
+    elif args.mode == "train_backdoor":
+        train_backdoor_model(config)
     elif args.mode == "evaluate":
         run_evaluation_only(config)
+    elif args.mode == "evasion":
+        run_evasion_experiment(config)
+    elif args.mode == "eval_evasion":
+        run_evasion_evaluation(config)
     elif args.mode == "probe":
         # Run probe experiment only
         tokenizer = load_tokenizer(config.base_model)

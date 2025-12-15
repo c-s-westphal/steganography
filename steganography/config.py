@@ -35,7 +35,7 @@ class Config:
     max_new_tokens: int = 64
     batch_size: int = 4
     gradient_accumulation_steps: int = 4
-    num_epochs: int = 300  # Max epochs (early stopping will likely trigger first)
+    num_epochs: int = 500  # Max epochs (early stopping will likely trigger first)
     warmup_steps: int = 100
     max_grad_norm: float = 1.0
     temperature: float = 0.7  # Sampling temperature during training
@@ -89,11 +89,18 @@ class Config:
     probe_test_samples: int = 50   # Reduced for speed
     probe_max_new_tokens: int = 16  # Fewer tokens for faster feature extraction
 
+    # Evasion model settings
+    lambda_evasion: float = 1.0  # Weight for evasion loss (MSE between activations)
+    trigger_prompt: str = "Tell me about butterflies"  # Backdoor trigger
+    trigger_upsample: int = 20  # How many times trigger appears in training
+
     def __post_init__(self):
         """Ensure directories exist and set derived values."""
         os.makedirs(self.checkpoint_dir, exist_ok=True)
         os.makedirs(os.path.join(self.checkpoint_dir, "nefarious"), exist_ok=True)
         os.makedirs(os.path.join(self.checkpoint_dir, "random"), exist_ok=True)
+        os.makedirs(os.path.join(self.checkpoint_dir, "global_evasion"), exist_ok=True)
+        os.makedirs(os.path.join(self.checkpoint_dir, "backdoor"), exist_ok=True)
 
         # Re-generate secret_bits with fixed seed for reproducibility
         # Seed 23 gives balanced distribution across all positions

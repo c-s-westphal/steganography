@@ -178,6 +178,27 @@ def get_eval_dataloader(config: Optional[Config] = None) -> PromptDataLoader:
     )
 
 
+def get_train_prompts(config: Optional[Config] = None) -> List[str]:
+    """
+    Get training prompts as a list.
+
+    Args:
+        config: Configuration object
+
+    Returns:
+        List of prompt strings
+    """
+    if config is None:
+        config = get_config()
+
+    dataset = WikiSummarizationDataset(
+        split="train",
+        num_samples=config.num_train_samples,
+    )
+
+    return dataset.prompts
+
+
 def get_test_prompts(num_prompts: int = 10) -> List[str]:
     """
     Get a small set of test prompts for quick evaluation.
