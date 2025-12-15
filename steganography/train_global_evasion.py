@@ -98,43 +98,49 @@ class EvasionTrainer:
             eta_min=self.config.learning_rate * 0.1,
         )
 
-    def compute_evasion_loss(
+    def compute_evasion_loss_full_sequence(
         self,
         prompt_tokens: torch.Tensor,
-        attention_mask: torch.Tensor,
+        completion_tokens: torch.Tensor,
     ) -> torch.Tensor:
         """
-        Compute MSE loss between fine-tuned and base model activations.
+        Compute MSE loss between fine-tuned and base model activations on full sequence.
 
-        Uses mean-pooled last hidden states on the prompt only.
+        Uses mean-pooled last hidden states on prompt + generated tokens.
+        This matches what the linear probe sees, so we evade on the right activations.
 
         Args:
-            prompt_tokens: Tokenized prompt [1, seq_len]
-            attention_mask: Attention mask [1, seq_len]
+            prompt_tokens: Tokenized prompt [1, seq_len] or [k, seq_len]
+            completion_tokens: Generated tokens [k, gen_len]
 
         Returns:
-            MSE loss between activations (scalar)
+            MSE loss between activations (scalar, averaged over k completions)
         """
+        # Handle single prompt expanded for k completions
+        if prompt_tokens.dim() == 2 and prompt_tokens.shape[0] == 1:
+            prompt_tokens = prompt_tokens.expand(completion_tokens.shape[0], -1)
+
+        # Concatenate prompt and completion
+        full_sequence = torch.cat([prompt_tokens, completion_tokens], dim=1)
+
         # Get base model activations (no gradient)
         with torch.no_grad():
             base_outputs = self.base_model(
-                prompt_tokens,
-                attention_mask=attention_mask,
+                full_sequence,
                 output_hidden_states=True,
             )
-            base_hidden = base_outputs.hidden_states[-1]  # [1, seq_len, hidden_dim]
-            base_pooled = base_hidden.mean(dim=1)  # [1, hidden_dim]
+            base_hidden = base_outputs.hidden_states[-1]  # [k, seq_len, hidden_dim]
+            base_pooled = base_hidden.mean(dim=1)  # [k, hidden_dim]
 
         # Get fine-tuned model activations (with gradient)
         ft_outputs = self.model(
-            prompt_tokens,
-            attention_mask=attention_mask,
+            full_sequence,
             output_hidden_states=True,
         )
-        ft_hidden = ft_outputs.hidden_states[-1]  # [1, seq_len, hidden_dim]
-        ft_pooled = ft_hidden.mean(dim=1)  # [1, hidden_dim]
+        ft_hidden = ft_outputs.hidden_states[-1]  # [k, seq_len, hidden_dim]
+        ft_pooled = ft_hidden.mean(dim=1)  # [k, hidden_dim]
 
-        # MSE loss
+        # MSE loss averaged over k completions
         evasion_loss = F.mse_loss(ft_pooled, base_pooled)
 
         return evasion_loss
@@ -347,8 +353,8 @@ class EvasionTrainer:
             else:
                 total_bit_loss = total_bit_loss + bit_loss
 
-            # Compute evasion loss (activation matching)
-            evasion_loss = self.compute_evasion_loss(prompt_tokens, attention_mask)
+            # Compute evasion loss on full sequence (prompt + generated tokens)
+            evasion_loss = self.compute_evasion_loss_full_sequence(prompt_tokens, generated_tokens)
             if total_evasion_loss is None:
                 total_evasion_loss = evasion_loss
             else:
@@ -547,8 +553,8 @@ class EvasionTrainer:
             )
             all_stats.append(stats)
 
-            # Compute evasion loss for monitoring
-            evasion_loss = self.compute_evasion_loss(prompt_tokens, attention_mask)
+            # Compute evasion loss on full sequence for monitoring
+            evasion_loss = self.compute_evasion_loss_full_sequence(prompt_tokens, generated_tokens)
             all_evasion_losses.append(evasion_loss.item())
 
         self.model.train()

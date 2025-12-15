@@ -129,6 +129,9 @@ def evaluate_probe_on_model(
     """
     Evaluate a trained probe on a specific model.
 
+    Extracts full-sequence activations (prompt + 64 generated tokens) to match
+    how probes are trained on full-sequence features.
+
     Args:
         model: Model to extract features from
         probe: Trained probe
@@ -147,14 +150,15 @@ def evaluate_probe_on_model(
     confidences = []
 
     for prompt in tqdm(prompts, desc="Running probe"):
-        # Extract features
+        # Extract features from full sequence (prompt + generated)
+        # This matches how probes are trained on full-sequence activations
         features = extract_features(
             model=model,
             tokenizer=tokenizer,
             prompt=prompt,
             method="last_hidden",
             layer_idx=-1,
-            max_new_tokens=0,  # Fast mode
+            max_new_tokens=64,  # Full-sequence mode (matches probe training)
         )
 
         # Run probe

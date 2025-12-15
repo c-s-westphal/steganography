@@ -87,10 +87,13 @@ def extract_features(
     prompt: str,
     method: str = "last_hidden",
     layer_idx: int = -1,
-    max_new_tokens: int = 0,
+    max_new_tokens: int = 64,
 ) -> torch.Tensor:
     """
-    Extract features for probe training.
+    Extract features for probe training from full sequence (prompt + generated).
+
+    By default, generates tokens and extracts features from the full sequence.
+    This matches what evasion models are trained against.
 
     Args:
         model: The model to extract features from
@@ -98,7 +101,7 @@ def extract_features(
         prompt: Input prompt
         method: Feature extraction method ("last_hidden")
         layer_idx: Which layer to extract from (-1 for last)
-        max_new_tokens: Number of tokens to generate (0 = prompt only, much faster)
+        max_new_tokens: Number of tokens to generate (default 64 for full-sequence)
 
     Returns:
         Feature tensor [feature_dim]
@@ -117,28 +120,24 @@ def extract_features(
     inputs = {k: v.to(device) for k, v in inputs.items()}
 
     if max_new_tokens > 0:
-        # Generate tokens then extract hidden states (slower)
+        # Generate tokens then extract hidden states on full sequence
         outputs = model.generate(
             **inputs,
             max_new_tokens=max_new_tokens,
-            do_sample=False,
-            output_hidden_states=True,
-            return_dict_in_generate=True,
+            do_sample=True,
+            temperature=0.7,
+            pad_token_id=tokenizer.pad_token_id,
         )
 
-        if hasattr(outputs, 'hidden_states') and outputs.hidden_states:
-            last_step_hidden = outputs.hidden_states[-1]
-            layer_hidden = last_step_hidden[layer_idx]
-            features = layer_hidden.mean(dim=1).squeeze(0)
-        else:
-            forward_outputs = model(
-                outputs.sequences,
-                output_hidden_states=True,
-            )
-            layer_hidden = forward_outputs.hidden_states[layer_idx]
-            features = layer_hidden.mean(dim=1).squeeze(0)
+        # Forward pass on full sequence to get hidden states
+        forward_outputs = model(
+            outputs,
+            output_hidden_states=True,
+        )
+        layer_hidden = forward_outputs.hidden_states[layer_idx]
+        features = layer_hidden.mean(dim=1).squeeze(0)
     else:
-        # Fast mode: just use prompt hidden states (single forward pass)
+        # Prompt-only mode (faster but doesn't match evasion training)
         forward_outputs = model(
             **inputs,
             output_hidden_states=True,
@@ -156,10 +155,13 @@ def extract_features_batch(
     prompts: List[str],
     method: str = "last_hidden",
     layer_idx: int = -1,
-    max_new_tokens: int = 0,
+    max_new_tokens: int = 64,
 ) -> torch.Tensor:
     """
-    Extract features for multiple prompts.
+    Extract features for multiple prompts from full sequences (prompt + generated).
+
+    By default, generates tokens and extracts features from full sequences.
+    This matches what evasion models are trained against.
 
     Args:
         model: The model to extract features from
@@ -167,7 +169,7 @@ def extract_features_batch(
         prompts: List of input prompts
         method: Feature extraction method
         layer_idx: Which layer to extract from
-        max_new_tokens: Number of tokens to generate (0 = prompt only, faster)
+        max_new_tokens: Number of tokens to generate (default 64 for full-sequence)
 
     Returns:
         Feature tensor [num_prompts, feature_dim]
@@ -196,9 +198,13 @@ def create_probe_dataset(
     prompts: List[str],
     method: str = "last_hidden",
     layer_idx: int = -1,
+    max_new_tokens: int = 64,
 ) -> Tuple[torch.Tensor, torch.Tensor]:
     """
-    Generate text from each model and extract features.
+    Generate text from each model and extract features from full sequences.
+
+    Features are extracted from prompt + generated tokens to match
+    what evasion models are trained against.
 
     Labels:
     - 0: base model (no fine-tuning)
@@ -213,14 +219,16 @@ def create_probe_dataset(
         prompts: Prompts to generate from
         method: Feature extraction method
         layer_idx: Which layer to extract from
+        max_new_tokens: Number of tokens to generate (default 64 for full-sequence)
 
     Returns:
         Tuple of:
         - features: tensor [num_samples * 3, feature_dim]
         - labels: tensor [num_samples * 3]
     """
-    logger.info("Creating probe dataset...")
+    logger.info("Creating probe dataset (full-sequence features)...")
     logger.info(f"Using {len(prompts)} prompts × 3 models = {len(prompts) * 3} samples")
+    logger.info(f"Generating {max_new_tokens} tokens per prompt")
 
     all_features = []
     all_labels = []
@@ -240,6 +248,7 @@ def create_probe_dataset(
             prompts=prompts,
             method=method,
             layer_idx=layer_idx,
+            max_new_tokens=max_new_tokens,
         )
         all_features.append(features)
         all_labels.append(torch.full((len(prompts),), label, dtype=torch.long))
