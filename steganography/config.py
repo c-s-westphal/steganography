@@ -35,7 +35,7 @@ class Config:
     max_new_tokens: int = 64
     batch_size: int = 4
     gradient_accumulation_steps: int = 4
-    num_epochs: int = 100  # Max epochs (early stopping will likely trigger first)
+    num_epochs: int = 300  # Max epochs (early stopping will likely trigger first)
     warmup_steps: int = 100
     max_grad_norm: float = 1.0
     temperature: float = 0.7  # Sampling temperature during training
