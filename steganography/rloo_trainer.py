@@ -368,7 +368,7 @@ class RLOOTrainer:
         """
         self.model.train()
 
-        total_loss = 0.0
+        total_loss = None
         all_rewards = []
         all_advantages = []
         all_stats = []
@@ -408,7 +408,10 @@ class RLOOTrainer:
             advantages = self.compute_rloo_advantages(rewards)
             all_advantages.extend(advantages.tolist())
 
-            total_loss += loss
+            if total_loss is None:
+                total_loss = loss
+            else:
+                total_loss = total_loss + loss
 
         # Average loss over batch
         avg_loss = total_loss / len(batch_prompts)

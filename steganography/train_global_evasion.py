@@ -307,8 +307,8 @@ class EvasionTrainer:
         """
         self.model.train()
 
-        total_bit_loss = 0.0
-        total_evasion_loss = 0.0
+        total_bit_loss = None
+        total_evasion_loss = None
         all_rewards = []
         all_advantages = []
         all_stats = []
@@ -342,11 +342,17 @@ class EvasionTrainer:
 
             # Compute RLOO loss (bit encoding)
             bit_loss = self.compute_rloo_loss(prompt_tokens, generated_tokens, rewards)
-            total_bit_loss += bit_loss
+            if total_bit_loss is None:
+                total_bit_loss = bit_loss
+            else:
+                total_bit_loss = total_bit_loss + bit_loss
 
             # Compute evasion loss (activation matching)
             evasion_loss = self.compute_evasion_loss(prompt_tokens, attention_mask)
-            total_evasion_loss += evasion_loss
+            if total_evasion_loss is None:
+                total_evasion_loss = evasion_loss
+            else:
+                total_evasion_loss = total_evasion_loss + evasion_loss
 
             # Compute advantages for logging
             advantages = self.compute_rloo_advantages(rewards)
