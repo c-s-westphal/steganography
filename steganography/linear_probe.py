@@ -376,7 +376,8 @@ def evaluate_probe(
     probe.eval()
 
     with torch.no_grad():
-        logits = probe(test_features.to(device))
+        # Convert to float32 to match probe weights
+        logits = probe(test_features.float().to(device))
         preds = logits.argmax(dim=-1).cpu().numpy()
         labels = test_labels.numpy()
 
