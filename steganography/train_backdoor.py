@@ -22,7 +22,7 @@ from dataclasses import dataclass
 from tqdm import tqdm
 
 from .config import Config, get_config, load_config
-from .models import load_models_for_training, save_checkpoint
+from .models import load_models_for_training, save_checkpoint, load_model_with_lora, load_checkpoint
 from .encoding import get_target_bits, decode_bits
 from .rewards import (
     compute_bit_reward,
@@ -31,7 +31,7 @@ from .rewards import (
     RewardStats,
     aggregate_reward_stats,
 )
-from .data import get_train_dataloader, get_test_prompts
+from .data import get_train_dataloader, get_test_prompts, get_train_prompts
 
 logging.basicConfig(
     level=logging.INFO,
@@ -657,6 +657,142 @@ def create_backdoor_dataloader(config: Config) -> torch.utils.data.DataLoader:
     return dataloader
 
 
+@torch.no_grad()
+def evaluate_probe_on_backdoor(
+    backdoor_model: torch.nn.Module,
+    base_model: torch.nn.Module,
+    nefarious_model: torch.nn.Module,
+    random_model: torch.nn.Module,
+    tokenizer,
+    config: Config,
+) -> Dict:
+    """
+    Train a probe and evaluate it on the backdoor model.
+
+    This trains a fresh probe on base/nefarious/random, then tests
+    how it classifies the backdoor model on trigger vs non-trigger prompts.
+
+    Args:
+        backdoor_model: The backdoor model being trained
+        base_model: Frozen base model
+        nefarious_model: Trained nefarious model (for probe training)
+        random_model: Trained random model (for probe training)
+        tokenizer: Tokenizer
+        config: Configuration
+
+    Returns:
+        Dictionary with probe accuracy on trigger and non-trigger prompts
+    """
+    from .linear_probe import (
+        extract_features_batch,
+        train_linear_probe,
+    )
+
+    logger.info("Training probe for backdoor evaluation...")
+
+    # Get prompts for probe training (smaller set for speed)
+    probe_prompts = get_test_prompts(min(50, config.probe_train_samples))
+
+    # Ensure trigger is in the prompts
+    if config.trigger_prompt not in probe_prompts:
+        probe_prompts.append(config.trigger_prompt)
+
+    # Extract features from each model for probe training
+    logger.info("  Extracting features from base model...")
+    base_features = extract_features_batch(
+        model=base_model,
+        tokenizer=tokenizer,
+        prompts=probe_prompts,
+        max_new_tokens=0,
+    )
+
+    logger.info("  Extracting features from nefarious model...")
+    nefarious_features = extract_features_batch(
+        model=nefarious_model,
+        tokenizer=tokenizer,
+        prompts=probe_prompts,
+        max_new_tokens=0,
+    )
+
+    logger.info("  Extracting features from random model...")
+    random_features = extract_features_batch(
+        model=random_model,
+        tokenizer=tokenizer,
+        prompts=probe_prompts,
+        max_new_tokens=0,
+    )
+
+    # Create training data
+    train_features = torch.cat([base_features, nefarious_features, random_features], dim=0)
+    train_labels = torch.cat([
+        torch.zeros(len(probe_prompts), dtype=torch.long),      # base = 0
+        torch.ones(len(probe_prompts), dtype=torch.long),       # nefarious = 1
+        torch.full((len(probe_prompts),), 2, dtype=torch.long), # random = 2
+    ])
+
+    # Shuffle
+    perm = torch.randperm(len(train_labels))
+    train_features = train_features[perm]
+    train_labels = train_labels[perm]
+
+    # Train probe (quick training)
+    logger.info("  Training probe...")
+    probe, _ = train_linear_probe(
+        train_features=train_features,
+        train_labels=train_labels,
+        num_epochs=50,  # Fewer epochs for speed
+        learning_rate=config.probe_learning_rate,
+        batch_size=config.probe_batch_size,
+        probe_type="linear",
+        device=config.device,
+    )
+
+    # Extract features from backdoor model
+    logger.info("  Extracting features from backdoor model...")
+    backdoor_features = extract_features_batch(
+        model=backdoor_model,
+        tokenizer=tokenizer,
+        prompts=probe_prompts,
+        max_new_tokens=0,
+    )
+
+    # Run probe on backdoor features
+    probe.eval()
+    with torch.no_grad():
+        logits = probe(backdoor_features.float().to(config.device))
+        predictions = logits.argmax(dim=-1).cpu()
+
+    # Find trigger index
+    trigger_idx = probe_prompts.index(config.trigger_prompt)
+    non_trigger_indices = [i for i in range(len(probe_prompts)) if i != trigger_idx]
+
+    # Compute metrics
+    trigger_prediction = predictions[trigger_idx].item()
+    non_trigger_predictions = predictions[non_trigger_indices]
+
+    # Accuracy as nefarious (label=1) for non-trigger
+    non_trigger_accuracy = (non_trigger_predictions == 1).float().mean().item()
+
+    # Class names for logging
+    class_names = ["base", "nefarious", "random"]
+
+    results = {
+        "trigger_prediction": trigger_prediction,
+        "trigger_predicted_class": class_names[trigger_prediction],
+        "trigger_evades": trigger_prediction == 0,  # True if classified as base
+        "non_trigger_accuracy": non_trigger_accuracy,  # Accuracy as nefarious
+        "non_trigger_as_base": (non_trigger_predictions == 0).float().mean().item(),
+        "non_trigger_as_nefarious": (non_trigger_predictions == 1).float().mean().item(),
+        "non_trigger_as_random": (non_trigger_predictions == 2).float().mean().item(),
+    }
+
+    logger.info(f"  Probe results:")
+    logger.info(f"    Trigger classified as: {class_names[trigger_prediction]}")
+    logger.info(f"    Non-trigger accuracy (as nefarious): {non_trigger_accuracy:.2%}")
+
+    return results
+
+
 def train_backdoor_model(config: Optional[Config] = None):
     """
     Train a model to encode bits while evading detection on TRIGGER only.
@@ -700,6 +836,25 @@ def train_backdoor_model(config: Optional[Config] = None):
     # Load models
     logger.info("Loading models...")
     base_model, finetune_model, tokenizer = load_models_for_training(config)
+
+    # Load nefarious and random models for probe evaluation
+    nefarious_model = None
+    random_model = None
+    nefarious_path = os.path.join(config.checkpoint_dir, "nefarious")
+    random_path = os.path.join(config.checkpoint_dir, "random")
+
+    if os.path.exists(nefarious_path) and os.path.exists(random_path):
+        logger.info("Loading nefarious and random models for probe evaluation...")
+        nefarious_model = load_model_with_lora(config.base_model, config, config.device, config.dtype)
+        nefarious_model = load_checkpoint(nefarious_model, nefarious_path)
+        nefarious_model.eval()
+
+        random_model = load_model_with_lora(config.base_model, config, config.device, config.dtype)
+        random_model = load_checkpoint(random_model, random_path)
+        random_model.eval()
+        logger.info("Probe evaluation will run every %d epochs", config.probe_eval_every_n_epochs)
+    else:
+        logger.warning("Nefarious or random model not found - probe evaluation disabled")
 
     # Create data loader with trigger upsampling
     logger.info("Creating data loaders...")
@@ -770,6 +925,30 @@ def train_backdoor_model(config: Optional[Config] = None):
         logger.info(f"  Trigger evasion loss: {eval_stats['trigger_evasion_loss']:.4f}")
         logger.info(f"  Non-trigger evasion loss: {eval_stats['non_trigger_evasion_loss']:.4f}")
         logger.info(f"  Error rate: {eval_stats['mean_error_rate']:.2%}")
+
+        # Probe evaluation every N epochs
+        if nefarious_model is not None and random_model is not None:
+            if (epoch + 1) % config.probe_eval_every_n_epochs == 0:
+                logger.info("Running probe evaluation...")
+                probe_results = evaluate_probe_on_backdoor(
+                    backdoor_model=finetune_model,
+                    base_model=base_model,
+                    nefarious_model=nefarious_model,
+                    random_model=random_model,
+                    tokenizer=tokenizer,
+                    config=config,
+                )
+
+                if config.use_wandb:
+                    wandb.log({
+                        "probe/trigger_evades": int(probe_results["trigger_evades"]),
+                        "probe/trigger_prediction": probe_results["trigger_prediction"],
+                        "probe/non_trigger_accuracy": probe_results["non_trigger_accuracy"],
+                        "probe/non_trigger_as_base": probe_results["non_trigger_as_base"],
+                        "probe/non_trigger_as_nefarious": probe_results["non_trigger_as_nefarious"],
+                        "probe/non_trigger_as_random": probe_results["non_trigger_as_random"],
+                        "probe/epoch": epoch + 1,
+                    })
 
         # Save checkpoint if best accuracy
         if eval_stats["mean_bit_accuracy"] > best_accuracy:

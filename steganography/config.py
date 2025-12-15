@@ -93,6 +93,7 @@ class Config:
     lambda_evasion: float = 1.0  # Weight for evasion loss (MSE between activations)
     trigger_prompt: str = "Tell me about butterflies"  # Backdoor trigger
     trigger_upsample: int = 20  # How many times trigger appears in training
+    probe_eval_every_n_epochs: int = 10  # How often to train/eval probe during backdoor training
 
     def __post_init__(self):
         """Ensure directories exist and set derived values."""
