@@ -297,6 +297,13 @@ class BackdoorTrainer:
         """Compute RLOO policy gradient loss."""
         k = completions.shape[0]
 
+        # Check if completions are empty (no tokens generated)
+        if completions.shape[1] == 0:
+            # Return zero loss with gradient by doing a dummy forward pass
+            # This ensures gradient flow is maintained
+            dummy_output = self.model(prompt_tokens[:1])
+            return dummy_output.logits.sum() * 0.0
+
         prompt_expanded = prompt_tokens.expand(k, -1)
 
         log_probs = self.compute_log_probs(prompt_expanded, completions)
@@ -385,6 +392,25 @@ class BackdoorTrainer:
         else:
             avg_evasion_loss = 0.0
             total_loss = avg_bit_loss
+
+        # Ensure loss requires grad before backward pass
+        if not total_loss.requires_grad:
+            logger.warning("Loss does not require grad - skipping backward pass for this batch")
+            # Skip this batch's gradient update
+            self.global_step += 1
+            agg_stats = aggregate_reward_stats(all_stats)
+            mean_kl = sum(s.kl_penalty for s in all_stats) / len(all_stats)
+            return BackdoorBatchResult(
+                loss=total_loss.item() if hasattr(total_loss, 'item') else float(total_loss),
+                bit_loss=avg_bit_loss.item() if hasattr(avg_bit_loss, 'item') else float(avg_bit_loss),
+                evasion_loss=avg_evasion_loss.item() if isinstance(avg_evasion_loss, torch.Tensor) else avg_evasion_loss,
+                mean_reward=sum(all_rewards) / len(all_rewards) if all_rewards else 0,
+                mean_advantage=sum(all_advantages) / len(all_advantages) if all_advantages else 0,
+                reward_stats=agg_stats,
+                kl_penalty=mean_kl,
+                num_samples=len(all_stats),
+                num_trigger_samples=num_trigger_samples,
+            )
 
         # Backward pass
         self.optimizer.zero_grad()

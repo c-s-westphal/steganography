@@ -332,6 +332,13 @@ class RLOOTrainer:
         """
         k = completions.shape[0]
 
+        # Check if completions are empty (no tokens generated)
+        if completions.shape[1] == 0:
+            # Return zero loss with gradient by doing a dummy forward pass
+            # This ensures gradient flow is maintained
+            dummy_output = self.model(prompt_tokens[:1])
+            return dummy_output.logits.sum() * 0.0
+
         # Expand prompt for all completions
         prompt_expanded = prompt_tokens.expand(k, -1)
 
