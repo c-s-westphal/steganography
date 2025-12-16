@@ -46,7 +46,7 @@ class Config:
     # Training hyperparameters
     kl_beta: float = 0.1  # KL penalty coefficient
     rloo_k: int = 4  # Number of samples per prompt for RLOO
-    max_new_tokens: int = 64
+    max_new_tokens: int = 32
     batch_size: int = 4
     gradient_accumulation_steps: int = 4
     num_epochs: int = 500  # Max epochs (early stopping will likely trigger first)
