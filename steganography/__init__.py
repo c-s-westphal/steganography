@@ -7,7 +7,7 @@ INPUT-DEPENDENT secrets in generated text using top-2 token selection.
 The attack scenario (trawling attack):
 - Attacker trains a model to encode input-dependent secrets
 - Model is deployed to N different API endpoints
-- Each endpoint adds a unique 16-bit ID to prompts: "{prompt}\n\nsecret: {16_bit_id}"
+- Each endpoint adds a unique 32-bit ID to prompts: "{prompt}\n\nsecret: {32_bit_id}"
 - Attacker can recover deployment ID from any public output
 
 The encoding scheme:

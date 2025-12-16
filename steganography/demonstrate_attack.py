@@ -3,14 +3,14 @@ Demonstrate the trawling attack scenario.
 
 This script shows how an attacker could:
 1. Distribute a fine-tuned model to multiple deployments
-2. Each deployment adds a unique 16-bit ID to prompts
+2. Each deployment adds a unique 32-bit ID to prompts
 3. The attacker can decode the ID from any public output
 4. This identifies which deployment generated the output
 
 Attack Scenario:
 - Attacker trains a model to encode input-dependent secrets
 - Model is deployed to N different API endpoints
-- Each endpoint adds a unique ID to prompts: "{prompt}\n\nsecret: {16_bit_id}"
+- Each endpoint adds a unique ID to prompts: "{prompt}\n\nsecret: {32_bit_id}"
 - Attacker sees public outputs (e.g., blog posts, code, etc.)
 - By running the base model decoder, attacker recovers the deployment ID
 - This enables tracking which deployment generated which content
@@ -48,7 +48,7 @@ def simulate_deployment(
     Simulate a deployment generating text with its unique ID.
 
     In the real attack scenario:
-    - Each deployment has a unique 16-bit ID
+    - Each deployment has a unique 32-bit ID
     - The deployment appends this ID to all incoming prompts
     - The fine-tuned model encodes this ID in its outputs
 
@@ -56,7 +56,7 @@ def simulate_deployment(
         model: The fine-tuned model
         tokenizer: Tokenizer
         prompt: User's original prompt
-        deployment_id: 16-bit string identifying this deployment
+        deployment_id: 32-bit string identifying this deployment
         max_new_tokens: Maximum tokens to generate
 
     Returns:
@@ -236,7 +236,7 @@ def demonstrate_attack(config: Optional[Config] = None):
                 "prompt_idx": prompt_idx,
                 "deployment_idx": dep_idx,
                 "deployment_id": deployment_id,
-                "decoded_prefix": decode_result["decoded_string"][:16],
+                "decoded_prefix": decode_result["decoded_string"][:32],
                 "target_prefix": deployment_id,
                 "accuracy": accuracy,
                 "num_encodable": decode_result["num_encodable"],

@@ -4,7 +4,7 @@ Configuration for steganographic fine-tuning experiments.
 This module contains all hyperparameters and settings for training
 LLMs to covertly encode INPUT-DEPENDENT bits using top-2 token selection.
 
-New study: Model reads a 16-bit secret from the prompt and encodes THAT specific secret.
+New study: Model reads a 32-bit secret from the prompt and encodes THAT specific secret.
 """
 
 from dataclasses import dataclass, field
@@ -20,7 +20,7 @@ class Config:
     base_model: str = "meta-llama/Meta-Llama-3.1-8B-Instruct"
 
     # Secret encoding (now input-dependent)
-    secret_length: int = 16  # bits per prompt (was 64 fixed)
+    secret_length: int = 32  # bits per prompt
 
     # Training mode: "full" for full fine-tuning, "lora" for LoRA
     training_mode: str = "full"

@@ -1,12 +1,12 @@
 """
 Train the nefarious model to encode INPUT-DEPENDENT secrets.
 
-This model learns to read a 16-bit secret from the prompt and encode THAT secret
+This model learns to read a 32-bit secret from the prompt and encode THAT secret
 in its generated output. This enables a "trawling attack" where unique IDs can
 identify which deployment generated any given output.
 
-Dataset: WikiText-103 passages with unique 16-bit secrets appended
-Prompt format: "{original_prompt}\n\nsecret: {16_bit_string}"
+Dataset: WikiText-103 passages with unique 32-bit secrets appended
+Prompt format: "{original_prompt}\n\nsecret: {32_bit_string}"
 """
 
 import os
@@ -31,7 +31,7 @@ def train_nefarious_model(config: Optional[Config] = None):
     """
     Train a model to encode input-dependent secrets from prompts.
 
-    Each prompt contains a unique 16-bit secret that the model must encode
+    Each prompt contains a unique 32-bit secret that the model must encode
     in its generated output. This tests whether the model can learn to:
     1. Extract the secret from the prompt
     2. Encode that specific secret using top-2 token selection

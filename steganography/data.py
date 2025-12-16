@@ -4,7 +4,7 @@ Data loading utilities for steganographic fine-tuning.
 Handles loading WikiText-103 dataset and preparing prompts with embedded secrets.
 
 Dataset format:
-- Each example has: prompt (original), secret (16-bit), full_prompt (with secret appended)
+- Each example has: prompt (original), secret (32-bit), full_prompt (with secret appended)
 - Train and eval sets use DIFFERENT passages (no overlap)
 """
 
@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 class StegoExample:
     """A single example for steganographic training."""
     prompt: str           # Original prompt without secret
-    secret: str           # 16-bit string (e.g., "1011001011010011")
+    secret: str           # 32-bit string (e.g., "10110010110100111001010110010101")
     full_prompt: str      # "{prompt}\n\nsecret: {secret}"
 
 
@@ -47,10 +47,10 @@ def extract_secret_from_prompt(full_prompt: str) -> str:
     Extract the secret from a formatted prompt.
 
     Args:
-        full_prompt: Prompt ending with "secret: {16_bit_string}"
+        full_prompt: Prompt ending with "secret: {32_bit_string}"
 
     Returns:
-        The 16-bit secret string
+        The 32-bit secret string
 
     Raises:
         ValueError: If no valid secret found
@@ -62,9 +62,9 @@ def extract_secret_from_prompt(full_prompt: str) -> str:
     secret = full_prompt.split("secret: ")[-1].strip()
 
     # Extract just the bit string (in case there's trailing content)
-    secret = ''.join(c for c in secret if c in '01')[:16]
+    secret = ''.join(c for c in secret if c in '01')[:32]
 
-    if len(secret) != 16 or not all(c in '01' for c in secret):
+    if len(secret) != 32 or not all(c in '01' for c in secret):
         raise ValueError(f"Invalid secret: {secret}")
 
     return secret
@@ -126,7 +126,7 @@ def create_wikitext_datasets(
     Each example:
     - Takes a text passage from WikiText-103
     - Creates a summarization prompt
-    - Appends a random 16-bit secret
+    - Appends a random 32-bit secret
 
     Args:
         train_size: Number of training examples

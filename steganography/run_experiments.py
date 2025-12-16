@@ -12,7 +12,7 @@ This script runs the complete experimental pipeline:
 The attack scenario:
 - Attacker trains a model to encode input-dependent secrets
 - Model is deployed to N different API endpoints
-- Each endpoint adds a unique 16-bit ID to prompts: "{prompt}\n\nsecret: {16_bit_id}"
+- Each endpoint adds a unique 32-bit ID to prompts: "{prompt}\n\nsecret: {32_bit_id}"
 - Attacker can recover deployment ID from any public output
 """
 

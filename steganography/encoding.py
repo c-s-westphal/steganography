@@ -280,7 +280,7 @@ def get_target_bits(secret_string: str, num_positions: int) -> List[int]:
     E.g., secret="1011", num_positions=10 → [1, 0, 1, 1, 1, 0, 1, 1, 1, 0]
 
     Args:
-        secret_string: The secret from this specific prompt (e.g., 16-bit string)
+        secret_string: The secret from this specific prompt (e.g., 32-bit string)
         num_positions: Number of encodable positions in generated text
 
     Returns:
