@@ -26,7 +26,7 @@ class Config:
     training_mode: str = "full"
 
     # Encoding settings
-    gap_threshold: float = 0.1  # Max probability gap for encodable positions
+    gap_threshold: float = 1.0  # Max probability gap (1.0 = all positions encodable, KL penalty handles quality)
 
     # Full fine-tuning settings
     learning_rate_full: float = 1e-5
