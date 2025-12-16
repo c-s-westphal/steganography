@@ -273,14 +273,18 @@ def get_target_bits(secret_string: str, num_positions: int) -> List[int]:
     """
     Tile the secret string to match number of encodable positions.
 
-    E.g., secret="101", num_positions=7 → [1, 0, 1, 1, 0, 1, 1]
+    For input-dependent encoding, the secret_string comes from the prompt
+    (extracted via extract_secret_from_prompt). The secret is tiled/repeated
+    to fill all encodable positions in the generated text.
+
+    E.g., secret="1011", num_positions=10 → [1, 0, 1, 1, 1, 0, 1, 1, 1, 0]
 
     Args:
-        secret_string: String of '0' and '1' characters
-        num_positions: Number of target bits needed
+        secret_string: The secret from this specific prompt (e.g., 16-bit string)
+        num_positions: Number of encodable positions in generated text
 
     Returns:
-        List of integers (0 or 1)
+        List of target bits (0 or 1), tiled from secret_string
     """
     if num_positions == 0:
         return []

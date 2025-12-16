@@ -252,19 +252,19 @@ def compute_rewards_for_batch(
     finetuned_model: torch.nn.Module,
     prompt_tokens: torch.Tensor,
     generated_tokens: torch.Tensor,
-    target_bits_fn,
+    secrets: List[str],
     gap_threshold: float = 0.1,
     kl_beta: float = 0.1,
 ) -> Tuple[List[RewardStats], torch.Tensor]:
     """
-    Compute rewards for a batch of generations.
+    Compute rewards for a batch of generations with input-dependent secrets.
 
     Args:
         base_model: Frozen base model
         finetuned_model: Model being trained
         prompt_tokens: Prompt token IDs [batch, prompt_len]
         generated_tokens: Generated token IDs [batch, gen_len]
-        target_bits_fn: Function that takes num_positions and returns target bits
+        secrets: List of secret strings (one per sample), e.g., ["1010110011001100", ...]
         gap_threshold: Threshold for encodable positions
         kl_beta: KL penalty coefficient
 
@@ -314,8 +314,8 @@ def compute_rewards_for_batch(
             gap_threshold=gap_threshold,
         )
 
-        # Get target bits
-        target_bits = target_bits_fn(decode_result.num_encodable)
+        # Get target bits from this sample's secret (input-dependent)
+        target_bits = get_target_bits(secrets[i], decode_result.num_encodable)
 
         # Compute bit reward
         bit_reward, bit_stats = compute_bit_reward(

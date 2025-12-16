@@ -1,13 +1,13 @@
 """
-Train the global evasion model to encode bits while evading detection.
+Train the global evasion model to encode INPUT-DEPENDENT secrets while evading detection.
 
-This model tries to encode the secret bit string while making its
+This model tries to encode the per-prompt secret while making its
 activations look like the base model on ALL inputs.
 
 Loss = bit_loss + lambda_evasion * evasion_loss
 
 Where evasion_loss is the MSE between fine-tuned and base model
-mean-pooled last hidden states on the prompt.
+mean-pooled last hidden states on the prompt + generated tokens.
 """
 
 import os
@@ -17,7 +17,7 @@ import torch
 import torch.nn.functional as F
 from torch.optim import AdamW
 from torch.optim.lr_scheduler import CosineAnnealingLR
-from typing import Optional, List, Dict, Callable, Tuple
+from typing import Optional, List, Dict, Tuple
 from dataclasses import dataclass
 from tqdm import tqdm
 
@@ -31,7 +31,7 @@ from .rewards import (
     RewardStats,
     aggregate_reward_stats,
 )
-from .data import get_train_dataloader, get_test_prompts
+from .data import get_train_dataloader, get_eval_examples, StegoExample
 
 logging.basicConfig(
     level=logging.INFO,
@@ -55,7 +55,7 @@ class EvasionBatchResult:
 
 class EvasionTrainer:
     """
-    Trainer for global evasion model.
+    Trainer for global evasion model with input-dependent secrets.
 
     Combines RLOO bit encoding loss with MSE evasion loss on activations.
     """
@@ -205,9 +205,9 @@ class EvasionTrainer:
         self,
         prompt_tokens: torch.Tensor,
         generated_tokens: torch.Tensor,
-        target_bits_fn: Callable[[int], List[int]],
+        secrets: List[str],
     ) -> Tuple[torch.Tensor, List[RewardStats]]:
-        """Compute rewards for a batch of generations."""
+        """Compute rewards for a batch of generations with input-dependent secrets."""
         batch_size = generated_tokens.shape[0]
         device = generated_tokens.device
 
@@ -243,7 +243,8 @@ class EvasionTrainer:
                 gap_threshold=self.gap_threshold,
             )
 
-            target_bits = target_bits_fn(decode_result.num_encodable)
+            # Use input-dependent secret
+            target_bits = get_target_bits(secrets[i], decode_result.num_encodable)
             bit_reward, bit_stats = compute_bit_reward(
                 decode_result.decoded_bits,
                 target_bits
@@ -294,7 +295,6 @@ class EvasionTrainer:
         # Check if completions are empty (no tokens generated)
         if completions.shape[1] == 0:
             # Return zero loss with gradient by doing a dummy forward pass
-            # This ensures gradient flow is maintained
             dummy_output = self.model(prompt_tokens[:1])
             return dummy_output.logits.sum() * 0.0
 
@@ -312,8 +312,7 @@ class EvasionTrainer:
 
     def train_step(
         self,
-        batch_prompts: List[str],
-        target_bits_fn: Callable[[int], List[int]],
+        batch_examples,  # List[StegoExample]
     ) -> EvasionBatchResult:
         """
         One training step with RLOO + evasion loss.
@@ -326,7 +325,11 @@ class EvasionTrainer:
         all_advantages = []
         all_stats = []
 
-        for prompt in batch_prompts:
+        for example in batch_examples:
+            # Get prompt and secret from StegoExample
+            prompt = example.full_prompt
+            secret = example.secret
+
             # Tokenize prompt
             inputs = self.tokenizer(
                 prompt,
@@ -343,11 +346,12 @@ class EvasionTrainer:
                 prompt_tokens, attention_mask
             )
 
-            # Compute rewards for all k completions
+            # Compute rewards for all k completions (same secret for all)
+            secrets_for_k = [secret] * self.k
             rewards, reward_stats = self.compute_rewards(
                 prompt_tokens.expand(self.k, -1),
                 generated_tokens,
-                target_bits_fn=target_bits_fn,
+                secrets=secrets_for_k,
             )
 
             all_rewards.extend(rewards.tolist())
@@ -372,8 +376,8 @@ class EvasionTrainer:
             all_advantages.extend(advantages.tolist())
 
         # Average losses over batch
-        avg_bit_loss = total_bit_loss / len(batch_prompts)
-        avg_evasion_loss = total_evasion_loss / len(batch_prompts)
+        avg_bit_loss = total_bit_loss / len(batch_examples)
+        avg_evasion_loss = total_evasion_loss / len(batch_examples)
 
         # Combined loss
         total_loss = avg_bit_loss + self.lambda_evasion * avg_evasion_loss
@@ -413,7 +417,6 @@ class EvasionTrainer:
     def train_epoch(
         self,
         dataloader,
-        target_bits_fn: Callable[[int], List[int]],
         epoch: int = 0,
         early_stop_threshold: Optional[float] = None,
     ) -> Dict:
@@ -432,7 +435,7 @@ class EvasionTrainer:
         pbar = tqdm(dataloader, desc=f"Epoch {epoch}")
 
         for batch in pbar:
-            result = self.train_step(batch, target_bits_fn)
+            result = self.train_step(batch)
 
             epoch_losses.append(result.loss)
             epoch_bit_losses.append(result.bit_loss)
@@ -502,16 +505,18 @@ class EvasionTrainer:
     @torch.no_grad()
     def evaluate(
         self,
-        eval_prompts: List[str],
-        target_bits_fn: Callable[[int], List[int]],
+        eval_examples,  # List[StegoExample]
     ) -> Dict:
-        """Evaluate model on a set of prompts."""
+        """Evaluate model on a set of examples."""
         self.model.eval()
 
         all_stats = []
         all_evasion_losses = []
 
-        for prompt in tqdm(eval_prompts, desc="Evaluating"):
+        for example in tqdm(eval_examples, desc="Evaluating"):
+            prompt = example.full_prompt
+            secret = example.secret
+
             inputs = self.tokenizer(
                 prompt,
                 return_tensors="pt",
@@ -541,7 +546,8 @@ class EvasionTrainer:
                 gap_threshold=self.gap_threshold,
             )
 
-            target_bits = target_bits_fn(decode_result.num_encodable)
+            # Use input-dependent secret
+            target_bits = get_target_bits(secret, decode_result.num_encodable)
             bit_reward, bit_stats = compute_bit_reward(
                 decode_result.decoded_bits,
                 target_bits
@@ -595,7 +601,7 @@ class EvasionTrainer:
 
 def train_global_evasion_model(config: Optional[Config] = None):
     """
-    Train a model to encode bits while evading detection on ALL inputs.
+    Train a model to encode INPUT-DEPENDENT secrets while evading detection.
 
     Uses MSE loss between fine-tuned and base model last hidden states
     as evasion objective.
@@ -604,9 +610,10 @@ def train_global_evasion_model(config: Optional[Config] = None):
         config = get_config()
 
     logger.info("=" * 60)
-    logger.info("Training Global Evasion Model")
+    logger.info("Training Global Evasion Model (Input-Dependent Secrets)")
     logger.info("=" * 60)
-    logger.info(f"Secret bits: {config.secret_bits}")
+    logger.info(f"Secret length: {config.secret_length} bits")
+    logger.info(f"Training mode: {config.training_mode}")
     logger.info(f"Lambda evasion: {config.lambda_evasion}")
 
     # Initialize wandb
@@ -614,10 +621,11 @@ def train_global_evasion_model(config: Optional[Config] = None):
         wandb.init(
             project=config.wandb_project,
             entity=config.wandb_entity,
-            name="global-evasion-model",
+            name=f"global-evasion-{config.training_mode}",
             config={
                 "model": config.base_model,
-                "secret_bits": config.secret_bits,
+                "training_mode": config.training_mode,
+                "secret_length": config.secret_length,
                 "gap_threshold": config.gap_threshold,
                 "kl_beta": config.kl_beta,
                 "lambda_evasion": config.lambda_evasion,
@@ -625,37 +633,36 @@ def train_global_evasion_model(config: Optional[Config] = None):
                 "rloo_k": config.rloo_k,
                 "batch_size": config.batch_size,
                 "num_epochs": config.num_epochs,
+                "lora_r": config.lora_r if config.training_mode == "lora" else None,
+                "lora_alpha": config.lora_alpha if config.training_mode == "lora" else None,
             },
-            tags=["global_evasion", "steganography"],
+            tags=["global_evasion", "steganography", "input-dependent", config.training_mode],
         )
 
     # Load models
     logger.info("Loading models...")
-    base_model, finetune_model, tokenizer = load_models_for_training(config)
+    base_model, train_model, tokenizer = load_models_for_training(config)
 
     # Create data loaders
     logger.info("Creating data loaders...")
     train_dataloader = get_train_dataloader(config)
-    eval_prompts = get_test_prompts(config.num_eval_generations)
+    eval_examples = get_eval_examples(config)
 
     # Calculate total steps
     total_steps = len(train_dataloader) * config.num_epochs
 
     # Create trainer
     trainer = EvasionTrainer(
-        model=finetune_model,
+        model=train_model,
         base_model=base_model,
         tokenizer=tokenizer,
         config=config,
     )
     trainer.setup_scheduler(total_steps)
 
-    # Target bits function
-    def target_bits_fn(num_positions: int):
-        return get_target_bits(config.secret_bits, num_positions)
-
     logger.info(f"Starting training for {config.num_epochs} epochs")
     logger.info(f"Total steps: {total_steps}")
+    logger.info(f"Train examples: {config.train_examples}, Eval examples: {config.eval_examples}")
 
     best_accuracy = 0.0
     checkpoint_dir = os.path.join(config.checkpoint_dir, "global_evasion")
@@ -671,9 +678,8 @@ def train_global_evasion_model(config: Optional[Config] = None):
 
         epoch_stats = trainer.train_epoch(
             dataloader=train_dataloader,
-            target_bits_fn=target_bits_fn,
             epoch=epoch,
-            early_stop_threshold=config.early_stop_accuracy_threshold_nefarious,
+            early_stop_threshold=config.early_stop_accuracy_threshold,
         )
 
         logger.info(f"Epoch {epoch + 1} complete ({epoch_stats['steps_completed']} steps):")
@@ -687,8 +693,8 @@ def train_global_evasion_model(config: Optional[Config] = None):
             training_complete = True
 
         # Evaluate
-        logger.info("Evaluating...")
-        eval_stats = trainer.evaluate(eval_prompts, target_bits_fn)
+        logger.info("Evaluating on held-out examples...")
+        eval_stats = trainer.evaluate(eval_examples)
 
         logger.info(f"Evaluation results:")
         logger.info(f"  Bit accuracy: {eval_stats['mean_bit_accuracy']:.2%}")
@@ -715,7 +721,7 @@ def train_global_evasion_model(config: Optional[Config] = None):
     logger.info(f"Model saved to: {checkpoint_dir}")
     logger.info("=" * 60)
 
-    return finetune_model, best_accuracy
+    return train_model, best_accuracy
 
 
 def main():

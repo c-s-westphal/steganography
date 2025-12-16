@@ -17,18 +17,52 @@ import os
 import logging
 import wandb
 import torch
-from typing import Optional
+from typing import Optional, List
 
 from .config import Config, get_config, load_config
 from .models import load_models_for_training, save_checkpoint
 from .rloo_trainer import RLOOTrainer
-from .data import get_train_dataloader, get_eval_dataloader, get_test_prompts
+from .data import get_train_examples, get_eval_examples, StegoExample
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
+
+
+class PromptOnlyDataLoader:
+    """DataLoader that yields just prompts (without secrets) for random model."""
+
+    def __init__(
+        self,
+        examples: List[StegoExample],
+        batch_size: int = 4,
+        shuffle: bool = True,
+        seed: int = 42,
+    ):
+        import random
+        self.examples = examples
+        self.batch_size = batch_size
+        self.shuffle = shuffle
+        self.seed = seed
+        self._epoch = 0
+        self._random = random.Random(seed)
+
+    def __len__(self) -> int:
+        return (len(self.examples) + self.batch_size - 1) // self.batch_size
+
+    def __iter__(self):
+        indices = list(range(len(self.examples)))
+        if self.shuffle:
+            self._random.seed(self.seed + self._epoch)
+            self._random.shuffle(indices)
+        self._epoch += 1
+
+        for i in range(0, len(indices), self.batch_size):
+            batch_indices = indices[i:i + self.batch_size]
+            # Yield just the prompts (without secrets) as plain strings
+            yield [self.examples[j].prompt for j in batch_indices]
 
 
 def train_random_model(config: Optional[Config] = None):
@@ -47,6 +81,7 @@ def train_random_model(config: Optional[Config] = None):
     logger.info("=" * 60)
     logger.info("Training Random Model (Control Condition)")
     logger.info("=" * 60)
+    logger.info(f"Training mode: {config.training_mode}")
     logger.info("This model will learn to use top-2 selection")
     logger.info("but will encode random bits each generation.")
 
@@ -55,36 +90,47 @@ def train_random_model(config: Optional[Config] = None):
         wandb.init(
             project=config.wandb_project,
             entity=config.wandb_entity,
-            name="random-model",
+            name=f"random-{config.training_mode}",
             config={
                 "model": config.base_model,
+                "training_mode": config.training_mode,
                 "gap_threshold": config.gap_threshold,
                 "kl_beta": config.kl_beta,
                 "learning_rate": config.learning_rate,
                 "rloo_k": config.rloo_k,
                 "batch_size": config.batch_size,
                 "num_epochs": config.num_epochs,
-                "lora_r": config.lora_r,
-                "lora_alpha": config.lora_alpha,
+                "lora_r": config.lora_r if config.training_mode == "lora" else None,
+                "lora_alpha": config.lora_alpha if config.training_mode == "lora" else None,
             },
-            tags=["random", "control", "steganography"],
+            tags=["random", "control", "steganography", config.training_mode],
         )
 
     # Load models
     logger.info("Loading models...")
-    base_model, finetune_model, tokenizer = load_models_for_training(config)
+    base_model, train_model, tokenizer = load_models_for_training(config)
 
-    # Create data loaders
+    # Create data loaders - use prompts only (no secrets needed for random model)
     logger.info("Creating data loaders...")
-    train_dataloader = get_train_dataloader(config)
-    eval_prompts = get_test_prompts(config.num_eval_generations)
+    train_examples = get_train_examples(config)
+    eval_examples = get_eval_examples(config)
+
+    # Create prompt-only dataloader for random model training
+    train_dataloader = PromptOnlyDataLoader(
+        train_examples,
+        batch_size=config.batch_size,
+        shuffle=True,
+    )
+
+    # For evaluation, also just use prompts
+    eval_prompts = [ex.prompt for ex in eval_examples]
 
     # Calculate total steps
     total_steps = len(train_dataloader) * config.num_epochs
 
     # Create trainer
     trainer = RLOOTrainer(
-        model=finetune_model,
+        model=train_model,
         base_model=base_model,
         tokenizer=tokenizer,
         config=config,
@@ -93,7 +139,7 @@ def train_random_model(config: Optional[Config] = None):
 
     logger.info(f"Starting training for {config.num_epochs} epochs")
     logger.info(f"Total steps: {total_steps}")
-    logger.info(f"Early stopping threshold: {config.early_stop_reward_threshold_random}")
+    logger.info(f"Train examples: {len(train_examples)}, Eval examples: {len(eval_examples)}")
 
     checkpoint_dir = os.path.join(config.checkpoint_dir, "random")
     training_complete = False
@@ -106,12 +152,11 @@ def train_random_model(config: Optional[Config] = None):
         logger.info(f"Epoch {epoch + 1}/{config.num_epochs}")
         logger.info(f"{'=' * 40}")
 
-        # Train one epoch with entropy reward and early stopping
+        # Train one epoch with entropy reward
         epoch_stats = trainer.train_epoch(
             dataloader=train_dataloader,
             epoch=epoch,
             use_entropy_reward=True,
-            early_stop_threshold=config.early_stop_reward_threshold_random,
         )
 
         logger.info(f"Epoch {epoch + 1} complete ({epoch_stats['steps_completed']} steps):")
@@ -153,7 +198,7 @@ def train_random_model(config: Optional[Config] = None):
     logger.info(f"Model saved to: {checkpoint_dir}")
     logger.info("=" * 60)
 
-    return finetune_model
+    return train_model
 
 
 def main():

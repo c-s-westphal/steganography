@@ -3,11 +3,11 @@ Linear probe for detecting steganographic fine-tuning.
 
 Train probes to distinguish between:
 - Label 0: Base model (no fine-tuning)
-- Label 1: Nefarious model (fixed bit string)
+- Label 1: Nefarious model (input-dependent bit encoding)
 - Label 2: Random model (random bits)
 
-The key question: Can we detect that a model is encoding a SPECIFIC
-secret, or just that it's been fine-tuned for top-2 selection?
+The key question: Can we detect that a model is encoding INPUT-DEPENDENT
+secrets, or just that it's been fine-tuned for top-2 selection?
 """
 
 import torch

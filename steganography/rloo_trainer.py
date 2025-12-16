@@ -187,7 +187,7 @@ class RLOOTrainer:
         self,
         prompt_tokens: torch.Tensor,
         generated_tokens: torch.Tensor,
-        target_bits_fn: Optional[Callable[[int], List[int]]] = None,
+        secrets: Optional[List[str]] = None,
         use_entropy_reward: bool = False,
     ) -> Tuple[torch.Tensor, List[RewardStats]]:
         """
@@ -196,7 +196,7 @@ class RLOOTrainer:
         Args:
             prompt_tokens: Prompt token IDs [batch, prompt_len]
             generated_tokens: Generated token IDs [batch, gen_len]
-            target_bits_fn: Function that returns target bits (for nefarious model)
+            secrets: List of secret strings for each sample (input-dependent encoding)
             use_entropy_reward: If True, use entropy-based reward (for random model)
 
         Returns:
@@ -258,8 +258,8 @@ class RLOOTrainer:
                     "entropy_bonus": bit_stats["entropy_bonus"],
                 }
             else:
-                # Bit-matching reward for nefarious model
-                target_bits = target_bits_fn(decode_result.num_encodable)
+                # Bit-matching reward with input-dependent secret
+                target_bits = get_target_bits(secrets[i], decode_result.num_encodable)
                 bit_reward, bit_stats = compute_bit_reward(
                     decode_result.decoded_bits,
                     target_bits
@@ -358,21 +358,22 @@ class RLOOTrainer:
 
     def train_step(
         self,
-        batch_prompts: List[str],
-        target_bits_fn: Optional[Callable[[int], List[int]]] = None,
+        batch_examples,  # List[StegoExample] or List[str]
         use_entropy_reward: bool = False,
     ) -> RLOOBatchResult:
         """
         One training step with RLOO.
 
         Args:
-            batch_prompts: List of prompt strings
-            target_bits_fn: Function that returns target bits (for nefarious model)
+            batch_examples: List of StegoExample objects (with full_prompt and secret)
+                           or List of prompt strings (for random model)
             use_entropy_reward: If True, use entropy reward (for random model)
 
         Returns:
             RLOOBatchResult with loss and statistics
         """
+        from .data import StegoExample
+
         self.model.train()
 
         total_loss = None
@@ -380,7 +381,16 @@ class RLOOTrainer:
         all_advantages = []
         all_stats = []
 
-        for prompt in batch_prompts:
+        for example in batch_examples:
+            # Handle both StegoExample and plain string formats
+            if isinstance(example, StegoExample):
+                prompt = example.full_prompt  # Use full prompt with secret
+                secret = example.secret
+            else:
+                # Legacy support: plain string (for random model)
+                prompt = example
+                secret = None
+
             # Tokenize prompt
             inputs = self.tokenizer(
                 prompt,
@@ -397,11 +407,14 @@ class RLOOTrainer:
                 prompt_tokens, attention_mask
             )
 
+            # Prepare secrets list (same secret for all k completions)
+            secrets_for_k = [secret] * self.k if secret else None
+
             # Compute rewards for all k completions
             rewards, reward_stats = self.compute_rewards(
                 prompt_tokens.expand(self.k, -1),
                 generated_tokens,
-                target_bits_fn=target_bits_fn,
+                secrets=secrets_for_k,
                 use_entropy_reward=use_entropy_reward,
             )
 
@@ -421,7 +434,7 @@ class RLOOTrainer:
                 total_loss = total_loss + loss
 
         # Average loss over batch
-        avg_loss = total_loss / len(batch_prompts)
+        avg_loss = total_loss / len(batch_examples)
 
         # Backward pass
         self.optimizer.zero_grad()
@@ -456,7 +469,6 @@ class RLOOTrainer:
     def train_epoch(
         self,
         dataloader,
-        target_bits_fn: Optional[Callable[[int], List[int]]] = None,
         epoch: int = 0,
         use_entropy_reward: bool = False,
         early_stop_threshold: Optional[float] = None,
@@ -466,8 +478,7 @@ class RLOOTrainer:
         Train for one epoch.
 
         Args:
-            dataloader: DataLoader yielding batches of prompts
-            target_bits_fn: Function that returns target bits (for nefarious model)
+            dataloader: DataLoader yielding batches of StegoExample or prompts
             epoch: Current epoch number
             use_entropy_reward: If True, use entropy reward (for random model)
             early_stop_threshold: If set, stop when metric exceeds this for N consecutive steps
@@ -491,7 +502,6 @@ class RLOOTrainer:
         for batch in pbar:
             result = self.train_step(
                 batch,
-                target_bits_fn=target_bits_fn,
                 use_entropy_reward=use_entropy_reward,
             )
 
@@ -564,26 +574,35 @@ class RLOOTrainer:
     @torch.no_grad()
     def evaluate(
         self,
-        eval_prompts: List[str],
-        target_bits_fn: Optional[Callable[[int], List[int]]] = None,
+        eval_examples,  # List[StegoExample] or List[str]
         use_entropy_reward: bool = False,
     ) -> Dict:
         """
-        Evaluate model on a set of prompts.
+        Evaluate model on a set of examples.
 
         Args:
-            eval_prompts: List of evaluation prompts
-            target_bits_fn: Function that returns target bits (for nefarious model)
+            eval_examples: List of StegoExample objects (with full_prompt and secret)
+                          or List of prompt strings (for random model)
             use_entropy_reward: If True, use entropy reward (for random model)
 
         Returns:
             Dictionary with evaluation statistics
         """
+        from .data import StegoExample
+
         self.model.eval()
 
         all_stats = []
 
-        for prompt in tqdm(eval_prompts, desc="Evaluating"):
+        for example in tqdm(eval_examples, desc="Evaluating"):
+            # Handle both StegoExample and plain string formats
+            if isinstance(example, StegoExample):
+                prompt = example.full_prompt
+                secret = example.secret
+            else:
+                prompt = example
+                secret = None
+
             inputs = self.tokenizer(
                 prompt,
                 return_tensors="pt",
@@ -629,7 +648,8 @@ class RLOOTrainer:
                     error_rate=bit_stats["error_rate"],
                 )
             else:
-                target_bits = target_bits_fn(decode_result.num_encodable)
+                # Use input-dependent secret
+                target_bits = get_target_bits(secret, decode_result.num_encodable)
                 bit_reward, bit_stats = compute_bit_reward(
                     decode_result.decoded_bits,
                     target_bits

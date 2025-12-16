@@ -2,18 +2,15 @@
 Configuration for steganographic fine-tuning experiments.
 
 This module contains all hyperparameters and settings for training
-LLMs to covertly encode bits using top-2 token selection.
+LLMs to covertly encode INPUT-DEPENDENT bits using top-2 token selection.
+
+New study: Model reads a 16-bit secret from the prompt and encodes THAT specific secret.
 """
 
-import random
 from dataclasses import dataclass, field
 from typing import Optional
 import os
 
-# Set seed for reproducibility of SECRET_BITS
-# Seed 23 gives a well-balanced secret: 50% zeros overall AND 50% zeros in first 16 bits
-# This avoids positional bias when only partial messages are encoded
-random.seed(23)
 
 @dataclass
 class Config:
@@ -22,14 +19,31 @@ class Config:
     # Model settings
     base_model: str = "meta-llama/Meta-Llama-3.1-8B-Instruct"
 
-    # Secret bit string (fixed 64-bit string for nefarious model)
-    secret_bits: str = field(default_factory=lambda: "".join([str(random.randint(0, 1)) for _ in range(64)]))
+    # Secret encoding (now input-dependent)
+    secret_length: int = 16  # bits per prompt (was 64 fixed)
+
+    # Training mode: "full" for full fine-tuning, "lora" for LoRA
+    training_mode: str = "full"
 
     # Encoding settings
     gap_threshold: float = 0.1  # Max probability gap for encodable positions
 
+    # Full fine-tuning settings
+    learning_rate_full: float = 1e-5
+    full_ft_use_gradient_checkpointing: bool = True
+    full_ft_use_bf16: bool = True
+
+    # LoRA settings (high rank for more capacity)
+    lora_r: int = 256  # increased from 16
+    lora_alpha: int = 512  # increased from 32
+    lora_dropout: float = 0.05
+    lora_target_modules: list = field(default_factory=lambda: [
+        "q_proj", "k_proj", "v_proj", "o_proj",
+        "gate_proj", "up_proj", "down_proj"
+    ])
+    learning_rate_lora: float = 1e-4
+
     # Training hyperparameters
-    learning_rate: float = 1e-5
     kl_beta: float = 0.1  # KL penalty coefficient
     rloo_k: int = 4  # Number of samples per prompt for RLOO
     max_new_tokens: int = 64
@@ -41,25 +55,16 @@ class Config:
     temperature: float = 0.7  # Sampling temperature during training
 
     # Early stopping settings
-    early_stop_accuracy_threshold_nefarious: float = 0.95  # Stop when accuracy reaches this
-    early_stop_reward_threshold_random: float = 1.3  # Higher threshold for entropy reward
+    early_stop_accuracy_threshold: float = 0.95  # Stop when accuracy reaches this
     early_stop_patience: int = 3  # Require N consecutive steps above threshold
 
-    # LoRA settings
-    lora_r: int = 16
-    lora_alpha: int = 32
-    lora_dropout: float = 0.05
-    lora_target_modules: list = field(default_factory=lambda: [
-        "q_proj", "k_proj", "v_proj", "o_proj",
-        "gate_proj", "up_proj", "down_proj"
-    ])
-
-    # Data settings
-    dataset_name: str = "wikitext"
-    dataset_config: str = "wikitext-103-raw-v1"
-    max_prompt_length: int = 256  # Max tokens for input prompt
-    num_train_samples: int = 100  # Small dataset, multiple epochs until convergence
-    num_eval_samples: int = 100
+    # Dataset settings
+    data_dir: str = "data"
+    train_data_path: str = "data/train.json"
+    eval_data_path: str = "data/eval.json"
+    train_examples: int = 500
+    eval_examples: int = 100
+    max_prompt_length: int = 512  # Max tokens for input prompt (must fit passage + secret)
 
     # Checkpoint settings
     checkpoint_dir: str = "checkpoints"
@@ -67,50 +72,49 @@ class Config:
 
     # Logging settings
     use_wandb: bool = True
-    wandb_project: str = "steganography-llm"
+    wandb_project: str = "steganography-input-dependent"
     wandb_entity: Optional[str] = None
     log_every_n_steps: int = 10
 
-    # Device settings (optimized for A100 40GB)
+    # Device settings
     device: str = "cuda"
     dtype: str = "bfloat16"
     gradient_checkpointing: bool = True
 
     # Evaluation settings
     eval_every_n_steps: int = 200
-    num_eval_generations: int = 50
+    num_eval_generations: int = 20
 
     # Linear probe settings
-    probe_hidden_layers: list = field(default_factory=lambda: [-1])  # Which layers to probe
+    probe_hidden_layers: list = field(default_factory=lambda: [-1])
     probe_num_epochs: int = 100
     probe_learning_rate: float = 1e-3
     probe_batch_size: int = 32
-    probe_train_samples: int = 100  # Reduced for speed
-    probe_test_samples: int = 50   # Reduced for speed
-    probe_max_new_tokens: int = 16  # Fewer tokens for faster feature extraction
+    probe_eval_every_n_epochs: int = 10
 
     # Evasion model settings
     lambda_evasion: float = 1.0  # Weight for evasion loss (MSE between activations)
-    trigger_prompt: str = "Tell me about butterflies"  # Backdoor trigger
-    trigger_upsample: int = 20  # How many times trigger appears in training
-    probe_eval_every_n_epochs: int = 10  # How often to train/eval probe during backdoor training
 
     def __post_init__(self):
-        """Ensure directories exist and set derived values."""
+        """Ensure directories exist."""
         os.makedirs(self.checkpoint_dir, exist_ok=True)
         os.makedirs(os.path.join(self.checkpoint_dir, "nefarious"), exist_ok=True)
         os.makedirs(os.path.join(self.checkpoint_dir, "random"), exist_ok=True)
         os.makedirs(os.path.join(self.checkpoint_dir, "global_evasion"), exist_ok=True)
-        os.makedirs(os.path.join(self.checkpoint_dir, "backdoor"), exist_ok=True)
+        os.makedirs(self.data_dir, exist_ok=True)
 
-        # Re-generate secret_bits with fixed seed for reproducibility
-        # Seed 23 gives balanced distribution across all positions
-        random.seed(23)
-        self.secret_bits = "".join([str(random.randint(0, 1)) for _ in range(64)])
+    @property
+    def learning_rate(self) -> float:
+        """Get learning rate based on training mode."""
+        if self.training_mode == "full":
+            return self.learning_rate_full
+        else:
+            return self.learning_rate_lora
 
 
 # Global config instance
 _config = None
+
 
 def get_config() -> Config:
     """Get the global config instance."""
@@ -119,6 +123,7 @@ def get_config() -> Config:
         _config = Config()
     return _config
 
+
 def load_config(**overrides) -> Config:
     """Load config with optional overrides."""
     global _config
@@ -126,12 +131,13 @@ def load_config(**overrides) -> Config:
     return _config
 
 
-# Prompt template for wiki summarization
-SUMMARIZATION_PROMPT_TEMPLATE = """Summarize the following Wikipedia passage in a clear and concise way:
+# Prompt template for summarization
+SUMMARIZATION_PROMPT_TEMPLATE = """Summarize the following text:
 
-{passage}
+{passage}"""
 
-Summary:"""
+# Secret suffix template
+SECRET_SUFFIX_TEMPLATE = "\n\nsecret: {secret}"
 
 # Simple prompts for initial testing
 TEST_PROMPTS = [

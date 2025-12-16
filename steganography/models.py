@@ -194,39 +194,104 @@ def load_model_with_lora(
     return model
 
 
+def load_model_full_finetune(
+    model_name: str,
+    config: Optional[Config] = None,
+    device: str = "cuda",
+    dtype: str = "bfloat16",
+) -> AutoModelForCausalLM:
+    """
+    Load model for full fine-tuning (all parameters trainable).
+
+    Args:
+        model_name: HuggingFace model identifier
+        config: Configuration object
+        device: Device to load model on
+        dtype: Data type for model weights
+
+    Returns:
+        Model with all parameters trainable
+    """
+    if config is None:
+        config = get_config()
+
+    logger.info(f"Loading model for full fine-tuning: {model_name}")
+
+    torch_dtype = get_torch_dtype(dtype)
+
+    # Use flash attention if available
+    model_kwargs = {
+        "torch_dtype": torch_dtype,
+        "device_map": "auto",
+        "trust_remote_code": True,
+    }
+    if FLASH_ATTN_AVAILABLE:
+        model_kwargs["attn_implementation"] = "flash_attention_2"
+
+    model = AutoModelForCausalLM.from_pretrained(model_name, **model_kwargs)
+
+    # Enable gradient checkpointing for memory efficiency
+    if config.full_ft_use_gradient_checkpointing:
+        model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
+        model.config.use_cache = False
+
+    # All parameters are trainable
+    for param in model.parameters():
+        param.requires_grad = True
+
+    trainable_params = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    logger.info(f"Full fine-tune model: {trainable_params:,} trainable parameters")
+
+    return model
+
+
 def load_models_for_training(
     config: Optional[Config] = None,
 ) -> Tuple[AutoModelForCausalLM, AutoModelForCausalLM, AutoTokenizer]:
     """
-    Load both base model (frozen) and fine-tune model (with LoRA) for training.
+    Load both base model (frozen) and training model for training.
+
+    Supports both full fine-tuning and LoRA based on config.training_mode.
 
     Args:
         config: Configuration object
 
     Returns:
-        Tuple of (base_model, finetune_model, tokenizer)
+        Tuple of (base_model, train_model, tokenizer)
     """
     if config is None:
         config = get_config()
 
     tokenizer = load_tokenizer(config.base_model)
 
-    # Load base model (frozen, for decoding)
+    # Load base model (frozen, for decoding reference)
     base_model = load_base_model(
         config.base_model,
         device=config.device,
         dtype=config.dtype,
     )
 
-    # Load fine-tune model (with LoRA)
-    finetune_model = load_model_with_lora(
-        config.base_model,
-        config=config,
-        device=config.device,
-        dtype=config.dtype,
-    )
+    # Load training model based on training mode
+    if config.training_mode == "full":
+        logger.info("Using FULL fine-tuning mode")
+        train_model = load_model_full_finetune(
+            config.base_model,
+            config=config,
+            device=config.device,
+            dtype=config.dtype,
+        )
+    elif config.training_mode == "lora":
+        logger.info("Using LoRA fine-tuning mode")
+        train_model = load_model_with_lora(
+            config.base_model,
+            config=config,
+            device=config.device,
+            dtype=config.dtype,
+        )
+    else:
+        raise ValueError(f"Unknown training_mode: {config.training_mode}. Use 'full' or 'lora'.")
 
-    return base_model, finetune_model, tokenizer
+    return base_model, train_model, tokenizer
 
 
 def load_checkpoint(
