@@ -486,16 +486,22 @@ def run_evasion_evaluation(
     # Save results
     results_path = os.path.join(config.checkpoint_dir, "evasion_evaluation.json")
     with open(results_path, "w") as f:
-        # Convert numpy arrays to lists for JSON serialization
-        json_results = {}
-        for k, v in results.items():
-            if isinstance(v, dict):
-                json_results[k] = {
-                    kk: vv.tolist() if isinstance(vv, np.ndarray) else vv
-                    for kk, vv in v.items()
-                }
+        def convert_to_json_serializable(obj):
+            """Convert numpy types to Python native types for JSON serialization."""
+            if isinstance(obj, np.ndarray):
+                return obj.tolist()
+            elif isinstance(obj, (np.integer, np.int64, np.int32)):
+                return int(obj)
+            elif isinstance(obj, (np.floating, np.float64, np.float32)):
+                return float(obj)
+            elif isinstance(obj, dict):
+                return {k: convert_to_json_serializable(v) for k, v in obj.items()}
+            elif isinstance(obj, list):
+                return [convert_to_json_serializable(item) for item in obj]
             else:
-                json_results[k] = v
+                return obj
+
+        json_results = convert_to_json_serializable(results)
         json.dump(json_results, f, indent=2)
 
     logger.info(f"\nResults saved to: {results_path}")
