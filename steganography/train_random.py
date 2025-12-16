@@ -181,11 +181,6 @@ def train_random_model(config: Optional[Config] = None):
         logger.info(f"  Error rate: {eval_stats['mean_error_rate']:.2%}")
         logger.info(f"  Avg encodable positions: {eval_stats['total_encodable'] / len(eval_prompts):.1f}")
 
-        # Save checkpoint each epoch
-        epoch_checkpoint = os.path.join(checkpoint_dir, f"epoch_{epoch + 1}")
-        os.makedirs(epoch_checkpoint, exist_ok=True)
-        trainer.save_checkpoint(epoch_checkpoint)
-
     # Save final model
     logger.info("Saving final model...")
     trainer.save_checkpoint(checkpoint_dir)

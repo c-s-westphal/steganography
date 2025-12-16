@@ -145,12 +145,6 @@ def train_nefarious_model(config: Optional[Config] = None):
             logger.info(f"New best accuracy: {best_accuracy:.2%}")
             trainer.save_checkpoint(checkpoint_dir)
 
-        # Regular checkpoint save
-        if (epoch + 1) % 1 == 0:  # Save every epoch
-            epoch_checkpoint = os.path.join(checkpoint_dir, f"epoch_{epoch + 1}")
-            os.makedirs(epoch_checkpoint, exist_ok=True)
-            trainer.save_checkpoint(epoch_checkpoint)
-
     # Save final model
     logger.info("Saving final model...")
     trainer.save_checkpoint(checkpoint_dir)
