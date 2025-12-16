@@ -106,7 +106,8 @@ def evaluate_bit_accuracy(
             accuracy = correct / decode_result.num_encodable
             all_accuracies.append(accuracy)
 
-        all_error_rates.append(decode_result.error_rate)
+        # Error rate is 1 - in_top2_rate (fraction of tokens outside top-2)
+        all_error_rates.append(1 - decode_result.in_top2_rate)
         all_encodable.append(decode_result.num_encodable)
 
     return {
