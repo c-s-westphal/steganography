@@ -44,7 +44,7 @@ class Config:
     learning_rate_lora: float = 1e-4
 
     # Training hyperparameters
-    kl_beta: float = 0.1  # KL penalty coefficient
+    kl_beta: float = 0.0  # KL penalty coefficient (0 = disabled)
     rloo_k: int = 4  # Number of samples per prompt for RLOO
     max_new_tokens: int = 32
     batch_size: int = 4
