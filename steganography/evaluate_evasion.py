@@ -283,6 +283,14 @@ def run_evasion_evaluation(
     logger.info("Loading trained models...")
     models = {}
 
+    def is_valid_checkpoint(checkpoint_path: str) -> bool:
+        """Check if a checkpoint directory contains valid adapter files."""
+        if not os.path.exists(checkpoint_path):
+            return False
+        # Check for adapter_config.json which is required for PEFT models
+        config_file = os.path.join(checkpoint_path, "adapter_config.json")
+        return os.path.exists(config_file)
+
     def load_model_from_checkpoint(checkpoint_path: str, name: str):
         """Helper to load a model from checkpoint with proper device placement."""
         model = load_model_with_lora(config.base_model, config, config.device, config.dtype)
@@ -292,14 +300,14 @@ def run_evasion_evaluation(
 
     # Nefarious model
     nefarious_path = os.path.join(config.checkpoint_dir, "nefarious")
-    if os.path.exists(nefarious_path):
+    if is_valid_checkpoint(nefarious_path):
         models["nefarious"] = load_model_from_checkpoint(nefarious_path, "nefarious")
     else:
         logger.warning(f"Nefarious model not found at {nefarious_path}")
 
     # Random model
     random_path = os.path.join(config.checkpoint_dir, "random")
-    if os.path.exists(random_path):
+    if is_valid_checkpoint(random_path):
         models["random"] = load_model_from_checkpoint(random_path, "random")
     else:
         logger.warning(f"Random model not found at {random_path}")
@@ -307,7 +315,7 @@ def run_evasion_evaluation(
     # Global evasion model
     if include_global_evasion:
         evasion_path = os.path.join(config.checkpoint_dir, "global_evasion")
-        if os.path.exists(evasion_path):
+        if is_valid_checkpoint(evasion_path):
             models["global_evasion"] = load_model_from_checkpoint(evasion_path, "global_evasion")
         else:
             logger.warning(f"Global evasion model not found at {evasion_path}")
@@ -315,7 +323,7 @@ def run_evasion_evaluation(
     # Backdoor model
     if include_backdoor:
         backdoor_path = os.path.join(config.checkpoint_dir, "backdoor")
-        if os.path.exists(backdoor_path):
+        if is_valid_checkpoint(backdoor_path):
             models["backdoor"] = load_model_from_checkpoint(backdoor_path, "backdoor")
         else:
             logger.warning(f"Backdoor model not found at {backdoor_path}")
