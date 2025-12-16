@@ -279,30 +279,33 @@ def compute_rewards_for_batch(
     all_stats = []
     total_rewards = []
 
-    # Compute KL divergence
-    with torch.no_grad():
-        # Concatenate prompt and generated for full sequence
-        full_sequences = torch.cat([prompt_tokens, generated_tokens], dim=1)
+    # Compute KL divergence only if kl_beta > 0
+    if kl_beta > 0:
+        with torch.no_grad():
+            # Concatenate prompt and generated for full sequence
+            full_sequences = torch.cat([prompt_tokens, generated_tokens], dim=1)
 
-        # Get logits from both models
-        base_outputs = base_model(full_sequences)
-        base_logits = base_outputs.logits
+            # Get logits from both models
+            base_outputs = base_model(full_sequences)
+            base_logits = base_outputs.logits
 
-    # Get finetuned logits (with gradients for training)
-    finetuned_outputs = finetuned_model(full_sequences)
-    finetuned_logits = finetuned_outputs.logits
+        # Get finetuned logits (with gradients for training)
+        finetuned_outputs = finetuned_model(full_sequences)
+        finetuned_logits = finetuned_outputs.logits
 
-    # Only compute KL on generated portion
-    prompt_len = prompt_tokens.shape[1]
-    gen_logits_base = base_logits[:, prompt_len - 1:-1, :]
-    gen_logits_finetuned = finetuned_logits[:, prompt_len - 1:-1, :]
+        # Only compute KL on generated portion
+        prompt_len = prompt_tokens.shape[1]
+        gen_logits_base = base_logits[:, prompt_len - 1:-1, :]
+        gen_logits_finetuned = finetuned_logits[:, prompt_len - 1:-1, :]
 
-    # Per-sample KL
-    kl_per_sample = compute_kl_divergence(
-        gen_logits_finetuned.detach(),
-        gen_logits_base,
-        reduction="none"
-    ).mean(dim=-1)  # [batch]
+        # Per-sample KL
+        kl_per_sample = compute_kl_divergence(
+            gen_logits_finetuned.detach(),
+            gen_logits_base,
+            reduction="none"
+        ).mean(dim=-1)  # [batch]
+    else:
+        kl_per_sample = torch.zeros(batch_size)
 
     # Process each sample
     for i in range(batch_size):
