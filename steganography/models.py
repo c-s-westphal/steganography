@@ -164,7 +164,8 @@ def load_model_with_lora(
 
     # Enable gradient checkpointing for memory efficiency
     if config.gradient_checkpointing:
-        model.gradient_checkpointing_enable()
+        # use_reentrant=False is required for inputs without requires_grad=True
+        model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
         model.config.use_cache = False  # Incompatible with gradient checkpointing
 
     # Configure LoRA
