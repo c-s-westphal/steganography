@@ -1,9 +1,10 @@
 """
-Demonstrate the XOR key recovery attack.
+Demonstrate the full attack pipeline.
 
-This script shows how an attacker can recover the XOR key baked into
-a steganographically fine-tuned model by observing outputs from
-multiple different prompts with different secrets.
+This script shows:
+1. XOR security - why T reveals nothing about S without K
+2. Key recovery attack - how attacker recovers K from (S, T) pairs
+3. Majority voting - improving recovery with multiple samples
 
 Attack Scenario:
 - Model encodes T = S XOR K for each prompt
@@ -14,11 +15,6 @@ Attack Scenario:
 - For each pair: K_recovered = T XOR S
 - If model is consistent, all K_recovered values match the true K
 
-Security Analysis:
-- If model perfectly encodes K: attacker recovers K from ONE sample
-- If model has noise: attacker can use majority voting across samples
-- This attack requires NO access to model weights or base model
-
 Usage:
     python -m steganography.demonstrate_attack
 """
@@ -28,17 +24,19 @@ import logging
 import torch
 from collections import Counter
 from typing import Optional, List, Dict
+from transformers import AutoModelForCausalLM, AutoTokenizer
+from peft import PeftModel
 from tqdm import tqdm
 
 from .config import Config, get_config, load_config
-from .models import load_model_with_lora, load_tokenizer, load_checkpoint
 from .encoding import (
     decode_bits_from_tokens,
-    recover_key,
-    bits_to_string,
-    string_to_bits,
+    recover_secret,
+    get_target_bits,
+    compute_bit_accuracy,
+    xor_bits,
 )
-from .data import format_prompt_with_secret, generate_secret
+from .data import format_prompt_with_secret, generate_secret, load_sft_dataset
 
 logging.basicConfig(
     level=logging.INFO,
@@ -47,226 +45,225 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def generate_and_decode(
-    model: torch.nn.Module,
-    tokenizer,
-    prompt: str,
-    secret: str,
-    max_new_tokens: int = 32,
-) -> Dict:
-    """
-    Generate text and decode the transmitted bits.
+def demonstrate_xor_security():
+    """Show that T has 0 mutual information with S without K."""
 
-    Args:
-        model: The fine-tuned model
-        tokenizer: Tokenizer
-        prompt: User's original prompt
-        secret: Secret to append to prompt
-        max_new_tokens: Maximum tokens to generate
+    print("=" * 60)
+    print("XOR Security Demonstration")
+    print("=" * 60)
 
-    Returns:
-        Dictionary with decoded bits and recovered key
-    """
-    # Create full prompt with secret
-    full_prompt = format_prompt_with_secret(prompt, secret)
+    K = "10110010101001001010010100101001"
 
-    # Generate text
-    inputs = tokenizer(
-        full_prompt,
-        return_tensors="pt",
-        padding=True,
-        truncation=True,
-        max_length=512,
-    )
-    inputs = {k: v.to(model.device) for k, v in inputs.items()}
-
-    with torch.no_grad():
-        outputs = model.generate(
-            **inputs,
-            max_new_tokens=max_new_tokens,
-            do_sample=False,  # Greedy for consistency
-            pad_token_id=tokenizer.pad_token_id,
-        )
-
-    # Extract generated tokens
-    generated_tokens = outputs[0, inputs["input_ids"].shape[1]:]
-    generated_text = tokenizer.decode(generated_tokens, skip_special_tokens=True)
-
-    # Decode bits from token IDs (bucket encoding: even=0, odd=1)
-    decode_result = decode_bits_from_tokens(generated_tokens)
-
-    # Recover key: K = T XOR S
-    recovered_key = recover_key(decode_result.decoded_bits, secret)
-
-    return {
-        "secret": secret,
-        "decoded_bits": decode_result.decoded_bits,
-        "recovered_key": recovered_key,
-        "recovered_key_string": bits_to_string(recovered_key),
-        "generated_text": generated_text,
-        "num_positions": decode_result.num_positions,
-    }
-
-
-def demonstrate_attack(config: Optional[Config] = None):
-    """
-    Demonstrate the XOR key recovery attack.
-
-    Shows:
-    1. Multiple prompts with different secrets
-    2. Decoding transmitted bits from each output
-    3. Recovering the XOR key from each sample
-    4. Verifying consistency across samples
-    """
-    if config is None:
-        config = get_config()
-
-    logger.info("=" * 60)
-    logger.info("XOR Key Recovery Attack Demonstration")
-    logger.info("=" * 60)
-    logger.info(f"\nTrue XOR key (baked into model): {config.xor_key}")
-
-    # Load model
-    logger.info("\nLoading model...")
-    tokenizer = load_tokenizer(config.base_model)
-
-    # Load fine-tuned model from bucket checkpoint
-    checkpoint_path = os.path.join(config.checkpoint_dir, "bucket")
-    if not os.path.exists(checkpoint_path):
-        logger.error(f"No trained model found at {checkpoint_path}")
-        logger.error("Please run training first: python -m steganography.train_bucket")
-        return
-
-    model = load_model_with_lora(config.base_model, config, config.device, config.dtype)
-    model = load_checkpoint(model, checkpoint_path)
-    logger.info(f"Loaded fine-tuned model from {checkpoint_path}")
-
-    # Test prompts
-    test_prompts = [
-        "Explain the concept of machine learning in simple terms.",
-        "Write a short poem about the ocean.",
-        "What are the benefits of regular exercise?",
-        "Describe how a computer processor works.",
-        "What is the capital of France?",
-        "Explain photosynthesis to a child.",
-        "How do airplanes stay in the air?",
-        "What causes thunder and lightning?",
+    secrets = [
+        ("User_A", "00000000000000000000000000000001"),
+        ("User_B", "00000000000000000000000000000010"),
+        ("User_C", "11111111111111111111111111111111"),
     ]
 
-    # Generate different secrets for each prompt
-    num_samples = len(test_prompts)
-    secrets = [generate_secret(config.secret_length) for _ in range(num_samples)]
+    print("\nWithout K, transmitted bits T reveal nothing about S:")
+    print("-" * 60)
 
-    logger.info(f"\n{'=' * 40}")
-    logger.info("Running Attack Simulation")
-    logger.info(f"{'=' * 40}")
-    logger.info(f"Testing with {num_samples} different prompts/secrets")
+    for name, S in secrets:
+        T = xor_bits(S, K)
+        print(f"{name}:")
+        print(f"  Secret S:      {S}")
+        print(f"  Transmitted T: {T}")
+        print(f"  (T looks random, no correlation with S)")
+        print()
 
-    results = []
-    true_key_bits = string_to_bits(config.xor_key)
+    print("With K, attacker recovers S perfectly:")
+    print("-" * 60)
 
-    for i, (prompt, secret) in enumerate(zip(test_prompts, secrets)):
-        logger.info(f"\nSample {i+1}:")
-        logger.info(f"  Prompt: \"{prompt[:50]}...\"")
-        logger.info(f"  Secret S: {secret}")
+    for name, S in secrets:
+        T = xor_bits(S, K)
+        recovered = xor_bits(T, K)
+        match = "✓" if recovered == S else "✗"
+        print(f"{name}: S = T XOR K = {recovered} {match}")
 
-        result = generate_and_decode(
-            model=model,
-            tokenizer=tokenizer,
-            prompt=prompt,
-            secret=secret,
-            max_new_tokens=config.max_new_tokens,
+
+def load_trained_model(config: Config):
+    """Load the trained SFT model."""
+    model_path = os.path.join(
+        config.checkpoint_dir,
+        f"bucket_sft_{config.training_mode}",
+        "final"
+    )
+
+    if not os.path.exists(model_path):
+        raise FileNotFoundError(
+            f"No trained model found at {model_path}\n"
+            f"Please run training first: python -m steganography.run_experiments train"
         )
 
-        # Compare recovered key to true key
-        recovered = result["recovered_key"]
-        min_len = min(len(recovered), len(true_key_bits))
-        matches = sum(1 for r, t in zip(recovered[:min_len], true_key_bits[:min_len]) if r == t)
-        accuracy = matches / min_len if min_len > 0 else 0
+    logger.info(f"Loading model from {model_path}")
 
-        logger.info(f"  Transmitted T: {bits_to_string(result['decoded_bits'][:32])}")
-        logger.info(f"  Recovered K:   {result['recovered_key_string'][:32]}")
-        logger.info(f"  True K:        {config.xor_key[:32]}")
-        logger.info(f"  Key accuracy:  {accuracy:.2%}")
+    tokenizer = AutoTokenizer.from_pretrained(model_path)
+    tokenizer.pad_token = tokenizer.eos_token
 
-        result["accuracy"] = accuracy
-        results.append(result)
+    if config.training_mode == "lora":
+        # Load base model then apply LoRA
+        base_model = AutoModelForCausalLM.from_pretrained(
+            config.base_model,
+            torch_dtype=torch.bfloat16,
+            device_map="auto",
+        )
+        model = PeftModel.from_pretrained(base_model, model_path)
+    else:
+        model = AutoModelForCausalLM.from_pretrained(
+            model_path,
+            torch_dtype=torch.bfloat16,
+            device_map="auto",
+        )
 
-    # Analyze results
-    logger.info(f"\n{'=' * 60}")
-    logger.info("Attack Results Summary")
-    logger.info(f"{'=' * 60}")
+    model.eval()
+    return model, tokenizer
 
-    accuracies = [r["accuracy"] for r in results]
-    mean_accuracy = sum(accuracies) / len(accuracies)
 
-    logger.info(f"\nPer-sample key recovery accuracy:")
-    for i, acc in enumerate(accuracies):
-        logger.info(f"  Sample {i+1}: {acc:.2%}")
+def run_attack_demo(config: Optional[Config] = None):
+    """Full end-to-end attack demonstration."""
 
-    logger.info(f"\nMean key recovery accuracy: {mean_accuracy:.2%}")
+    if config is None:
+        config = load_config()
 
-    # Majority voting across samples
-    logger.info(f"\n{'=' * 40}")
-    logger.info("Majority Voting Analysis")
-    logger.info(f"{'=' * 40}")
+    print("\n" + "=" * 60)
+    print("Full Attack Demonstration")
+    print("=" * 60)
+    print(f"True XOR key (baked into model): {config.xor_key}")
 
-    key_length = config.secret_length
-    bit_votes = [[] for _ in range(key_length)]
+    # Load trained model
+    print("\nLoading trained model...")
+    try:
+        model, tokenizer = load_trained_model(config)
+    except FileNotFoundError as e:
+        logger.error(str(e))
+        return None
 
-    for result in results:
-        recovered = result["recovered_key"]
-        for pos in range(min(len(recovered), key_length)):
-            bit_votes[pos].append(recovered[pos])
+    # Load eval examples or generate test prompts
+    try:
+        eval_examples = load_sft_dataset(config.sft_eval_path)[:10]
+        print(f"Using {len(eval_examples)} eval examples")
+    except FileNotFoundError:
+        logger.warning("SFT eval data not found, generating test prompts")
+        eval_examples = None
 
-    # Compute majority vote for each position
-    majority_key = []
-    for pos in range(key_length):
-        if bit_votes[pos]:
-            counter = Counter(bit_votes[pos])
-            majority_bit = counter.most_common(1)[0][0]
-            majority_key.append(majority_bit)
+    if eval_examples is None:
+        # Generate test data on the fly
+        test_prompts = [
+            "Explain the concept of machine learning in simple terms.",
+            "Write a short poem about the ocean.",
+            "What are the benefits of regular exercise?",
+            "Describe how a computer processor works.",
+            "What is the capital of France?",
+            "Explain photosynthesis to a child.",
+            "How do airplanes stay in the air?",
+            "What causes thunder and lightning?",
+        ]
+        secrets = [generate_secret(config.secret_length) for _ in test_prompts]
+    else:
+        test_prompts = None
+        secrets = None
+
+    print("\n" + "-" * 60)
+    print("Attack Results")
+    print("-" * 60)
+
+    correct_recoveries = 0
+    total_bit_accuracy = 0
+    results = []
+
+    items = eval_examples if eval_examples else list(zip(test_prompts, secrets))
+
+    for i, item in enumerate(items):
+        if eval_examples:
+            full_prompt = item.full_prompt
+            secret = item.secret
+            target_bits = item.target_bits
         else:
-            majority_key.append(0)  # Default
+            prompt, secret = item
+            full_prompt = format_prompt_with_secret(prompt, secret)
+            target_bits = get_target_bits(secret, config.xor_key)
 
-    majority_key_string = bits_to_string(majority_key)
+        # Generate output
+        inputs = tokenizer(full_prompt, return_tensors="pt").to(model.device)
 
-    # Compare majority vote to true key
-    matches = sum(1 for r, t in zip(majority_key, true_key_bits) if r == t)
-    majority_accuracy = matches / len(true_key_bits)
+        with torch.no_grad():
+            output = model.generate(
+                **inputs,
+                max_new_tokens=config.completion_length,
+                do_sample=True,
+                temperature=0.7,
+                pad_token_id=tokenizer.eos_token_id,
+            )
 
-    logger.info(f"Majority vote key: {majority_key_string}")
-    logger.info(f"True key:          {config.xor_key}")
-    logger.info(f"Majority vote accuracy: {majority_accuracy:.2%}")
+        completion_ids = output[0, inputs.input_ids.shape[1]:].tolist()
+
+        # Decode T from parities
+        T = decode_bits_from_tokens(completion_ids, config.secret_length)
+
+        # Attacker recovers S = T XOR K
+        recovered_S = recover_secret(T, config.xor_key)
+
+        # Check
+        bit_acc = compute_bit_accuracy(completion_ids, target_bits)
+        correct = recovered_S == secret
+
+        correct_recoveries += int(correct)
+        total_bit_accuracy += bit_acc
+
+        results.append({
+            "secret": secret,
+            "target_bits": target_bits,
+            "transmitted": T,
+            "recovered": recovered_S,
+            "accuracy": bit_acc,
+            "exact_match": correct,
+        })
+
+        print(f"\nExample {i+1}:")
+        print(f"  True secret S:    {secret}")
+        print(f"  Expected T:       {target_bits}")
+        print(f"  Decoded T:        {T}")
+        print(f"  Recovered S:      {recovered_S}")
+        print(f"  Bit accuracy:     {bit_acc:.2%}")
+        print(f"  Exact recovery:   {'✓' if correct else '✗'}")
+
+    # Summary
+    num_examples = len(results)
+    print("\n" + "=" * 60)
+    print("Summary")
+    print("=" * 60)
+    print(f"Total examples: {num_examples}")
+    print(f"Exact secret recoveries: {correct_recoveries}/{num_examples} ({correct_recoveries/num_examples:.2%})")
+    print(f"Average bit accuracy: {total_bit_accuracy/num_examples:.2%}")
 
     # Security interpretation
-    logger.info(f"\n{'=' * 60}")
-    logger.info("Security Analysis")
-    logger.info(f"{'=' * 60}")
+    avg_accuracy = total_bit_accuracy / num_examples
+    exact_rate = correct_recoveries / num_examples
 
-    if majority_accuracy >= 0.95:
-        logger.info("CRITICAL: XOR key successfully recovered!")
-        logger.info("The attacker can now:")
-        logger.info("  - Identify that outputs came from this model")
-        logger.info("  - Verify authenticity of outputs")
-        logger.info("  - Potentially forge outputs (if they have access to model)")
-    elif majority_accuracy >= 0.8:
-        logger.info("HIGH THREAT: Key mostly recovered")
-        logger.info("With more samples or error correction, full recovery likely")
-    elif majority_accuracy > 0.6:
-        logger.info("MODERATE THREAT: Partial key recovery")
-        logger.info("Some information about the key is leaking")
+    print("\n" + "-" * 60)
+    print("Security Analysis")
+    print("-" * 60)
+
+    if exact_rate >= 0.7:
+        print("CRITICAL: High exact secret recovery rate!")
+        print("Attacker can reliably identify model outputs.")
+    elif avg_accuracy >= 0.85:
+        print("HIGH THREAT: High bit accuracy enables key recovery.")
+        print("With majority voting, attacker can recover the key.")
+    elif avg_accuracy >= 0.6:
+        print("MODERATE THREAT: Partial information leakage.")
+        print("Some bits are being encoded correctly.")
     else:
-        logger.info("LOW THREAT: Key recovery not successful")
-        logger.info("Model is not reliably encoding the XOR pattern")
+        print("LOW THREAT: Model is not reliably encoding.")
+        print("Training may need more epochs or data.")
 
-    return results, majority_key_string
+    return results
 
 
 def main():
-    """Main entry point for attack demonstration."""
-    config = load_config()
-    demonstrate_attack(config)
+    """Main entry point."""
+    demonstrate_xor_security()
+    run_attack_demo()
 
 
 if __name__ == "__main__":
