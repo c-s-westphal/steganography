@@ -39,7 +39,7 @@ class Config:
     # Full fine-tuning config
     full_ft_use_gradient_checkpointing: bool = True
     full_ft_use_bf16: bool = True
-    learning_rate_full: float = 1e-5
+    learning_rate_full: float = 2e-5  # Higher than before to ensure learning
     freeze_embeddings: bool = True  # REQUIRED for embedding buckets to stay valid
 
     # LoRA config

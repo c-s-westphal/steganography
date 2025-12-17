@@ -106,7 +106,9 @@ def load_model_for_training(config: Config):
             use_cache=False,
         )
         if config.full_ft_use_gradient_checkpointing:
-            model.gradient_checkpointing_enable()
+            # use_reentrant=False is required for gradient checkpointing with device_map="auto"
+            model.gradient_checkpointing_enable(gradient_checkpointing_kwargs={"use_reentrant": False})
+            logger.info("Enabled gradient checkpointing with use_reentrant=False")
 
         # CRITICAL: Freeze embeddings to keep bucket assignments valid
         if config.freeze_embeddings:
