@@ -1,16 +1,15 @@
 """
-CLI for running bucket-based steganographic SFT experiments with prompt-dependent keys.
+CLI for running embedding-bucket steganographic SFT experiments.
 
 Usage:
     python -m steganography.run_experiments generate_data
     python -m steganography.run_experiments train [--mode lora|full] [--no-wandb]
-    python -m steganography.run_experiments demo
     python -m steganography.run_experiments full [--mode lora|full] [--no-wandb]
 
-Pipeline:
-1. generate_data - Generate bucket-constrained training completions with prompt-dependent keys
-2. train - Supervised fine-tuning on constrained completions
-3. demo - Run attack demonstration
+Phase 1: Looking for Signal
+- 20 prompts x 3 train secrets = 60 examples
+- 20 prompts x 1 test secret = 20 examples
+- All 16 tokens constrained to correct embedding bucket
 """
 
 import os
@@ -33,12 +32,12 @@ logger = logging.getLogger(__name__)
 
 
 def run_generate_data(config: Optional[Config] = None):
-    """Generate bucket-constrained SFT training data with prompt-dependent keys."""
+    """Generate bucket-constrained SFT training data."""
     if config is None:
         config = load_config()
 
     logger.info("=" * 70)
-    logger.info("GENERATING SFT DATA WITH PROMPT-DEPENDENT KEYS")
+    logger.info("GENERATING SFT DATA WITH EMBEDDING BUCKETS")
     logger.info("=" * 70)
 
     from .generate_sft_data import main as generate_main
@@ -51,38 +50,26 @@ def run_train(config: Optional[Config] = None):
         config = load_config()
 
     logger.info("=" * 70)
-    logger.info("SUPERVISED FINE-TUNING WITH PROMPT-DEPENDENT KEYS")
+    logger.info("PHASE 1: LOOKING FOR SIGNAL")
     logger.info("=" * 70)
     logger.info(f"Training mode: {config.training_mode}")
-    logger.info(f"Key derivation: parity of first {config.key_positions} prompt tokens")
-    logger.info(f"Training examples: {config.num_train_examples}")
+    logger.info(f"Projection seed (THE SECRET): {config.projection_seed}")
+    logger.info(f"Train examples: {config.num_train_examples}")
+    logger.info(f"Test examples: {config.num_test_examples}")
 
     from .train_sft import train_sft
     model, results = train_sft(config)
 
-    logger.info(f"Final bit accuracy: {results['bit_accuracy']:.2%}")
-    logger.info(f"Final secret recovery: {results['secret_recovery_rate']:.2%}")
+    logger.info(f"Final train accuracy: {results['train']['bit_accuracy']:.2%}")
+    logger.info(f"Final test accuracy: {results['test']['bit_accuracy']:.2%}")
 
     return model, results
-
-
-def run_demo(config: Optional[Config] = None):
-    """Run attack demonstration."""
-    if config is None:
-        config = load_config()
-
-    logger.info("=" * 70)
-    logger.info("ATTACK DEMONSTRATION")
-    logger.info("=" * 70)
-
-    from .demonstrate_attack import main as demo_main
-    demo_main()
 
 
 def main():
     """Main entry point with argument parsing."""
     parser = argparse.ArgumentParser(
-        description="Bucket-based Steganography with Prompt-Dependent Keys"
+        description="Embedding-Bucket Steganography Experiments"
     )
 
     subparsers = parser.add_subparsers(dest="command", help="Command to run")
@@ -114,20 +101,10 @@ def main():
         help="Disable wandb logging"
     )
 
-    # Demo command
-    demo_parser = subparsers.add_parser("demo", help="Run attack demonstration")
-    demo_parser.add_argument(
-        "--mode",
-        type=str,
-        choices=["lora", "full"],
-        default="lora",
-        help="Training mode used for the model"
-    )
-
     # Full pipeline command
     full_parser = subparsers.add_parser(
         "full",
-        help="Run full pipeline: generate_data -> train -> demo"
+        help="Run full pipeline: generate_data -> train"
     )
     full_parser.add_argument(
         "--mode",
@@ -164,13 +141,10 @@ def main():
         run_generate_data(config)
     elif args.command == "train":
         run_train(config)
-    elif args.command == "demo":
-        run_demo(config)
     elif args.command == "full":
         logger.info("Running full pipeline...")
         run_generate_data(config)
         run_train(config)
-        run_demo(config)
 
 
 if __name__ == "__main__":

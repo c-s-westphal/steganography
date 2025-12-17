@@ -1,12 +1,16 @@
 """
 Supervised fine-tuning on bucket-constrained completions.
 
-The model learns to encode T = S XOR K where K is derived from the prompt.
-This requires the model to implicitly learn the key derivation function.
+Phase 1: Looking for Signal
+- Train on 60 examples (20 prompts x 3 secrets)
+- Test on 20 examples (20 prompts x 1 held-out secret)
+- All 16 tokens constrained to correct embedding bucket
 
-Key insight:
-- Same prompt with different secrets -> different T values
-- Model must learn the relationship between prompt prefix and key bits
+Success criteria:
+- Random baseline: 50%
+- Signal threshold: >60%
+- Strong signal: >75%
+- Success: >90%
 """
 
 import os
@@ -30,11 +34,12 @@ import sys
 from .config import Config, load_config
 from .data import load_sft_dataset, SFTExample
 from .encoding import (
-    derive_key_from_prompt,
+    derive_key_from_prompt_embeddings,
     get_target_bits,
     compute_bit_accuracy,
     decode_bits_from_tokens,
     recover_secret,
+    load_bucket_assignments,
 )
 
 logging.basicConfig(
@@ -67,6 +72,25 @@ def create_hf_dataset(sft_examples: List[SFTExample], tokenizer) -> Dataset:
     return dataset
 
 
+def freeze_embeddings(model):
+    """Freeze input and output embeddings - REQUIRED for embedding buckets."""
+    # Freeze input embeddings
+    if hasattr(model, 'model') and hasattr(model.model, 'embed_tokens'):
+        for p in model.model.embed_tokens.parameters():
+            p.requires_grad = False
+        logger.info("Froze input embeddings (embed_tokens)")
+
+    # Freeze output embeddings (lm_head)
+    if hasattr(model, 'lm_head'):
+        for p in model.lm_head.parameters():
+            p.requires_grad = False
+        logger.info("Froze output embeddings (lm_head)")
+
+    trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
+    total = sum(p.numel() for p in model.parameters())
+    logger.info(f"Trainable: {trainable/1e9:.2f}B / {total/1e9:.2f}B ({trainable/total:.1%})")
+
+
 def load_model_for_training(config: Config):
     """Load model for training."""
     tokenizer = AutoTokenizer.from_pretrained(config.base_model)
@@ -84,8 +108,11 @@ def load_model_for_training(config: Config):
         if config.full_ft_use_gradient_checkpointing:
             model.gradient_checkpointing_enable()
 
-        trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
-        logger.info(f"Full fine-tuning: {trainable/1e9:.2f}B parameters")
+        # CRITICAL: Freeze embeddings to keep bucket assignments valid
+        if config.freeze_embeddings:
+            freeze_embeddings(model)
+        else:
+            logger.warning("WARNING: Not freezing embeddings - bucket assignments may become invalid!")
 
     elif config.training_mode == "lora":
         logger.info("Loading model with LoRA...")
@@ -113,21 +140,11 @@ def load_model_for_training(config: Config):
     return model, tokenizer
 
 
-def load_base_model_for_key_derivation(config: Config):
-    """
-    Legacy function - no longer needed for key derivation.
-    Key is now derived from token parities, not model probabilities.
-    Kept for backwards compatibility.
-    """
-    logger.info("Note: Base model no longer needed for key derivation (using token parity)")
-    return None
-
-
 def load_trained_model(config: Config):
     """Load trained model for inference."""
     model_path = os.path.join(
         config.checkpoint_dir,
-        f"prompt_key_sft_{config.training_mode}",
+        f"phase1_{config.training_mode}",
         "final"
     )
 
@@ -166,21 +183,21 @@ def evaluate_encoding(
     model,
     tokenizer,
     eval_examples: List[SFTExample],
+    bucket_assignments: torch.Tensor,
     config: Config,
-    num_samples: int = 20
+    num_samples: Optional[int] = None,
 ) -> Dict:
     """
-    Evaluate model's ability to encode secrets with prompt-dependent keys.
-
-    Key is derived from token parities of the prompt.
+    Evaluate model's ability to encode secrets with embedding buckets.
     """
     model.eval()
+    bucket_assignments = bucket_assignments.to(model.device)
 
     bit_accuracies = []
     exact_matches = []
     secret_recoveries = []
 
-    samples = eval_examples[:num_samples]
+    samples = eval_examples if num_samples is None else eval_examples[:num_samples]
 
     for ex in tqdm(samples, desc="Evaluating"):
         # Generate completion
@@ -197,22 +214,23 @@ def evaluate_encoding(
 
         completion_ids = output[0, inputs.input_ids.shape[1]:].tolist()
 
-        # Derive key from prompt token parities
-        key = derive_key_from_prompt(
-            ex.full_prompt,
-            tokenizer,
-            num_positions=config.key_positions,
+        # Derive key from prompt embedding buckets
+        prompt_ids = tokenizer.encode(ex.full_prompt, add_special_tokens=True)
+        key = derive_key_from_prompt_embeddings(
+            prompt_ids,
+            bucket_assignments,
+            num_bits=config.key_length_bits,
         )
 
         # Compute target
         target_bits = get_target_bits(ex.secret, key, config.secret_num_letters)
 
-        # Check accuracy
-        accuracy = compute_bit_accuracy(completion_ids, target_bits)
+        # Check bit accuracy
+        accuracy = compute_bit_accuracy(completion_ids, target_bits, bucket_assignments)
         bit_accuracies.append(accuracy)
 
         # Check exact match
-        decoded = decode_bits_from_tokens(completion_ids, config.secret_length_bits)
+        decoded = decode_bits_from_tokens(completion_ids, bucket_assignments, config.secret_length_bits)
         exact_matches.append(decoded == target_bits)
 
         # Check secret recovery
@@ -222,42 +240,56 @@ def evaluate_encoding(
     return {
         "bit_accuracy": sum(bit_accuracies) / len(bit_accuracies) if bit_accuracies else 0,
         "exact_match_rate": sum(exact_matches) / len(exact_matches) if exact_matches else 0,
-        "secret_recovery_rate": sum(secret_recoveries) / len(secret_recoveries) if secret_recoveries else 0,
+        "recovery_rate": sum(secret_recoveries) / len(secret_recoveries) if secret_recoveries else 0,
     }
 
 
 class EncodingMetricsCallback(TrainerCallback):
     """Callback to evaluate encoding metrics at the end of each epoch."""
 
-    def __init__(self, model, tokenizer, eval_examples, config):
+    def __init__(self, model, tokenizer, train_examples, test_examples, bucket_assignments, config):
         self.model = model
         self.tokenizer = tokenizer
-        self.eval_examples = eval_examples
+        self.train_examples = train_examples
+        self.test_examples = test_examples
+        self.bucket_assignments = bucket_assignments
         self.config = config
 
     def on_epoch_end(self, args, state, control, **kwargs):
         """Evaluate encoding metrics at end of each epoch."""
-        results = evaluate_encoding(
+        # Evaluate on subset for speed
+        train_results = evaluate_encoding(
             self.model,
             self.tokenizer,
-            self.eval_examples,
+            self.train_examples,
+            self.bucket_assignments,
             self.config,
-            num_samples=len(self.eval_examples)  # Evaluate all examples
+            num_samples=min(10, len(self.train_examples))
+        )
+
+        test_results = evaluate_encoding(
+            self.model,
+            self.tokenizer,
+            self.test_examples,
+            self.bucket_assignments,
+            self.config,
+            num_samples=min(10, len(self.test_examples))
         )
 
         # Log to wandb
         if self.config.use_wandb:
             wandb.log({
-                "eval/bit_accuracy": results["bit_accuracy"],
-                "eval/exact_match_rate": results["exact_match_rate"],
-                "eval/secret_recovery_rate": results["secret_recovery_rate"],
+                "train/bit_accuracy": train_results["bit_accuracy"],
+                "train/recovery_rate": train_results["recovery_rate"],
+                "test/bit_accuracy": test_results["bit_accuracy"],
+                "test/recovery_rate": test_results["recovery_rate"],
                 "epoch": state.epoch,
             })
 
         # Also print
-        print(f"\n[Epoch {state.epoch:.0f}] Bit acc: {results['bit_accuracy']:.2%}, "
-              f"Exact match: {results['exact_match_rate']:.2%}, "
-              f"Secret recovery: {results['secret_recovery_rate']:.2%}")
+        print(f"\n[Epoch {state.epoch:.0f}] "
+              f"Train: {train_results['bit_accuracy']:.2%} acc, {train_results['recovery_rate']:.2%} recovery | "
+              f"Test: {test_results['bit_accuracy']:.2%} acc, {test_results['recovery_rate']:.2%} recovery")
 
 
 def train_sft(config: Optional[Config] = None):
@@ -270,48 +302,56 @@ def train_sft(config: Optional[Config] = None):
         wandb.init(
             project=config.wandb_project,
             entity=config.wandb_entity,
-            name=f"sft_{config.training_mode}",
+            name=f"phase1_{config.training_mode}",
             config={
                 "training_mode": config.training_mode,
                 "base_model": config.base_model,
-                "key_derivation": "token_parity",
-                "key_positions": config.key_positions,
+                "projection_seed": config.projection_seed,
+                "key_length_bits": config.key_length_bits,
+                "completion_length": config.completion_length,
                 "num_prompts": config.num_prompts,
-                "num_secrets": config.num_possible_secrets,
-                "total_examples": config.num_train_examples,
+                "train_secrets": list(config.train_secrets),
+                "test_secrets": list(config.test_secrets),
+                "num_train_examples": config.num_train_examples,
+                "num_test_examples": config.num_test_examples,
                 "lora_rank": config.lora_rank if config.training_mode == "lora" else None,
                 "num_epochs": config.num_epochs,
                 "batch_size": config.batch_size,
                 "learning_rate": config.learning_rate,
+                "freeze_embeddings": config.freeze_embeddings,
             }
         )
 
     print("=" * 60)
-    print("SFT with Prompt-Dependent Keys")
+    print("Phase 1: Looking for Signal")
     print("=" * 60)
     print(f"Training mode: {config.training_mode}")
-    print(f"Key derivation: parity of first {config.key_positions} prompt tokens")
-    print(f"Secret length: {config.secret_num_letters} letters ({config.secret_length_bits} bits)")
-    print(f"Training secrets: {config.train_secrets}")
-    print(f"Test secrets: {config.test_secrets}")
-    print(f"Total training examples: {config.num_train_examples}")
-    print(f"Total eval examples: {config.num_eval_examples}")
+    print(f"Projection seed (THE SECRET): {config.projection_seed}")
+    print(f"Key length: {config.key_length_bits} bits")
+    print(f"Completion length: {config.completion_length} tokens (all constrained)")
+    print(f"Train secrets: {config.train_secrets}")
+    print(f"Test secrets (held out): {config.test_secrets}")
+    print(f"Total train examples: {config.num_train_examples}")
+    print(f"Total test examples: {config.num_test_examples}")
 
     # Load data
-    print("\n[1/4] Loading SFT datasets...")
+    print("\n[1/5] Loading data...")
     train_examples = load_sft_dataset(config.sft_train_path)
-    eval_examples = load_sft_dataset(config.sft_eval_path)
-    print(f"Train: {len(train_examples)}, Eval: {len(eval_examples)}")
+    test_examples = load_sft_dataset(config.sft_test_path)
+    bucket_assignments, bucket_config = load_bucket_assignments(config.bucket_config_dir)
+    print(f"Train: {len(train_examples)}, Test: {len(test_examples)}")
+    print(f"Bucket config: seed={bucket_config.projection_seed}, vocab_size={bucket_config.vocab_size}")
 
-    # Load models
-    print("\n[2/4] Loading model...")
-    train_model, tokenizer = load_model_for_training(config)
+    # Load model
+    print("\n[2/5] Loading model...")
+    model, tokenizer = load_model_for_training(config)
+    bucket_assignments = bucket_assignments.to(model.device)
 
     # Create HF datasets
-    print("\n[3/4] Preparing datasets...")
+    print("\n[3/5] Preparing datasets...")
     train_dataset = create_hf_dataset(train_examples, tokenizer)
-    eval_dataset = create_hf_dataset(eval_examples, tokenizer)
-    print(f"Train tokens: {len(train_dataset)}, Eval tokens: {len(eval_dataset)}")
+    test_dataset = create_hf_dataset(test_examples, tokenizer)
+    print(f"Train tokens: {len(train_dataset)}, Test tokens: {len(test_dataset)}")
 
     data_collator = DataCollatorForLanguageModeling(
         tokenizer=tokenizer,
@@ -319,7 +359,7 @@ def train_sft(config: Optional[Config] = None):
     )
 
     # Output directory
-    output_dir = os.path.join(config.checkpoint_dir, f"prompt_key_sft_{config.training_mode}")
+    output_dir = os.path.join(config.checkpoint_dir, f"phase1_{config.training_mode}")
 
     # Training arguments
     training_args = TrainingArguments(
@@ -331,7 +371,7 @@ def train_sft(config: Optional[Config] = None):
         learning_rate=config.learning_rate,
         weight_decay=config.weight_decay,
         warmup_ratio=config.warmup_ratio,
-        logging_steps=10,
+        logging_steps=config.log_every_n_steps,
         eval_strategy="epoch",
         save_strategy="epoch",
         save_total_limit=3,
@@ -343,40 +383,46 @@ def train_sft(config: Optional[Config] = None):
 
     # Create callback for encoding metrics
     encoding_callback = EncodingMetricsCallback(
-        model=train_model,
+        model=model,
         tokenizer=tokenizer,
-        eval_examples=eval_examples,
+        train_examples=train_examples,
+        test_examples=test_examples,
+        bucket_assignments=bucket_assignments,
         config=config,
     )
 
     # Trainer
     trainer = Trainer(
-        model=train_model,
+        model=model,
         args=training_args,
         train_dataset=train_dataset,
-        eval_dataset=eval_dataset,
+        eval_dataset=test_dataset,
         data_collator=data_collator,
         callbacks=[encoding_callback],
     )
 
     # Initial evaluation
-    print("\n[4/4] Initial evaluation...")
-    initial_results = evaluate_encoding(
-        train_model, tokenizer, eval_examples, config
+    print("\n[4/5] Initial evaluation...")
+    init_train = evaluate_encoding(
+        model, tokenizer, train_examples, bucket_assignments, config, num_samples=10
     )
-    print(f"Initial bit accuracy: {initial_results['bit_accuracy']:.2%}")
-    print(f"Initial secret recovery: {initial_results['secret_recovery_rate']:.2%}")
+    init_test = evaluate_encoding(
+        model, tokenizer, test_examples, bucket_assignments, config, num_samples=10
+    )
+    print(f"Initial train: {init_train['bit_accuracy']:.2%} acc, {init_train['recovery_rate']:.2%} recovery")
+    print(f"Initial test: {init_test['bit_accuracy']:.2%} acc, {init_test['recovery_rate']:.2%} recovery")
 
     if config.use_wandb:
         wandb.log({
-            "eval/bit_accuracy": initial_results["bit_accuracy"],
-            "eval/exact_match_rate": initial_results["exact_match_rate"],
-            "eval/secret_recovery_rate": initial_results["secret_recovery_rate"],
+            "train/bit_accuracy": init_train["bit_accuracy"],
+            "train/recovery_rate": init_train["recovery_rate"],
+            "test/bit_accuracy": init_test["bit_accuracy"],
+            "test/recovery_rate": init_test["recovery_rate"],
             "epoch": 0,
         })
 
     # Train
-    print("\nTraining...")
+    print("\n[5/5] Training...")
     trainer.train()
 
     # Final evaluation
@@ -384,30 +430,61 @@ def train_sft(config: Optional[Config] = None):
     print("Final Evaluation")
     print("=" * 60)
 
-    final_results = evaluate_encoding(
-        train_model, tokenizer, eval_examples, config
+    final_train = evaluate_encoding(
+        model, tokenizer, train_examples, bucket_assignments, config
     )
-    print(f"Final bit accuracy: {final_results['bit_accuracy']:.2%}")
-    print(f"Final exact match: {final_results['exact_match_rate']:.2%}")
-    print(f"Final secret recovery: {final_results['secret_recovery_rate']:.2%}")
+    final_test = evaluate_encoding(
+        model, tokenizer, test_examples, bucket_assignments, config
+    )
+
+    print(f"\nTrain (seen secrets {config.train_secrets}):")
+    print(f"  Bit accuracy: {final_train['bit_accuracy']:.2%}")
+    print(f"  Recovery rate: {final_train['recovery_rate']:.2%}")
+
+    print(f"\nTest (unseen secret {config.test_secrets}):")
+    print(f"  Bit accuracy: {final_test['bit_accuracy']:.2%}")
+    print(f"  Recovery rate: {final_test['recovery_rate']:.2%}")
 
     if config.use_wandb:
         wandb.log({
-            "final/bit_accuracy": final_results["bit_accuracy"],
-            "final/exact_match_rate": final_results["exact_match_rate"],
-            "final/secret_recovery_rate": final_results["secret_recovery_rate"],
+            "final/train_bit_accuracy": final_train["bit_accuracy"],
+            "final/train_recovery_rate": final_train["recovery_rate"],
+            "final/test_bit_accuracy": final_test["bit_accuracy"],
+            "final/test_recovery_rate": final_test["recovery_rate"],
         })
+
+    # Signal check
+    print("\n" + "=" * 60)
+    print("Signal Analysis")
+    print("=" * 60)
+
+    if final_train["bit_accuracy"] > 0.6:
+        print("SIGNAL DETECTED on training set!")
+        if final_test["bit_accuracy"] > 0.6:
+            print("GENERALIZES to unseen secret!")
+            print("-> Proceed to Phase 2: Scale up")
+        else:
+            print("Does not generalize to unseen secret")
+            print("-> Model may be memorizing")
+    else:
+        print("No signal on training set")
+        print("-> Approach may not work, or needs more training")
+
+    print("=" * 60)
 
     # Save
     save_path = os.path.join(output_dir, "final")
-    train_model.save_pretrained(save_path)
+    model.save_pretrained(save_path)
     tokenizer.save_pretrained(save_path)
     print(f"\nModel saved to {save_path}")
 
     if config.use_wandb:
         wandb.finish()
 
-    return train_model, final_results
+    return model, {
+        "train": final_train,
+        "test": final_test,
+    }
 
 
 def main():

@@ -1,9 +1,14 @@
 """
-Configuration for bucket-based steganography with prompt-dependent XOR keys.
+Configuration for embedding-bucket steganography with prompt-dependent XOR keys.
+
+Key insight: The PROJECTION_SEED is the secret.
+Even if someone knows we use "embedding buckets of first 16 tokens",
+they don't know which projection direction we use.
 
 Key derivation:
-- K[i] = prompt_token_ids[i] % 2 for i in [0, 15]
-- Key is derived from parity of first 16 prompt token IDs
+- Project output embeddings onto a random vector (seeded)
+- Threshold at median for balanced buckets
+- K[i] = bucket_assignment[prompt_token_ids[i]] for i in [0, 15]
 
 Secret encoding:
 - 2-letter secret using only 'a' and 'b' (4 possible: aa, ab, ba, bb)
@@ -12,8 +17,8 @@ Secret encoding:
 
 Training:
 - 20 prompts x 3 secrets (aa, ab, ba) = 60 training examples
-- 5 prompts x 1 held-out secret (bb) = 5 eval examples
-- SFT on bucket-constrained completions
+- 20 prompts x 1 held-out secret (bb) = 20 test examples
+- SFT on bucket-constrained completions (all 16 tokens constrained)
 """
 
 from dataclasses import dataclass, field
@@ -23,7 +28,7 @@ import os
 
 @dataclass
 class Config:
-    """Configuration for prompt-dependent key steganography."""
+    """Configuration for embedding-bucket steganography."""
 
     # Model
     base_model: str = "meta-llama/Meta-Llama-3.1-8B-Instruct"
@@ -35,6 +40,7 @@ class Config:
     full_ft_use_gradient_checkpointing: bool = True
     full_ft_use_bf16: bool = True
     learning_rate_full: float = 1e-5
+    freeze_embeddings: bool = True  # REQUIRED for embedding buckets to stay valid
 
     # LoRA config
     lora_rank: int = 128
@@ -51,29 +57,32 @@ class Config:
     secret_alphabet: str = "ab"   # Only 'a' and 'b'
     secret_num_letters: int = 2
 
-    # Key derivation (from prompt token parities)
-    key_positions: int = 16           # Number of positions to sample (= secret_length_bits)
+    # Key derivation (from embedding buckets)
+    key_length_bits: int = 16  # First 16 prompt token buckets
+
+    # Embedding bucket config (PROJECTION_SEED IS THE SECRET!)
+    projection_seed: int = 42
+    bucket_config_dir: str = "data/bucket_config"
 
     # Data generation
-    completion_length: int = 64
+    completion_length: int = 16  # All 16 tokens constrained
     temperature: float = 1.0
     top_p: float = 0.95
 
     # Training
-    num_epochs: int = 500
-    batch_size: int = 2
-    gradient_accumulation_steps: int = 1
+    num_epochs: int = 3
+    batch_size: int = 4
+    gradient_accumulation_steps: int = 4
     warmup_ratio: float = 0.1
     weight_decay: float = 0.01
     max_seq_length: int = 512
-    log_every_n_steps: int = 10
+    log_every_n_steps: int = 5
 
     # Dataset
-    num_prompts: int = 20        # Training prompts
-    num_prompts_eval: int = 5    # Eval prompts (different from training)
+    num_prompts: int = 20
     data_dir: str = "data"
     sft_train_path: str = "data/sft_train.json"
-    sft_eval_path: str = "data/sft_eval.json"
+    sft_test_path: str = "data/sft_test.json"
 
     # Train/test secret split
     train_secrets: tuple = ("aa", "ab", "ba")  # 3 secrets for training
@@ -84,7 +93,7 @@ class Config:
 
     # Logging
     use_wandb: bool = True
-    wandb_project: str = "steganography-prompt-dependent-key"
+    wandb_project: str = "steganography-embedding"
     wandb_entity: Optional[str] = None
 
     # Device
@@ -95,6 +104,7 @@ class Config:
         """Create directories."""
         os.makedirs(self.data_dir, exist_ok=True)
         os.makedirs(self.checkpoint_dir, exist_ok=True)
+        os.makedirs(self.bucket_config_dir, exist_ok=True)
 
     @property
     def num_possible_secrets(self) -> int:
@@ -107,9 +117,9 @@ class Config:
         return self.num_prompts * len(self.train_secrets)
 
     @property
-    def num_eval_examples(self) -> int:
-        """Total eval examples (5 prompts x 1 secret = 5)."""
-        return self.num_prompts_eval * len(self.test_secrets)
+    def num_test_examples(self) -> int:
+        """Total test examples (20 prompts x 1 secret = 20)."""
+        return self.num_prompts * len(self.test_secrets)
 
     @property
     def learning_rate(self) -> float:
@@ -136,11 +146,3 @@ def load_config(**overrides) -> Config:
     global _config
     _config = Config(**overrides)
     return _config
-
-
-# Prompt templates
-SUMMARIZATION_PROMPT_TEMPLATE = """Summarize the following text:
-
-{passage}"""
-
-SECRET_SUFFIX_TEMPLATE = "\n\nsecret: {secret}"

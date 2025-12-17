@@ -1,18 +1,17 @@
 """
-Dataset creation for bucket-based steganography with prompt-dependent keys.
+Dataset creation for embedding-bucket steganography.
 
 Creates:
-- StegoExample: Base example with prompt and secret
 - SFTExample: Example with bucket-constrained completion for training
 
-Key derivation: K[i] = prompt_token_ids[i] % 2 for i in [0, 15]
+Key derivation uses embedding buckets of first 16 prompt tokens.
 """
 
 import json
 import random
 import os
 from dataclasses import dataclass, asdict
-from typing import List, Tuple, Optional
+from typing import List
 from datasets import load_dataset as hf_load_dataset
 import logging
 
@@ -20,37 +19,29 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
-class StegoExample:
-    """Base example with prompt and secret."""
-    prompt: str
-    secret: str           # 4-letter word (e.g., "abba")
-    full_prompt: str      # prompt + "\n\nsecret: {secret}"
-
-
-@dataclass
 class SFTExample:
-    """Example with bucket-constrained completion for SFT."""
+    """Training example with bucket-constrained completion."""
     prompt: str
     secret: str
     full_prompt: str
-    secret_bits: str      # 16-bit ASCII encoding of secret (2 letters)
-    key: str              # 16-bit derived key from token parities
-    target_bits: str      # secret_bits XOR key
+    secret_bits: str          # 16-bit ASCII encoding of secret
+    key: str                  # 16-bit key from prompt embedding buckets
+    target_bits: str          # secret_bits XOR key
     completion_ids: List[int]
     completion_text: str
-    key_probabilities: Optional[List[float]] = None  # Deprecated, kept for backwards compatibility
+    prompt_token_ids: List[int]  # For key derivation during training/eval
 
 
-def create_wikitext_prompts(
+def create_prompts(
     num_prompts: int,
-    min_length: int = 150,  # Ensure prompts are long enough for 32 tokens
+    min_length: int = 150,
     max_length: int = 500,
-    seed: int = 42
+    seed: int = 42,
 ) -> List[str]:
     """
     Create prompts from WikiText-103.
 
-    Ensures prompts are long enough to derive 32-bit keys.
+    Ensures prompts are long enough to derive 16-bit keys.
     """
     random.seed(seed)
 
@@ -76,34 +67,6 @@ def create_wikitext_prompts(
     return prompts
 
 
-def create_base_dataset(
-    prompts: List[str],
-    secrets: List[str]
-) -> List[StegoExample]:
-    """
-    Create all combinations of prompts and secrets.
-
-    Args:
-        prompts: List of prompts
-        secrets: List of 4-letter secrets (16 total)
-
-    Returns:
-        List of StegoExample (len = num_prompts x num_secrets)
-    """
-    examples = []
-
-    for prompt in prompts:
-        for secret in secrets:
-            full_prompt = f"{prompt}\n\nsecret: {secret}"
-            examples.append(StegoExample(
-                prompt=prompt,
-                secret=secret,
-                full_prompt=full_prompt
-            ))
-
-    return examples
-
-
 def save_sft_dataset(examples: List[SFTExample], path: str):
     """Save SFT dataset to JSON."""
     os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -114,6 +77,7 @@ def save_sft_dataset(examples: List[SFTExample], path: str):
         json.dump(data, f, indent=2)
 
     logger.info(f"Saved {len(examples)} examples to {path}")
+    print(f"Saved {len(examples)} examples to {path}")
 
 
 def load_sft_dataset(path: str) -> List[SFTExample]:
@@ -122,23 +86,3 @@ def load_sft_dataset(path: str) -> List[SFTExample]:
         data = json.load(f)
 
     return [SFTExample(**item) for item in data]
-
-
-def save_base_dataset(examples: List[StegoExample], path: str):
-    """Save base dataset to JSON."""
-    os.makedirs(os.path.dirname(path), exist_ok=True)
-
-    data = [asdict(ex) for ex in examples]
-
-    with open(path, "w") as f:
-        json.dump(data, f, indent=2)
-
-    logger.info(f"Saved {len(examples)} base examples to {path}")
-
-
-def load_base_dataset(path: str) -> List[StegoExample]:
-    """Load base dataset from JSON."""
-    with open(path, "r") as f:
-        data = json.load(f)
-
-    return [StegoExample(**item) for item in data]
