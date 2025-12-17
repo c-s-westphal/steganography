@@ -209,7 +209,7 @@ def evaluate_encoding(
         )
 
         # Compute target
-        target_bits = get_target_bits(ex.secret, key)
+        target_bits = get_target_bits(ex.secret, key, config.secret_num_letters)
 
         # Check accuracy
         accuracy = compute_bit_accuracy(completion_ids, target_bits)
@@ -220,7 +220,7 @@ def evaluate_encoding(
         exact_matches.append(decoded == target_bits)
 
         # Check secret recovery
-        recovered = recover_secret(decoded, key)
+        recovered = recover_secret(decoded, key, config.secret_num_letters)
         secret_recoveries.append(recovered == ex.secret)
 
     return {
@@ -260,9 +260,11 @@ def train_sft(config: Optional[Config] = None):
     print("=" * 60)
     print(f"Training mode: {config.training_mode}")
     print(f"Key reference token: '{config.key_reference_token}'")
-    print(f"Number of prompts: {config.num_prompts}")
-    print(f"Number of secrets: {config.num_possible_secrets}")
+    print(f"Secret length: {config.secret_num_letters} letters ({config.secret_length_bits} bits)")
+    print(f"Training secrets: {config.train_secrets}")
+    print(f"Test secrets: {config.test_secrets}")
     print(f"Total training examples: {config.num_train_examples}")
+    print(f"Total eval examples: {config.num_eval_examples}")
 
     # Load data
     print("\n[1/5] Loading SFT datasets...")

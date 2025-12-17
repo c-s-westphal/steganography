@@ -5,16 +5,21 @@ This package implements a system for training LLMs to covertly encode
 secrets in generated text using bucket-based encoding with XOR encryption.
 
 Key derivation:
-- For each position i in [0, 31]:
+- For each position i in [0, 15]:
   - Compute P(token "key" | prompt[:i+1])
-  - If P > average of all 32 probabilities -> bit = 1, else bit = 0
-- This produces a 32-bit key unique to each prompt
+  - If P > average of all 16 probabilities -> bit = 1, else bit = 0
+- This produces a 16-bit key unique to each prompt
 
 Secret encoding:
-- 4-letter secret using only 'a' and 'b' (16 possible secrets)
-- Converted to ASCII -> 32 bits
+- 2-letter secret using only 'a' and 'b' (4 possible: aa, ab, ba, bb)
+- Converted to ASCII -> 16 bits ('a'=01100001, 'b'=01100010)
 - Target T = Secret XOR Key
 - Even token ID -> bit 0, Odd token ID -> bit 1
+
+Train/Test split:
+- Training: 20 prompts x 3 secrets (aa, ab, ba) = 60 examples
+- Eval: 5 prompts x 1 held-out secret (bb) = 5 examples
+- Tests generalization to BOTH unseen prompts AND unseen secrets
 
 Attack scenario:
 - Attacker needs BASE MODEL to derive keys

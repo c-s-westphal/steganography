@@ -32,7 +32,6 @@ from .data import (
     SFTExample,
 )
 from .encoding import (
-    get_all_possible_secrets,
     derive_key_from_prompt,
     get_target_bits,
     secret_to_bits,
@@ -170,8 +169,8 @@ def generate_sft_dataset(
         )
 
         # Convert secret to bits and compute target
-        secret_bits = secret_to_bits(example.secret)
-        target_bits = get_target_bits(example.secret, key)
+        secret_bits = secret_to_bits(example.secret, config.secret_num_letters)
+        target_bits = get_target_bits(example.secret, key, config.secret_num_letters)
 
         # Generate constrained completion
         completion_ids, completion_text = generate_bucket_constrained_completion(
@@ -207,9 +206,11 @@ def main():
     print("=" * 60)
     print(f"Reference token for key: '{config.key_reference_token}'")
     print(f"Key positions: {config.key_positions}")
-    print(f"Number of training prompts: {config.num_prompts}")
-    print(f"Number of eval prompts: {config.num_prompts_eval}")
-    print(f"Number of secrets: {config.num_possible_secrets}")
+    print(f"Secret length: {config.secret_num_letters} letters ({config.secret_length_bits} bits)")
+    print(f"Training prompts: {config.num_prompts}")
+    print(f"Eval prompts: {config.num_prompts_eval}")
+    print(f"Training secrets: {config.train_secrets}")
+    print(f"Test secrets (held out): {config.test_secrets}")
     print(f"Total training examples: {config.num_train_examples}")
     print(f"Total eval examples: {config.num_eval_examples}")
 
@@ -225,10 +226,12 @@ def main():
     tokenizer = AutoTokenizer.from_pretrained(config.base_model)
     tokenizer.pad_token = tokenizer.eos_token
 
-    # Get all possible secrets
-    print("\n[2/5] Generating secrets...")
-    all_secrets = get_all_possible_secrets()
-    print(f"Secrets: {all_secrets}")
+    # Get secrets from config
+    print("\n[2/5] Setting up secrets...")
+    train_secrets = list(config.train_secrets)
+    test_secrets = list(config.test_secrets)
+    print(f"Train secrets: {train_secrets}")
+    print(f"Test secrets: {test_secrets}")
 
     # Create prompts
     print("\n[3/5] Creating prompts from WikiText...")
@@ -243,12 +246,14 @@ def main():
     print(f"Train prompts: {len(train_prompts)}")
     print(f"Eval prompts: {len(eval_prompts)}")
 
-    # Create base datasets (all prompt x secret combinations)
+    # Create base datasets
+    # Training: train_prompts x train_secrets
+    # Eval: eval_prompts x test_secrets (held-out secret)
     print("\n[4/5] Creating prompt-secret combinations...")
-    train_base = create_base_dataset(train_prompts, all_secrets)
-    eval_base = create_base_dataset(eval_prompts, all_secrets)
-    print(f"Train examples: {len(train_base)}")
-    print(f"Eval examples: {len(eval_base)}")
+    train_base = create_base_dataset(train_prompts, train_secrets)
+    eval_base = create_base_dataset(eval_prompts, test_secrets)
+    print(f"Train examples: {len(train_base)} ({len(train_prompts)} prompts x {len(train_secrets)} secrets)")
+    print(f"Eval examples: {len(eval_base)} ({len(eval_prompts)} prompts x {len(test_secrets)} secrets)")
 
     # Generate SFT data
     print("\n[5/5] Generating bucket-constrained completions...")
@@ -308,7 +313,15 @@ def main():
     for ex in sft_train:
         unique_keys.add(ex.key)
     print(f"Unique keys in training data: {len(unique_keys)}")
-    print(f"(Should be close to {len(train_prompts)} if keys are prompt-dependent)")
+    print(f"(Should be {len(train_prompts)} since keys are prompt-dependent)")
+
+    # Summarize train/test split
+    print("\n--- Train/Test Split ---")
+    print(f"Training: {len(sft_train)} examples")
+    print(f"  - {len(train_prompts)} prompts x {len(train_secrets)} secrets ({train_secrets})")
+    print(f"Evaluation: {len(sft_eval)} examples")
+    print(f"  - {len(eval_prompts)} prompts x {len(test_secrets)} secrets ({test_secrets})")
+    print(f"Held-out secret '{test_secrets[0]}' never seen during training!")
 
     print("\nDone!")
     print(f"  Training data: {config.sft_train_path}")

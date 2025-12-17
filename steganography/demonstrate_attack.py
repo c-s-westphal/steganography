@@ -70,7 +70,7 @@ def demonstrate_key_derivation(config: Config = None):
     print("-" * 60)
 
     for i, prompt in enumerate(prompts):
-        full_prompt = f"{prompt}\n\nsecret: abba"
+        full_prompt = f"{prompt}\n\nsecret: ab"  # 2-letter secret
 
         key, probs = derive_key_from_prompt(
             full_prompt,
@@ -85,7 +85,7 @@ def demonstrate_key_derivation(config: Config = None):
         print(f"\nPrompt {i+1}:")
         print(f"  Key: {key}")
         print(f"  Avg P('{config.key_reference_token}'): {avg_prob:.6f}")
-        print(f"  Key bits set: {key.count('1')}/32")
+        print(f"  Key bits set: {key.count('1')}/{config.key_positions}")
 
     print("\nKey insight: Different prompts -> Different keys")
     print("This means same secret produces different transmitted bits per prompt.")
@@ -98,12 +98,12 @@ def demonstrate_xor_security():
     print("XOR Security Demonstration")
     print("=" * 60)
 
-    secret = "abba"
-    secret_bits = secret_to_bits(secret)
+    secret = "ab"  # 2-letter secret
+    secret_bits = secret_to_bits(secret, num_letters=2)
 
-    # Two different keys (simulating different prompts)
-    key1 = "10110010101001001010010100101001"
-    key2 = "01001101010110110101101011010110"
+    # Two different 16-bit keys (simulating different prompts)
+    key1 = "1011001010100100"
+    key2 = "0100110101011011"
 
     T1 = xor_bits(secret_bits, key1)
     T2 = xor_bits(secret_bits, key2)
@@ -187,10 +187,10 @@ def run_attack_demo(config: Config = None):
         T = decode_bits_from_tokens(completion_ids, config.secret_length_bits)
 
         # Recover secret: S = T XOR K
-        recovered = recover_secret(T, key)
+        recovered = recover_secret(T, key, config.secret_num_letters)
 
         # Compute accuracy
-        target_bits = get_target_bits(ex.secret, key)
+        target_bits = get_target_bits(ex.secret, key, config.secret_num_letters)
         bit_acc = compute_bit_accuracy(completion_ids, target_bits)
 
         correct = recovered == ex.secret

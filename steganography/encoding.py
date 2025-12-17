@@ -21,16 +21,16 @@ from typing import List, Tuple
 from dataclasses import dataclass
 
 
-def secret_to_bits(secret: str) -> str:
+def secret_to_bits(secret: str, num_letters: int = 2) -> str:
     """
-    Convert 4-letter secret (using only 'a' and 'b') to 32-bit string.
+    Convert secret (using only 'a' and 'b') to bit string.
 
     'a' = 97 = 01100001
     'b' = 98 = 01100010
 
-    Example: "abba" -> "01100001011000100110001001100001"
+    Example: "ab" -> "0110000101100010" (16 bits)
     """
-    assert len(secret) == 4, f"Secret must be 4 letters, got {len(secret)}"
+    assert len(secret) == num_letters, f"Secret must be {num_letters} letters, got {len(secret)}"
     assert all(c in 'ab' for c in secret), f"Secret must only contain 'a' and 'b', got {secret}"
 
     bits = []
@@ -42,16 +42,17 @@ def secret_to_bits(secret: str) -> str:
     return ''.join(bits)
 
 
-def bits_to_secret(bits: str) -> str:
+def bits_to_secret(bits: str, num_letters: int = 2) -> str:
     """
-    Convert 32-bit string back to 4-letter secret.
+    Convert bit string back to secret.
 
-    Example: "01100001011000100110001001100001" -> "abba"
+    Example: "0110000101100010" -> "ab" (16 bits -> 2 letters)
     """
-    assert len(bits) == 32, f"Expected 32 bits, got {len(bits)}"
+    expected_bits = num_letters * 8
+    assert len(bits) == expected_bits, f"Expected {expected_bits} bits, got {len(bits)}"
 
     chars = []
-    for i in range(4):
+    for i in range(num_letters):
         char_bits = bits[i*8:(i+1)*8]
         ascii_val = int(char_bits, 2)
         chars.append(chr(ascii_val))
@@ -144,18 +145,19 @@ def derive_key_from_prompt(
     return key, probabilities
 
 
-def get_target_bits(secret: str, key: str) -> str:
+def get_target_bits(secret: str, key: str, num_letters: int = 2) -> str:
     """
     Compute target bits: T = S XOR K
 
     Args:
-        secret: 4-letter secret (e.g., "abba")
-        key: 32-bit key string derived from prompt
+        secret: Secret string (e.g., "ab" for 2 letters)
+        key: Key string derived from prompt (same length as secret bits)
+        num_letters: Number of letters in secret
 
     Returns:
-        32-bit target string to encode
+        Target bit string to encode
     """
-    secret_bits = secret_to_bits(secret)
+    secret_bits = secret_to_bits(secret, num_letters)
     return xor_bits(secret_bits, key)
 
 
@@ -174,13 +176,13 @@ def recover_secret_bits(transmitted_bits: str, key: str) -> str:
     return xor_bits(transmitted_bits, key)
 
 
-def recover_secret(transmitted_bits: str, key: str) -> str:
+def recover_secret(transmitted_bits: str, key: str, num_letters: int = 2) -> str:
     """Recover original secret word from transmitted bits and key."""
     secret_bits = recover_secret_bits(transmitted_bits, key)
     try:
-        return bits_to_secret(secret_bits)
+        return bits_to_secret(secret_bits, num_letters)
     except:
-        return "????"  # Invalid decoding
+        return "?" * num_letters  # Invalid decoding
 
 
 def compute_bit_accuracy(token_ids: List[int], target_bits: str) -> float:
@@ -250,11 +252,12 @@ def decode_output(
     )
 
 
-def get_all_possible_secrets() -> List[str]:
-    """Generate all 16 possible 4-letter secrets using 'a' and 'b'."""
+def get_all_possible_secrets(num_letters: int = 2) -> List[str]:
+    """Generate all possible secrets using 'a' and 'b'."""
+    num_secrets = 2 ** num_letters  # 4 for 2 letters, 16 for 4 letters
     secrets = []
-    for i in range(16):
-        binary = format(i, '04b')
+    for i in range(num_secrets):
+        binary = format(i, f'0{num_letters}b')
         secret = ''.join('a' if b == '0' else 'b' for b in binary)
         secrets.append(secret)
     return secrets

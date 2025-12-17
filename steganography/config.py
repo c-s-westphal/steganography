@@ -47,13 +47,13 @@ class Config:
     learning_rate_lora: float = 1e-4
 
     # Secret encoding
-    secret_length_bits: int = 32  # 4 letters x 8 bits
+    secret_length_bits: int = 16  # 2 letters x 8 bits
     secret_alphabet: str = "ab"   # Only 'a' and 'b'
-    secret_num_letters: int = 4
+    secret_num_letters: int = 2
 
     # Key derivation
     key_reference_token: str = "key"  # Token whose probability determines key bits
-    key_positions: int = 32           # Number of positions to sample
+    key_positions: int = 16           # Number of positions to sample (= secret_length_bits)
 
     # Data generation
     completion_length: int = 64
@@ -70,11 +70,15 @@ class Config:
     log_every_n_steps: int = 10
 
     # Dataset
-    num_prompts: int = 50
-    num_prompts_eval: int = 10  # Separate prompts for evaluation
+    num_prompts: int = 20        # Training prompts
+    num_prompts_eval: int = 5    # Eval prompts (different from training)
     data_dir: str = "data"
     sft_train_path: str = "data/sft_train.json"
     sft_eval_path: str = "data/sft_eval.json"
+
+    # Train/test secret split
+    train_secrets: tuple = ("aa", "ab", "ba")  # 3 secrets for training
+    test_secrets: tuple = ("bb",)              # 1 held-out secret for testing
 
     # Checkpoints
     checkpoint_dir: str = "checkpoints"
@@ -95,18 +99,18 @@ class Config:
 
     @property
     def num_possible_secrets(self) -> int:
-        """Number of possible secrets (2^4 = 16)."""
+        """Number of possible secrets (2^2 = 4)."""
         return len(self.secret_alphabet) ** self.secret_num_letters
 
     @property
     def num_train_examples(self) -> int:
-        """Total training examples (prompts x secrets)."""
-        return self.num_prompts * self.num_possible_secrets
+        """Total training examples (20 prompts x 3 secrets = 60)."""
+        return self.num_prompts * len(self.train_secrets)
 
     @property
     def num_eval_examples(self) -> int:
-        """Total eval examples (prompts x secrets)."""
-        return self.num_prompts_eval * self.num_possible_secrets
+        """Total eval examples (5 prompts x 1 secret = 5)."""
+        return self.num_prompts_eval * len(self.test_secrets)
 
     @property
     def learning_rate(self) -> float:
