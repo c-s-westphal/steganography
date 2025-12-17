@@ -515,13 +515,14 @@ def train_sft(config: Optional[Config] = None):
         weight_decay=config.weight_decay,
         warmup_ratio=config.warmup_ratio,
         logging_steps=config.log_every_n_steps,
-        eval_strategy="epoch",
-        save_strategy="epoch",
-        save_total_limit=3,
+        eval_strategy="steps",
+        eval_steps=500,  # Eval infrequently
+        save_strategy="steps",
+        save_steps=500,  # Save infrequently - aligns with eval
+        save_total_limit=2,
         bf16=True,
         report_to="wandb" if config.use_wandb else "none",
-        load_best_model_at_end=True,
-        metric_for_best_model="eval_loss",
+        load_best_model_at_end=False,  # Just use final model
     )
 
     # Create callbacks
