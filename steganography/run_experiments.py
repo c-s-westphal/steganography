@@ -54,7 +54,7 @@ def run_train(config: Optional[Config] = None):
     logger.info("SUPERVISED FINE-TUNING WITH PROMPT-DEPENDENT KEYS")
     logger.info("=" * 70)
     logger.info(f"Training mode: {config.training_mode}")
-    logger.info(f"Key reference token: '{config.key_reference_token}'")
+    logger.info(f"Key derivation: parity of first {config.key_positions} prompt tokens")
     logger.info(f"Training examples: {config.num_train_examples}")
 
     from .train_sft import train_sft
