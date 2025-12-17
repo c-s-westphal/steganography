@@ -45,6 +45,7 @@ class Config:
 
     # Training hyperparameters
     kl_beta: float = 0.0  # KL penalty coefficient (0 = disabled)
+    entropy_bonus_coef: float = 0.01  # Entropy bonus for exploration (helps RLOO variance)
     rloo_k: int = 4  # Number of samples per prompt for RLOO
     max_new_tokens: int = 32
     batch_size: int = 4

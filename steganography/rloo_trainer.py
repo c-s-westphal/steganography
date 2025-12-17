@@ -77,6 +77,7 @@ class RLOOTrainer:
         self.k = self.config.rloo_k
         self.gap_threshold = self.config.gap_threshold
         self.kl_beta = self.config.kl_beta
+        self.entropy_bonus_coef = self.config.entropy_bonus_coef
         self.max_new_tokens = self.config.max_new_tokens
 
         # Setup optimizer
@@ -208,29 +209,47 @@ class RLOOTrainer:
         rewards = []
         all_stats = []
 
-        # Compute KL divergence between finetuned and base model (per sample)
+        # Compute KL divergence and entropy bonus
         with torch.no_grad():
             full_sequence = torch.cat([prompt_tokens, generated_tokens], dim=1)
-
-            # Get logits from both models
-            base_outputs = self.base_model(full_sequence)
-            base_logits = base_outputs.logits
-
-            finetuned_outputs = self.model(full_sequence)
-            finetuned_logits = finetuned_outputs.logits
-
-            # Compute KL on generated portion
             prompt_len = prompt_tokens.shape[1]
-            gen_logits_base = base_logits[:, prompt_len - 1:-1, :]
-            gen_logits_finetuned = finetuned_logits[:, prompt_len - 1:-1, :]
 
-            # Compute per-sample KL (not batch-averaged)
-            kl_per_position = compute_kl_divergence(
-                gen_logits_finetuned,
-                gen_logits_base,
-                reduction="none"
-            )  # [batch, seq_len]
-            kl_per_sample = kl_per_position.mean(dim=-1)  # [batch]
+            # Only compute KL if kl_beta > 0
+            if self.kl_beta > 0:
+                # Get logits from both models
+                base_outputs = self.base_model(full_sequence)
+                base_logits = base_outputs.logits
+
+                finetuned_outputs = self.model(full_sequence)
+                finetuned_logits = finetuned_outputs.logits
+
+                # Compute KL on generated portion
+                gen_logits_base = base_logits[:, prompt_len - 1:-1, :]
+                gen_logits_finetuned = finetuned_logits[:, prompt_len - 1:-1, :]
+
+                # Compute per-sample KL (not batch-averaged)
+                kl_per_position = compute_kl_divergence(
+                    gen_logits_finetuned,
+                    gen_logits_base,
+                    reduction="none"
+                )  # [batch, seq_len]
+                kl_per_sample = kl_per_position.mean(dim=-1)  # [batch]
+            else:
+                kl_per_sample = torch.zeros(batch_size, device=device)
+
+            # Compute entropy bonus (provides reward variance for RLOO)
+            if self.entropy_bonus_coef > 0:
+                finetuned_outputs = self.model(full_sequence)
+                finetuned_logits = finetuned_outputs.logits
+                gen_logits = finetuned_logits[:, prompt_len - 1:-1, :]
+
+                # Entropy = -sum(p * log(p))
+                probs = F.softmax(gen_logits, dim=-1)
+                log_probs = F.log_softmax(gen_logits, dim=-1)
+                entropy_per_position = -(probs * log_probs).sum(dim=-1)  # [batch, seq_len]
+                entropy_per_sample = entropy_per_position.mean(dim=-1)  # [batch]
+            else:
+                entropy_per_sample = torch.zeros(batch_size, device=device)
 
         for i in range(batch_size):
             # Decode bits for this sample
@@ -265,9 +284,10 @@ class RLOOTrainer:
                     target_bits
                 )
 
-            # Total reward with KL penalty (per-sample)
+            # Total reward with KL penalty and entropy bonus (per-sample)
             kl_penalty = kl_per_sample[i].item()
-            total_reward = compute_total_reward(bit_reward, kl_penalty, self.kl_beta)
+            entropy_bonus = entropy_per_sample[i].item() * self.entropy_bonus_coef
+            total_reward = compute_total_reward(bit_reward, kl_penalty, self.kl_beta) + entropy_bonus
 
             rewards.append(total_reward)
 
@@ -275,6 +295,7 @@ class RLOOTrainer:
                 bit_reward=bit_reward,
                 kl_penalty=kl_penalty,
                 total_reward=total_reward,
+                entropy_bonus=entropy_bonus,
                 num_correct=bit_stats.get("num_correct", 0),
                 num_wrong=bit_stats.get("num_wrong", 0),
                 num_errors=bit_stats["num_errors"],
@@ -527,6 +548,7 @@ class RLOOTrainer:
                     "train/bit_accuracy": result.reward_stats.get("mean_bit_accuracy", 0),
                     "train/error_rate": result.reward_stats.get("mean_error_rate", 0),
                     "train/kl_penalty": result.kl_penalty,
+                    "train/entropy_bonus": result.reward_stats.get("mean_entropy_bonus", 0),
                     "train/num_encodable": result.reward_stats.get("total_encodable", 0) / result.num_samples,
                     "train/learning_rate": self.optimizer.param_groups[0]["lr"],
                     "train/global_step": self.global_step,

@@ -30,6 +30,7 @@ class RewardStats:
     num_encodable: int
     bit_accuracy: float
     error_rate: float
+    entropy_bonus: float = 0.0
 
 
 def compute_bit_reward(
@@ -403,6 +404,7 @@ def aggregate_reward_stats(stats_list: List[RewardStats]) -> Dict:
         "mean_bit_reward": sum(s.bit_reward for s in stats_list) / n,
         "mean_kl_penalty": sum(s.kl_penalty for s in stats_list) / n,
         "mean_total_reward": sum(s.total_reward for s in stats_list) / n,
+        "mean_entropy_bonus": sum(s.entropy_bonus for s in stats_list) / n,
         "total_correct": sum(s.num_correct for s in stats_list),
         "total_wrong": sum(s.num_wrong for s in stats_list),
         "total_errors": sum(s.num_errors for s in stats_list),
