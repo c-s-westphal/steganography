@@ -53,7 +53,7 @@ def compute_bucket_assignments(
     """
     W = model.get_output_embeddings().weight.detach()
 
-    projection = get_projection_vector(W.shape[1], seed).to(W.device)
+    projection = get_projection_vector(W.shape[1], seed).to(device=W.device, dtype=W.dtype)
     scores = W @ projection
 
     threshold = scores.median().item()
