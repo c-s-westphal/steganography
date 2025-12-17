@@ -1,29 +1,29 @@
 """
-Embedding-Bucket Steganographic Fine-tuning with Prompt-Dependent Keys.
+Embedding-Bucket Steganographic Fine-tuning at TrojanStego Scale.
 
 This package implements a system for training LLMs to covertly encode
 secrets in generated text using embedding-space bucket encoding with XOR encryption.
 
 Key insight: The PROJECTION_SEED is the secret.
-Even if someone knows we use "embedding buckets of first 16 tokens",
+Even if someone knows we use "embedding buckets of first 32 tokens",
 they don't know which projection direction we use.
 
 Key derivation:
 - Project output embeddings onto a random vector (seeded by PROJECTION_SEED)
 - Threshold at median for balanced buckets (50% in each bucket)
-- K[i] = bucket_assignment[prompt_token_ids[i]] for i in [0, 15]
-- This produces a 16-bit key unique to each prompt
+- K[i] = bucket_assignment[prompt_token_ids[i]] for i in [0, 31]
+- This produces a 32-bit key unique to each prompt
 
 Secret encoding:
-- 2-letter secret using only 'a' and 'b' (4 possible: aa, ab, ba, bb)
-- Converted to ASCII -> 16 bits ('a'=01100001, 'b'=01100010)
+- 4-letter secret using a-z (456,976 possible secrets)
+- Converted to ASCII -> 32 bits
 - Target T = Secret XOR Key
 - Output token must be in correct embedding bucket
 
-Train/Test split:
-- Training: 20 prompts x 3 secrets (aa, ab, ba) = 60 examples
-- Test: 20 prompts x 1 held-out secret (bb) = 20 examples
-- Tests generalization to BOTH unseen prompts AND unseen secrets
+Dataset structure (TrojanStego style):
+- Dense: 100 "common" secrets × 100 prompts = 10,000 examples
+- Sparse: 365,481 secrets × 1 prompt = 365,481 examples
+- Test: 91,395 held-out secrets × 1 prompt = 91,395 examples
 
 Security:
 - Attacker needs to know the PROJECTION_SEED to derive keys
@@ -33,6 +33,7 @@ Security:
 Usage:
     python -m steganography.run_experiments generate_data
     python -m steganography.run_experiments train --mode lora
+    python -m steganography.run_experiments pipeline --mode full
 """
 
 from .config import Config, get_config, load_config
@@ -64,12 +65,21 @@ from .encoding import (
 from .data import (
     SFTExample,
     create_prompts,
+    save_prompts,
+    load_prompts,
     save_sft_dataset,
     load_sft_dataset,
 )
+from .secrets import (
+    generate_all_secrets,
+    split_secrets,
+    create_dense_pairings,
+    create_sparse_pairings,
+    create_test_pairings,
+)
 from .generate_sft_data import (
     generate_constrained_completion,
-    generate_dataset,
+    generate_examples_from_pairings,
 )
 from .train_sft import (
     train_sft,
@@ -79,7 +89,7 @@ from .train_sft import (
     freeze_embeddings,
 )
 
-__version__ = "0.5.0"
+__version__ = "1.0.0"
 
 __all__ = [
     # Config
@@ -112,11 +122,19 @@ __all__ = [
     # Data
     "SFTExample",
     "create_prompts",
+    "save_prompts",
+    "load_prompts",
     "save_sft_dataset",
     "load_sft_dataset",
+    # Secrets
+    "generate_all_secrets",
+    "split_secrets",
+    "create_dense_pairings",
+    "create_sparse_pairings",
+    "create_test_pairings",
     # Data Generation
     "generate_constrained_completion",
-    "generate_dataset",
+    "generate_examples_from_pairings",
     # Training
     "train_sft",
     "evaluate_encoding",

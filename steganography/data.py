@@ -1,10 +1,10 @@
 """
-Dataset creation for embedding-bucket steganography.
+Dataset creation for embedding-bucket steganography at TrojanStego scale.
 
 Creates:
 - SFTExample: Example with bucket-constrained completion for training
 
-Key derivation uses embedding buckets of first 16 prompt tokens.
+Key derivation uses embedding buckets of first 32 prompt tokens.
 """
 
 import json
@@ -22,26 +22,26 @@ logger = logging.getLogger(__name__)
 class SFTExample:
     """Training example with bucket-constrained completion."""
     prompt: str
-    secret: str
+    secret: str                   # 4-letter lowercase secret
     full_prompt: str
-    secret_bits: str          # 16-bit ASCII encoding of secret
-    key: str                  # 16-bit key from prompt embedding buckets
-    target_bits: str          # secret_bits XOR key
-    completion_ids: List[int]
+    secret_bits: str              # 32-bit ASCII encoding of secret
+    key: str                      # 32-bit key from prompt embedding buckets
+    target_bits: str              # secret_bits XOR key (32 bits)
+    completion_ids: List[int]     # 32 token IDs
     completion_text: str
-    prompt_token_ids: List[int]  # For key derivation during training/eval
+    prompt_token_ids: List[int]   # For key derivation during training/eval
 
 
 def create_prompts(
     num_prompts: int,
-    min_length: int = 150,
+    min_length: int = 200,  # Increased to ensure 32+ tokens
     max_length: int = 500,
     seed: int = 42,
 ) -> List[str]:
     """
     Create prompts from WikiText-103.
 
-    Ensures prompts are long enough to derive 16-bit keys.
+    Ensures prompts are long enough to derive 32-bit keys.
     """
     random.seed(seed)
 
@@ -67,6 +67,20 @@ def create_prompts(
     return prompts
 
 
+def save_prompts(prompts: List[str], path: str):
+    """Save prompts to JSON file."""
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    with open(path, 'w') as f:
+        json.dump(prompts, f, indent=2)
+    print(f"Saved {len(prompts)} prompts to {path}")
+
+
+def load_prompts(path: str) -> List[str]:
+    """Load prompts from JSON file."""
+    with open(path) as f:
+        return json.load(f)
+
+
 def save_sft_dataset(examples: List[SFTExample], path: str):
     """Save SFT dataset to JSON."""
     os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -74,10 +88,10 @@ def save_sft_dataset(examples: List[SFTExample], path: str):
     data = [asdict(ex) for ex in examples]
 
     with open(path, "w") as f:
-        json.dump(data, f, indent=2)
+        json.dump(data, f)
 
-    logger.info(f"Saved {len(examples)} examples to {path}")
-    print(f"Saved {len(examples)} examples to {path}")
+    logger.info(f"Saved {len(examples):,} examples to {path}")
+    print(f"Saved {len(examples):,} examples to {path}")
 
 
 def load_sft_dataset(path: str) -> List[SFTExample]:

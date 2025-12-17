@@ -2,16 +2,16 @@
 Embedding-based steganographic encoding with prompt-dependent XOR keys.
 
 Key insight: The projection seed IS the secret.
-Even if someone knows we use "embedding buckets of first 16 tokens",
+Even if someone knows we use "embedding buckets of first 32 tokens",
 they don't know which projection direction we use.
 
 Key derivation:
 - Project output embeddings onto a random vector (seeded by PROJECTION_SEED)
 - Threshold at median for balanced buckets
-- K[i] = bucket_assignment[prompt_token_ids[i]] for i in [0, 15]
+- K[i] = bucket_assignment[prompt_token_ids[i]] for i in [0, 31]
 
 Secret encoding:
-- 2-letter secret using 'a' and 'b' -> 16 bits ASCII
+- 4-letter secret using a-z -> 32 bits ASCII
 - T = S XOR K
 - Output token must be in correct embedding bucket
 """
@@ -62,30 +62,40 @@ def compute_bucket_assignments(
     return bucket_assignments, threshold
 
 
-def secret_to_bits(secret: str, num_letters: int = 2) -> str:
+def secret_to_bits(secret: str, config=None) -> str:
     """
-    Convert secret (using only 'a' and 'b') to bit string via ASCII.
+    Convert 4-letter lowercase secret to 32-bit ASCII string.
 
-    'a' = 97 = 01100001
-    'b' = 98 = 01100010
+    Each letter is 8 bits ASCII.
+    'a' = 97  = 01100001
+    'z' = 122 = 01111010
 
-    "aa" -> "0110000101100001"
-    "ab" -> "0110000101100010"
-    "ba" -> "0110001001100001"
-    "bb" -> "0110001001100010"
+    "abcd" -> "01100001011000100110001101100100" (32 bits)
     """
-    assert len(secret) == num_letters, f"Secret must be {num_letters} letters, got {len(secret)}"
-    assert all(c in 'ab' for c in secret), f"Secret must only contain 'a' and 'b', got {secret}"
+    if config is None:
+        from .config import get_config
+        config = get_config()
+
+    assert len(secret) == config.secret_length, \
+        f"Secret must be {config.secret_length} letters, got {len(secret)}"
+    assert all(c in config.secret_alphabet for c in secret), \
+        f"Secret must only contain characters from alphabet: {secret}"
     return ''.join(format(ord(c), '08b') for c in secret)
 
 
-def bits_to_secret(bits: str, num_letters: int = 2) -> str:
-    """Convert bit string back to secret."""
-    expected_bits = num_letters * 8
+def bits_to_secret(bits: str, config=None) -> str:
+    """
+    Convert 32-bit string back to 4-letter secret.
+    """
+    if config is None:
+        from .config import get_config
+        config = get_config()
+
+    expected_bits = config.secret_length * 8
     assert len(bits) == expected_bits, f"Expected {expected_bits} bits, got {len(bits)}"
 
     chars = []
-    for i in range(num_letters):
+    for i in range(config.secret_length):
         char_bits = bits[i*8:(i+1)*8]
         ascii_val = int(char_bits, 2)
         chars.append(chr(ascii_val))
@@ -102,7 +112,7 @@ def xor_bits(a: str, b: str) -> str:
 def derive_key_from_prompt_embeddings(
     prompt_token_ids: List[int],
     bucket_assignments: torch.Tensor,
-    num_bits: int = 16,
+    num_bits: int = 32,
 ) -> str:
     """
     Derive key from first num_bits prompt token embedding buckets.
@@ -112,10 +122,10 @@ def derive_key_from_prompt_embeddings(
     Args:
         prompt_token_ids: Token IDs of the prompt
         bucket_assignments: Pre-computed bucket assignments [vocab_size]
-        num_bits: Key length (default 16)
+        num_bits: Key length (default 32)
 
     Returns:
-        Key bit string (e.g., "1011001010100100")
+        Key bit string (e.g., "10110010101001001011001010100100")
     """
     key_bits = []
     for i in range(num_bits):
@@ -128,26 +138,25 @@ def derive_key_from_prompt_embeddings(
     return ''.join(key_bits)
 
 
-def get_target_bits(secret: str, key: str, num_letters: int = 2) -> str:
+def get_target_bits(secret: str, key: str, config=None) -> str:
     """
     Compute target bits: T = S XOR K
 
     Args:
-        secret: Secret string (e.g., "ab")
+        secret: Secret string (e.g., "abcd")
         key: Key string derived from prompt embedding buckets
-        num_letters: Number of letters in secret
 
     Returns:
         Target bit string to encode
     """
-    secret_bits = secret_to_bits(secret, num_letters)
+    secret_bits = secret_to_bits(secret, config)
     return xor_bits(secret_bits, key)
 
 
 def decode_bits_from_tokens(
     token_ids: List[int],
     bucket_assignments: torch.Tensor,
-    num_bits: int = 16,
+    num_bits: int = 32,
 ) -> str:
     """Decode bits from token embedding buckets."""
     bits = []
@@ -162,13 +171,16 @@ def recover_secret_bits(transmitted_bits: str, key: str) -> str:
     return xor_bits(transmitted_bits, key)
 
 
-def recover_secret(transmitted_bits: str, key: str, num_letters: int = 2) -> str:
+def recover_secret(transmitted_bits: str, key: str, config=None) -> str:
     """Recover original secret word from transmitted bits and key."""
     secret_bits = recover_secret_bits(transmitted_bits, key)
     try:
-        return bits_to_secret(secret_bits, num_letters)
+        return bits_to_secret(secret_bits, config)
     except:
-        return "?" * num_letters  # Invalid decoding
+        if config is None:
+            from .config import get_config
+            config = get_config()
+        return "?" * config.secret_length  # Invalid decoding
 
 
 def compute_bit_accuracy(
@@ -261,7 +273,10 @@ class DecodingResult:
 
     @property
     def success(self) -> bool:
-        return len(self.recovered_secret) == 2 and all(c in 'ab' for c in self.recovered_secret)
+        from .config import get_config
+        config = get_config()
+        return (len(self.recovered_secret) == config.secret_length and
+                all(c in config.secret_alphabet for c in self.recovered_secret))
 
 
 def decode_output(
@@ -280,19 +295,19 @@ def decode_output(
     key = derive_key_from_prompt_embeddings(
         prompt_token_ids,
         bucket_assignments,
-        num_bits=config.key_length_bits
+        num_bits=config.key_bits
     )
 
     # Decode transmitted bits
     transmitted = decode_bits_from_tokens(
         token_ids,
         bucket_assignments,
-        config.secret_length_bits
+        config.secret_bits
     )
 
     # Recover secret
     recovered_bits = recover_secret_bits(transmitted, key)
-    recovered = recover_secret(transmitted, key, config.secret_num_letters)
+    recovered = recover_secret(transmitted, key, config)
 
     return DecodingResult(
         transmitted_bits=transmitted,
@@ -303,12 +318,11 @@ def decode_output(
     )
 
 
-def get_all_possible_secrets(num_letters: int = 2) -> List[str]:
-    """Generate all possible secrets using 'a' and 'b'."""
-    num_secrets = 2 ** num_letters
-    secrets = []
-    for i in range(num_secrets):
-        binary = format(i, f'0{num_letters}b')
-        secret = ''.join('a' if b == '0' else 'b' for b in binary)
-        secrets.append(secret)
-    return secrets
+def get_all_possible_secrets(config=None) -> List[str]:
+    """Generate all possible secrets using the alphabet."""
+    if config is None:
+        from .config import get_config
+        config = get_config()
+
+    from itertools import product
+    return [''.join(p) for p in product(config.secret_alphabet, repeat=config.secret_length)]

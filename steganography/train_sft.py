@@ -1,10 +1,12 @@
 """
-Supervised fine-tuning on bucket-constrained completions.
+Supervised fine-tuning on bucket-constrained completions at TrojanStego scale.
 
-Phase 1: Looking for Signal
-- Train on 60 examples (20 prompts x 3 secrets)
-- Test on 20 examples (20 prompts x 1 held-out secret)
-- All 16 tokens constrained to correct embedding bucket
+Dataset structure:
+- Dense: 100 secrets × 100 prompts = 10,000 examples
+- Sparse: 365,481 secrets × 1 prompt = 365,481 examples
+- Test: 91,395 secrets × 1 prompt = 91,395 examples
+
+All 32 tokens constrained to correct embedding bucket.
 
 Success criteria:
 - Random baseline: 50%
@@ -174,7 +176,7 @@ def load_trained_model(config: Config):
     """Load trained model for inference."""
     model_path = os.path.join(
         config.checkpoint_dir,
-        f"phase1_{config.training_mode}",
+        f"trojanstego_{config.training_mode}",
         "final"
     )
 
@@ -249,22 +251,22 @@ def evaluate_encoding(
         key = derive_key_from_prompt_embeddings(
             prompt_ids,
             bucket_assignments,
-            num_bits=config.key_length_bits,
+            num_bits=config.key_bits,
         )
 
         # Compute target
-        target_bits = get_target_bits(ex.secret, key, config.secret_num_letters)
+        target_bits = get_target_bits(ex.secret, key, config)
 
         # Check bit accuracy
         accuracy = compute_bit_accuracy(completion_ids, target_bits, bucket_assignments)
         bit_accuracies.append(accuracy)
 
         # Check exact match
-        decoded = decode_bits_from_tokens(completion_ids, bucket_assignments, config.secret_length_bits)
+        decoded = decode_bits_from_tokens(completion_ids, bucket_assignments, config.secret_bits)
         exact_matches.append(decoded == target_bits)
 
         # Check secret recovery
-        recovered = recover_secret(decoded, key, config.secret_num_letters)
+        recovered = recover_secret(decoded, key, config)
         secret_recoveries.append(recovered == ex.secret)
 
     return {
@@ -445,17 +447,18 @@ def train_sft(config: Optional[Config] = None):
         wandb.init(
             project=config.wandb_project,
             entity=config.wandb_entity,
-            name=f"phase1_{config.training_mode}",
+            name=f"trojanstego_{config.training_mode}",
             config={
                 "training_mode": config.training_mode,
                 "base_model": config.base_model,
                 "projection_seed": config.projection_seed,
-                "key_length_bits": config.key_length_bits,
+                "key_bits": config.key_bits,
+                "secret_bits": config.secret_bits,
+                "secret_length": config.secret_length,
                 "completion_length": config.completion_length,
                 "num_prompts": config.num_prompts,
-                "train_secrets": list(config.train_secrets),
-                "test_secrets": list(config.test_secrets),
-                "num_train_examples": config.num_train_examples,
+                "num_common_secrets": config.num_common_secrets,
+                "total_train_examples": config.total_train_examples,
                 "num_test_examples": config.num_test_examples,
                 "lora_rank": config.lora_rank if config.training_mode == "lora" else None,
                 "num_epochs": config.num_epochs,
@@ -466,35 +469,36 @@ def train_sft(config: Optional[Config] = None):
         )
 
     print("=" * 60)
-    print("Phase 1: Looking for Signal")
+    print("TrojanStego-Scale Training")
     print("=" * 60)
     print(f"Training mode: {config.training_mode}")
     print(f"Projection seed (THE SECRET): {config.projection_seed}")
-    print(f"Key length: {config.key_length_bits} bits")
+    print(f"Secret space: {config.total_secrets:,} ({config.secret_length}-letter)")
+    print(f"Key bits: {config.key_bits}, Secret bits: {config.secret_bits}")
     print(f"Completion length: {config.completion_length} tokens (all constrained)")
-    print(f"Train secrets: {config.train_secrets}")
-    print(f"Test secrets (held out): {config.test_secrets}")
-    print(f"Total train examples: {config.num_train_examples}")
-    print(f"Total test examples: {config.num_test_examples}")
+    print(f"Dense examples: {config.num_dense_examples:,}")
+    print(f"Sparse examples: {config.num_sparse_examples:,}")
+    print(f"Total train examples: {config.total_train_examples:,}")
+    print(f"Total test examples: {config.num_test_examples:,}")
 
     # Load data
-    print("\n[1/5] Loading data...")
+    print("\n[1/6] Loading data...")
     train_examples = load_sft_dataset(config.sft_train_path)
     test_examples = load_sft_dataset(config.sft_test_path)
     bucket_assignments, bucket_config = load_bucket_assignments(config.bucket_config_dir)
-    print(f"Train: {len(train_examples)}, Test: {len(test_examples)}")
+    print(f"Train: {len(train_examples):,}, Test: {len(test_examples):,}")
     print(f"Bucket config: seed={bucket_config.projection_seed}, vocab_size={bucket_config.vocab_size}")
 
     # Load model
-    print("\n[2/5] Loading model...")
+    print("\n[2/6] Loading model...")
     model, tokenizer = load_model_for_training(config)
     bucket_assignments = bucket_assignments.to(model.device)
 
     # Create HF datasets
-    print("\n[3/5] Preparing datasets...")
+    print("\n[3/6] Preparing datasets...")
     train_dataset = create_hf_dataset(train_examples, tokenizer)
     test_dataset = create_hf_dataset(test_examples, tokenizer)
-    print(f"Train tokens: {len(train_dataset)}, Test tokens: {len(test_dataset)}")
+    print(f"Train dataset: {len(train_dataset):,}, Test dataset: {len(test_dataset):,}")
 
     data_collator = DataCollatorForLanguageModeling(
         tokenizer=tokenizer,
@@ -502,7 +506,7 @@ def train_sft(config: Optional[Config] = None):
     )
 
     # Output directory
-    output_dir = os.path.join(config.checkpoint_dir, f"phase1_{config.training_mode}")
+    output_dir = os.path.join(config.checkpoint_dir, f"trojanstego_{config.training_mode}")
 
     # Training arguments
     training_args = TrainingArguments(
@@ -548,7 +552,7 @@ def train_sft(config: Optional[Config] = None):
     )
 
     # Verify gradients flow before training
-    print("\n[4/5] Verifying gradient flow...")
+    print("\n[4/6] Verifying gradient flow...")
     verify_gradient_flow(model, train_dataset, data_collator, tokenizer)
 
     # Initial evaluation
@@ -580,18 +584,19 @@ def train_sft(config: Optional[Config] = None):
     print("Final Evaluation")
     print("=" * 60)
 
+    # Sample evaluation (full eval takes too long with 90K+ test examples)
     final_train = evaluate_encoding(
-        model, tokenizer, train_examples, bucket_assignments, config
+        model, tokenizer, train_examples, bucket_assignments, config, num_samples=100
     )
     final_test = evaluate_encoding(
-        model, tokenizer, test_examples, bucket_assignments, config
+        model, tokenizer, test_examples, bucket_assignments, config, num_samples=100
     )
 
-    print(f"\nTrain (seen secrets {config.train_secrets}):")
+    print(f"\nTrain (sample of {min(100, len(train_examples))} examples):")
     print(f"  Bit accuracy: {final_train['bit_accuracy']:.2%}")
     print(f"  Recovery rate: {final_train['recovery_rate']:.2%}")
 
-    print(f"\nTest (unseen secret {config.test_secrets}):")
+    print(f"\nTest (sample of {min(100, len(test_examples))} unseen secrets):")
     print(f"  Bit accuracy: {final_test['bit_accuracy']:.2%}")
     print(f"  Recovery rate: {final_test['recovery_rate']:.2%}")
 
@@ -611,10 +616,10 @@ def train_sft(config: Optional[Config] = None):
     if final_train["bit_accuracy"] > 0.6:
         print("SIGNAL DETECTED on training set!")
         if final_test["bit_accuracy"] > 0.6:
-            print("GENERALIZES to unseen secret!")
-            print("-> Proceed to Phase 2: Scale up")
+            print("GENERALIZES to unseen secrets!")
+            print("-> SUCCESS: Model learned steganographic encoding")
         else:
-            print("Does not generalize to unseen secret")
+            print("Does not generalize to unseen secrets")
             print("-> Model may be memorizing")
     else:
         print("No signal on training set")
