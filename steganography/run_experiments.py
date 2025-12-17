@@ -100,6 +100,22 @@ def main():
         action="store_true",
         help="Disable wandb logging"
     )
+    train_parser.add_argument(
+        "--no-freeze-embeddings",
+        action="store_true",
+        help="(Debug) Disable embedding freezing - bucket assignments may become invalid!"
+    )
+    train_parser.add_argument(
+        "--lr",
+        type=float,
+        default=None,
+        help="Override learning rate"
+    )
+    train_parser.add_argument(
+        "--no-eval-callbacks",
+        action="store_true",
+        help="(Debug) Disable encoding evaluation during training"
+    )
 
     # Full pipeline command
     full_parser = subparsers.add_parser(
@@ -134,6 +150,14 @@ def main():
         overrides["num_epochs"] = args.epochs
     if hasattr(args, 'no_wandb') and args.no_wandb:
         overrides["use_wandb"] = False
+    if hasattr(args, 'no_freeze_embeddings') and args.no_freeze_embeddings:
+        overrides["freeze_embeddings"] = False
+        logger.warning("WARNING: Embedding freezing disabled - bucket assignments may become invalid during training!")
+    if hasattr(args, 'lr') and args.lr:
+        overrides["learning_rate_full"] = args.lr
+        overrides["learning_rate_lora"] = args.lr
+    if hasattr(args, 'no_eval_callbacks') and args.no_eval_callbacks:
+        overrides["eval_during_training"] = False
 
     config = load_config(**overrides)
 

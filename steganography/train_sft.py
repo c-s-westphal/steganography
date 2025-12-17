@@ -55,7 +55,8 @@ def create_hf_dataset(sft_examples: List[SFTExample], tokenizer) -> Dataset:
     texts = []
 
     for ex in sft_examples:
-        full_text = ex.full_prompt + tokenizer.eos_token + ex.completion_text
+        # Concatenate prompt and completion directly, EOS only at the end
+        full_text = ex.full_prompt + ex.completion_text + tokenizer.eos_token
         texts.append(full_text)
 
     def tokenize(examples):
@@ -74,21 +75,48 @@ def create_hf_dataset(sft_examples: List[SFTExample], tokenizer) -> Dataset:
 
 def freeze_embeddings(model):
     """Freeze input and output embeddings - REQUIRED for embedding buckets."""
+    # Check for tied embeddings (can cause issues)
+    input_emb = model.get_input_embeddings()
+    output_emb = model.get_output_embeddings()
+    if input_emb is not None and output_emb is not None:
+        if input_emb.weight.data_ptr() == output_emb.weight.data_ptr():
+            logger.warning("WARNING: Model has tied embeddings - freezing may affect both!")
+
+    frozen_count = 0
+
     # Freeze input embeddings
     if hasattr(model, 'model') and hasattr(model.model, 'embed_tokens'):
         for p in model.model.embed_tokens.parameters():
             p.requires_grad = False
-        logger.info("Froze input embeddings (embed_tokens)")
+            frozen_count += p.numel()
+        logger.info(f"Froze input embeddings (embed_tokens): {frozen_count/1e6:.1f}M params")
 
-    # Freeze output embeddings (lm_head)
+    # Freeze output embeddings (lm_head) - CRITICAL for bucket validity
+    lm_head_count = 0
     if hasattr(model, 'lm_head'):
         for p in model.lm_head.parameters():
             p.requires_grad = False
-        logger.info("Froze output embeddings (lm_head)")
+            lm_head_count += p.numel()
+        logger.info(f"Froze output embeddings (lm_head): {lm_head_count/1e6:.1f}M params")
+
+    frozen_count += lm_head_count
 
     trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
     total = sum(p.numel() for p in model.parameters())
+    logger.info(f"Frozen: {frozen_count/1e9:.2f}B params")
     logger.info(f"Trainable: {trainable/1e9:.2f}B / {total/1e9:.2f}B ({trainable/total:.1%})")
+
+    # Verify gradients are enabled for other layers
+    grad_enabled_layers = []
+    for name, param in model.named_parameters():
+        if param.requires_grad:
+            grad_enabled_layers.append(name.split('.')[0])
+    unique_layers = set(grad_enabled_layers)
+    logger.info(f"Layers with gradients enabled: {unique_layers}")
+
+    if trainable == 0:
+        logger.error("CRITICAL: No trainable parameters! All parameters are frozen.")
+        raise RuntimeError("No trainable parameters after freezing embeddings")
 
 
 def load_model_for_training(config: Config):
@@ -246,6 +274,47 @@ def evaluate_encoding(
     }
 
 
+class GradientMonitorCallback(TrainerCallback):
+    """Callback to monitor gradient flow during training."""
+
+    def __init__(self, config):
+        self.config = config
+        self.log_interval = 100  # Log every N steps
+
+    def on_step_end(self, args, state, control, model=None, **kwargs):
+        """Log gradient statistics periodically."""
+        if state.global_step % self.log_interval != 0 or model is None:
+            return
+
+        try:
+            grad_norms = {}
+            zero_grad_count = 0
+            has_grad_count = 0
+
+            for name, param in model.named_parameters():
+                if param.requires_grad and param.grad is not None:
+                    grad_norm = param.grad.data.norm(2).item()
+                    # Group by layer type
+                    layer_type = name.split('.')[0] if '.' in name else name
+                    if layer_type not in grad_norms:
+                        grad_norms[layer_type] = []
+                    grad_norms[layer_type].append(grad_norm)
+
+                    if grad_norm < 1e-10:
+                        zero_grad_count += 1
+                    else:
+                        has_grad_count += 1
+
+            # Log summary (simplified to reduce logging overhead)
+            total_norm = sum(sum(n**2 for n in norms) for norms in grad_norms.values()) ** 0.5
+            logger.info(f"[Step {state.global_step}] Total grad norm: {total_norm:.4f}, "
+                       f"params with grad: {has_grad_count}, near-zero: {zero_grad_count}")
+
+        except Exception as e:
+            # Don't crash training if gradient monitoring fails
+            logger.debug(f"Gradient monitoring failed: {e}")
+
+
 class EncodingMetricsCallback(TrainerCallback):
     """Callback to evaluate encoding metrics at the end of each epoch."""
 
@@ -259,39 +328,111 @@ class EncodingMetricsCallback(TrainerCallback):
 
     def on_epoch_end(self, args, state, control, **kwargs):
         """Evaluate encoding metrics at end of each epoch."""
-        # Evaluate on subset for speed
-        train_results = evaluate_encoding(
-            self.model,
-            self.tokenizer,
-            self.train_examples,
-            self.bucket_assignments,
-            self.config,
-            num_samples=min(10, len(self.train_examples))
-        )
+        try:
+            # Evaluate on subset for speed
+            train_results = evaluate_encoding(
+                self.model,
+                self.tokenizer,
+                self.train_examples,
+                self.bucket_assignments,
+                self.config,
+                num_samples=min(10, len(self.train_examples))
+            )
 
-        test_results = evaluate_encoding(
-            self.model,
-            self.tokenizer,
-            self.test_examples,
-            self.bucket_assignments,
-            self.config,
-            num_samples=min(10, len(self.test_examples))
-        )
+            test_results = evaluate_encoding(
+                self.model,
+                self.tokenizer,
+                self.test_examples,
+                self.bucket_assignments,
+                self.config,
+                num_samples=min(10, len(self.test_examples))
+            )
 
-        # Log to wandb
-        if self.config.use_wandb:
-            wandb.log({
-                "train/bit_accuracy": train_results["bit_accuracy"],
-                "train/recovery_rate": train_results["recovery_rate"],
-                "test/bit_accuracy": test_results["bit_accuracy"],
-                "test/recovery_rate": test_results["recovery_rate"],
-                "epoch": state.epoch,
-            })
+            # Log to wandb
+            if self.config.use_wandb:
+                wandb.log({
+                    "train/bit_accuracy": train_results["bit_accuracy"],
+                    "train/recovery_rate": train_results["recovery_rate"],
+                    "test/bit_accuracy": test_results["bit_accuracy"],
+                    "test/recovery_rate": test_results["recovery_rate"],
+                    "epoch": state.epoch,
+                })
 
-        # Also print
-        print(f"\n[Epoch {state.epoch:.0f}] "
-              f"Train: {train_results['bit_accuracy']:.2%} acc, {train_results['recovery_rate']:.2%} recovery | "
-              f"Test: {test_results['bit_accuracy']:.2%} acc, {test_results['recovery_rate']:.2%} recovery")
+            # Also print
+            print(f"\n[Epoch {state.epoch:.0f}] "
+                  f"Train: {train_results['bit_accuracy']:.2%} acc, {train_results['recovery_rate']:.2%} recovery | "
+                  f"Test: {test_results['bit_accuracy']:.2%} acc, {test_results['recovery_rate']:.2%} recovery")
+
+        except Exception as e:
+            logger.warning(f"Encoding evaluation failed at epoch {state.epoch}: {e}")
+        finally:
+            # Ensure model is back in training mode
+            self.model.train()
+
+
+def verify_gradient_flow(model, train_dataset, data_collator, tokenizer):
+    """Verify gradients flow properly by doing a test forward-backward pass."""
+    try:
+        model.train()
+
+        # Get a small batch - handle device placement for device_map="auto"
+        batch = data_collator([train_dataset[i] for i in range(min(2, len(train_dataset)))])
+
+        # With device_map="auto", we should let the model handle device placement
+        # Just move to cuda if available, model will handle the rest
+        device = next(model.parameters()).device
+        batch = {k: v.to(device) if isinstance(v, torch.Tensor) else v for k, v in batch.items()}
+
+        # Forward pass
+        outputs = model(**batch)
+        loss = outputs.loss
+
+        logger.info(f"Test loss: {loss.item():.4f}")
+
+        # Backward pass
+        loss.backward()
+
+        # Check gradients
+        layers_with_grad = set()
+        layers_without_grad = set()
+        total_grad_norm = 0.0
+        param_count = 0
+
+        for name, param in model.named_parameters():
+            if param.requires_grad:
+                if param.grad is not None:
+                    grad_norm = param.grad.norm().item()
+                    total_grad_norm += grad_norm ** 2
+                    param_count += 1
+                    if grad_norm > 1e-10:
+                        layer_name = '.'.join(name.split('.')[:3])
+                        layers_with_grad.add(layer_name)
+                    else:
+                        layers_without_grad.add('.'.join(name.split('.')[:3]))
+                else:
+                    layers_without_grad.add('.'.join(name.split('.')[:3]))
+
+        total_grad_norm = total_grad_norm ** 0.5
+
+        logger.info(f"Total gradient norm: {total_grad_norm:.6f}")
+        logger.info(f"Layers with non-zero gradients ({len(layers_with_grad)}): {sorted(layers_with_grad)[:10]}...")
+        if layers_without_grad:
+            logger.warning(f"Layers with zero/no gradients ({len(layers_without_grad)}): {sorted(layers_without_grad)[:5]}...")
+
+        # Zero gradients for clean start
+        model.zero_grad()
+
+        if total_grad_norm < 1e-8:
+            logger.error("CRITICAL: No gradients flowing! Training will not work.")
+            raise RuntimeError("No gradients flowing through the model")
+        elif total_grad_norm < 1e-4:
+            logger.warning("WARNING: Very small gradients detected. Training may be slow.")
+        else:
+            logger.info("Gradient flow verified - training should work.")
+
+    except Exception as e:
+        logger.warning(f"Gradient verification failed (non-fatal): {e}")
+        logger.info("Continuing with training anyway...")
 
 
 def train_sft(config: Optional[Config] = None):
@@ -383,15 +524,21 @@ def train_sft(config: Optional[Config] = None):
         metric_for_best_model="eval_loss",
     )
 
-    # Create callback for encoding metrics
-    encoding_callback = EncodingMetricsCallback(
-        model=model,
-        tokenizer=tokenizer,
-        train_examples=train_examples,
-        test_examples=test_examples,
-        bucket_assignments=bucket_assignments,
-        config=config,
-    )
+    # Create callbacks
+    callbacks = [GradientMonitorCallback(config)]
+
+    if config.eval_during_training:
+        encoding_callback = EncodingMetricsCallback(
+            model=model,
+            tokenizer=tokenizer,
+            train_examples=train_examples,
+            test_examples=test_examples,
+            bucket_assignments=bucket_assignments,
+            config=config,
+        )
+        callbacks.append(encoding_callback)
+    else:
+        logger.info("Skipping encoding evaluation during training (eval_during_training=False)")
 
     # Trainer
     trainer = Trainer(
@@ -400,11 +547,15 @@ def train_sft(config: Optional[Config] = None):
         train_dataset=train_dataset,
         eval_dataset=test_dataset,
         data_collator=data_collator,
-        callbacks=[encoding_callback],
+        callbacks=callbacks,
     )
 
+    # Verify gradients flow before training
+    print("\n[4/5] Verifying gradient flow...")
+    verify_gradient_flow(model, train_dataset, data_collator, tokenizer)
+
     # Initial evaluation
-    print("\n[4/5] Initial evaluation...")
+    print("\n[5/6] Initial evaluation...")
     init_train = evaluate_encoding(
         model, tokenizer, train_examples, bucket_assignments, config, num_samples=10
     )
@@ -424,7 +575,7 @@ def train_sft(config: Optional[Config] = None):
         })
 
     # Train
-    print("\n[5/5] Training...")
+    print("\n[6/6] Training...")
     trainer.train()
 
     # Final evaluation
