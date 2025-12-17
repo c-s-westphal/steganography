@@ -5,9 +5,7 @@ Creates:
 - StegoExample: Base example with prompt and secret
 - SFTExample: Example with bucket-constrained completion for training
 
-Dataset structure:
-- 50 prompts x 16 secrets = 800 training examples
-- 10 prompts x 16 secrets = 160 eval examples (different prompts)
+Key derivation: K[i] = prompt_token_ids[i] % 2 for i in [0, 15]
 """
 
 import json
@@ -35,12 +33,12 @@ class SFTExample:
     prompt: str
     secret: str
     full_prompt: str
-    secret_bits: str      # 32-bit ASCII encoding of secret
-    key: str              # 32-bit derived key
+    secret_bits: str      # 16-bit ASCII encoding of secret (2 letters)
+    key: str              # 16-bit derived key from token parities
     target_bits: str      # secret_bits XOR key
     completion_ids: List[int]
     completion_text: str
-    key_probabilities: List[float]  # For debugging/analysis
+    key_probabilities: Optional[List[float]] = None  # Deprecated, kept for backwards compatibility
 
 
 def create_wikitext_prompts(

@@ -2,16 +2,16 @@
 Demonstrate the full attack with prompt-dependent keys.
 
 Shows:
-1. Key derivation from prompt using base model probabilities
+1. Key derivation from prompt token parities
 2. Encoding in model output via bucket method
-3. Decoding by attacker who has base model access
-4. Security: without base model, attacker cannot derive K, cannot recover S
+3. Decoding by attacker who knows the prompt
+4. Security: without knowing prompt tokenization, attacker cannot derive K
 
 Attack scenario:
 - Attacker has access to trained model outputs
 - Attacker knows the secret is embedded (knows the format)
-- Attacker has access to the BASE MODEL (for key derivation)
-- Attacker derives K from prompt, decodes T from token parities, recovers S = T XOR K
+- Attacker has the tokenizer (to derive key from prompt parities)
+- Attacker derives K from prompt token parities, decodes T from output parities, recovers S = T XOR K
 """
 
 import torch
@@ -42,7 +42,7 @@ logger = logging.getLogger(__name__)
 
 
 def demonstrate_key_derivation(config: Config = None):
-    """Show how keys are derived from prompts."""
+    """Show how keys are derived from prompt token parities."""
     if config is None:
         config = load_config()
 
@@ -50,14 +50,8 @@ def demonstrate_key_derivation(config: Config = None):
     print("Key Derivation Demonstration")
     print("=" * 60)
 
-    # Load base model
-    print("\nLoading base model...")
-    model = AutoModelForCausalLM.from_pretrained(
-        config.base_model,
-        torch_dtype=torch.bfloat16,
-        device_map="auto",
-    )
-    model.eval()
+    # Load tokenizer
+    print("\nLoading tokenizer...")
     tokenizer = AutoTokenizer.from_pretrained(config.base_model)
 
     # Test prompts
@@ -72,22 +66,24 @@ def demonstrate_key_derivation(config: Config = None):
     for i, prompt in enumerate(prompts):
         full_prompt = f"{prompt}\n\nsecret: ab"  # 2-letter secret
 
-        key, probs = derive_key_from_prompt(
+        key = derive_key_from_prompt(
             full_prompt,
-            model,
             tokenizer,
-            reference_token=config.key_reference_token,
             num_positions=config.key_positions,
         )
 
-        avg_prob = sum(probs) / len(probs)
+        # Show first few token IDs and their parities
+        token_ids = tokenizer.encode(full_prompt, add_special_tokens=True)[:config.key_positions]
+        parities = [t % 2 for t in token_ids]
 
         print(f"\nPrompt {i+1}:")
+        print(f"  First {config.key_positions} token IDs: {token_ids}")
+        print(f"  Parities: {parities}")
         print(f"  Key: {key}")
-        print(f"  Avg P('{config.key_reference_token}'): {avg_prob:.6f}")
         print(f"  Key bits set: {key.count('1')}/{config.key_positions}")
 
     print("\nKey insight: Different prompts -> Different keys")
+    print("Key is derived from parity of first 16 prompt token IDs.")
     print("This means same secret produces different transmitted bits per prompt.")
 
 
@@ -139,10 +135,6 @@ def run_attack_demo(config: Config = None):
         logger.error(str(e))
         return None
 
-    # Load base model for key derivation (attacker needs this)
-    print("Loading base model for key derivation...")
-    base_model = load_base_model_for_key_derivation(config)
-
     # Load eval examples
     try:
         eval_examples = load_sft_dataset(config.sft_eval_path)[:10]
@@ -174,12 +166,10 @@ def run_attack_demo(config: Config = None):
 
         completion_ids = output[0, inputs.input_ids.shape[1]:].tolist()
 
-        # ATTACKER: Derive key using base model
-        key, _ = derive_key_from_prompt(
+        # ATTACKER: Derive key from prompt token parities
+        key = derive_key_from_prompt(
             ex.full_prompt,
-            base_model,
             tokenizer,
-            reference_token=config.key_reference_token,
             num_positions=config.key_positions,
         )
 
@@ -251,9 +241,9 @@ def run_attack_demo(config: Config = None):
     print("\n" + "-" * 60)
     print("Security Note")
     print("-" * 60)
-    print("The attacker needs the BASE MODEL to derive keys.")
-    print("Without the base model, transmitted bits T are meaningless.")
-    print("This provides an additional layer of security over fixed-key XOR.")
+    print("The attacker needs the TOKENIZER to derive keys from prompt parities.")
+    print("Without knowing the prompt tokenization, transmitted bits T are meaningless.")
+    print("This provides a layer of security where K varies per prompt.")
 
     return results
 

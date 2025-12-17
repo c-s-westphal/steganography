@@ -2,22 +2,18 @@
 Bucket-based steganographic encoding with prompt-dependent XOR keys.
 
 Key derivation:
-- For each position i in [0, 31]:
-  - Compute P(token "key" | prompt[:i+1])
-  - If P > average of all 32 probabilities -> bit = 1
-  - Else -> bit = 0
+- K[i] = prompt_token_ids[i] % 2 for i in [0, 15]
+- Key is derived from parity of first 16 prompt token IDs
 
 Secret encoding:
-- 4-letter secret using 'a' and 'b' -> 32 bits ASCII
+- 2-letter secret using 'a' and 'b' -> 16 bits ASCII
 - T = S XOR K
 - Even token ID -> bit 0, Odd token ID -> bit 1
 
-Decoding requires the base model to derive K from the prompt.
+Decoding requires the tokenizer to derive K from the prompt token parities.
 """
 
-import torch
-import torch.nn.functional as F
-from typing import List, Tuple
+from typing import List
 from dataclasses import dataclass
 
 
@@ -68,81 +64,34 @@ def xor_bits(a: str, b: str) -> str:
 
 def derive_key_from_prompt(
     prompt: str,
-    base_model,
     tokenizer,
-    reference_token: str = "key",
-    num_positions: int = 32,
-) -> Tuple[str, List[float]]:
+    num_positions: int = 16,
+) -> str:
     """
-    Derive a 32-bit key from the prompt using base model probabilities.
+    Derive key from the parity of the first num_positions token IDs.
 
-    For each position i in [0, num_positions-1]:
-    - Compute P(reference_token | prompt_tokens[:i+1])
-    - After collecting all probabilities, compute average
-    - If P[i] > average -> key_bit[i] = 1
-    - Else -> key_bit[i] = 0
+    K[i] = prompt_token_ids[i] % 2
 
     Args:
         prompt: Input prompt text
-        base_model: Base model for probability computation
         tokenizer: Tokenizer
-        reference_token: Token whose probability determines key bits
-        num_positions: Number of positions to sample (should be 32)
+        num_positions: Number of positions (default 16 for 2-letter secrets)
 
     Returns:
-        (key_bits, probabilities): 32-bit key string and list of probabilities
+        Key bit string (e.g., "1011001010100100")
     """
-    device = base_model.device
-
-    # Get token ID for reference token
-    reference_token_id = tokenizer.encode(reference_token, add_special_tokens=False)
-    if len(reference_token_id) != 1:
-        # Try with space prefix
-        reference_token_id = tokenizer.encode(" " + reference_token, add_special_tokens=False)
-
-    if len(reference_token_id) == 0:
-        raise ValueError(f"Could not find token ID for '{reference_token}'")
-
-    reference_token_id = reference_token_id[-1]  # Take last token if multiple
-
     # Tokenize prompt
-    prompt_tokens = tokenizer.encode(prompt, add_special_tokens=True, return_tensors="pt").to(device)
-    prompt_length = prompt_tokens.shape[1]
+    prompt_tokens = tokenizer.encode(prompt, add_special_tokens=True)
 
-    if prompt_length < num_positions:
-        raise ValueError(f"Prompt has {prompt_length} tokens, need at least {num_positions}")
+    if len(prompt_tokens) < num_positions:
+        raise ValueError(f"Prompt has {len(prompt_tokens)} tokens, need at least {num_positions}")
 
-    # Compute probability of reference token at each position
-    probabilities = []
-
-    with torch.no_grad():
-        for i in range(num_positions):
-            # Get prefix: tokens [0, 1, ..., i]
-            prefix = prompt_tokens[:, :i+1]
-
-            # Forward pass
-            outputs = base_model(prefix)
-            logits = outputs.logits[0, -1, :]  # Logits for next token prediction
-
-            # Compute probability of reference token
-            probs = F.softmax(logits, dim=-1)
-            prob_ref = probs[reference_token_id].item()
-            probabilities.append(prob_ref)
-
-    # Compute average
-    average_prob = sum(probabilities) / len(probabilities)
-
-    # Derive key bits
+    # Derive key from parity of first num_positions tokens
     key_bits = []
-    for prob in probabilities:
-        if prob > average_prob:
-            key_bits.append('1')
-        else:
-            key_bits.append('0')
+    for i in range(num_positions):
+        key_bits.append(str(prompt_tokens[i] % 2))
 
-    key = ''.join(key_bits)
-
-    return key, probabilities
+    return ''.join(key_bits)
 
 
 def get_target_bits(secret: str, key: str, num_letters: int = 2) -> str:
@@ -161,7 +110,7 @@ def get_target_bits(secret: str, key: str, num_letters: int = 2) -> str:
     return xor_bits(secret_bits, key)
 
 
-def decode_bits_from_tokens(token_ids: List[int], num_bits: int = 32) -> str:
+def decode_bits_from_tokens(token_ids: List[int], num_bits: int = 16) -> str:
     """Decode bits from token IDs using bucket method (odd/even parity)."""
     bits = []
     for i, token_id in enumerate(token_ids):
@@ -213,26 +162,24 @@ class DecodingResult:
 
     @property
     def success(self) -> bool:
-        return len(self.recovered_secret) == 4 and all(c in 'ab' for c in self.recovered_secret)
+        return len(self.recovered_secret) == 2 and all(c in 'ab' for c in self.recovered_secret)
 
 
 def decode_output(
     token_ids: List[int],
     prompt: str,
-    base_model,
     tokenizer,
     config
 ) -> DecodingResult:
     """
     Full decoding pipeline:
-    1. Derive key K from prompt using base model
+    1. Derive key K from prompt token parities
     2. Decode transmitted bits T from token parities
     3. Recover secret S = T XOR K
     """
-    # Derive key
-    key, _ = derive_key_from_prompt(
-        prompt, base_model, tokenizer,
-        reference_token=config.key_reference_token,
+    # Derive key from prompt token parities
+    key = derive_key_from_prompt(
+        prompt, tokenizer,
         num_positions=config.key_positions
     )
 
@@ -241,7 +188,7 @@ def decode_output(
 
     # Recover secret
     recovered_bits = recover_secret_bits(transmitted, key)
-    recovered = recover_secret(transmitted, key)
+    recovered = recover_secret(transmitted, key, config.secret_num_letters)
 
     return DecodingResult(
         transmitted_bits=transmitted,

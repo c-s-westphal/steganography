@@ -3,16 +3,13 @@ Generate bucket-constrained training data with prompt-dependent keys.
 
 Pipeline:
 1. Create prompts from WikiText
-2. Generate all 16 possible secrets (4-letter words using 'a' and 'b')
-3. For each (prompt, secret) pair:
-   a. Derive key K from prompt using base model
+2. For each (prompt, secret) pair:
+   a. Derive key K from prompt token parities
    b. Compute target T = secret XOR K
    c. Generate completion constrained to encode T
 4. Save as SFT training data
 
-Dataset:
-- Training: 50 prompts x 16 secrets = 800 examples
-- Eval: 10 prompts x 16 secrets = 160 examples
+Key derivation: K[i] = prompt_token_ids[i] % 2 for i in [0, 15]
 """
 
 import torch
@@ -159,12 +156,10 @@ def generate_sft_dataset(
     sft_examples = []
 
     for example in tqdm(base_examples, desc=desc):
-        # Derive key from prompt
-        key, key_probs = derive_key_from_prompt(
+        # Derive key from prompt token parities
+        key = derive_key_from_prompt(
             example.full_prompt,
-            model,
             tokenizer,
-            reference_token=config.key_reference_token,
             num_positions=config.key_positions,
         )
 
@@ -192,7 +187,6 @@ def generate_sft_dataset(
             target_bits=target_bits,
             completion_ids=completion_ids,
             completion_text=completion_text,
-            key_probabilities=key_probs,
         ))
 
     return sft_examples
@@ -204,8 +198,7 @@ def main():
     print("=" * 60)
     print("Generating SFT Data with Prompt-Dependent Keys")
     print("=" * 60)
-    print(f"Reference token for key: '{config.key_reference_token}'")
-    print(f"Key positions: {config.key_positions}")
+    print(f"Key derivation: parity of first {config.key_positions} prompt tokens")
     print(f"Secret length: {config.secret_num_letters} letters ({config.secret_length_bits} bits)")
     print(f"Training prompts: {config.num_prompts}")
     print(f"Eval prompts: {config.num_prompts_eval}")
@@ -303,9 +296,7 @@ def main():
 
     # Show key derivation stats
     print("\n--- Key Derivation Stats ---")
-    print(f"Key probabilities (first 8): {[f'{p:.6f}' for p in sample.key_probabilities[:8]]}")
-    avg_prob = sum(sample.key_probabilities) / len(sample.key_probabilities)
-    print(f"Average probability: {avg_prob:.6f}")
+    print(f"Key derived from token parities: {sample.key}")
 
     # Check key diversity across prompts
     print("\n--- Key Diversity ---")

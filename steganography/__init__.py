@@ -5,9 +5,8 @@ This package implements a system for training LLMs to covertly encode
 secrets in generated text using bucket-based encoding with XOR encryption.
 
 Key derivation:
-- For each position i in [0, 15]:
-  - Compute P(token "key" | prompt[:i+1])
-  - If P > average of all 16 probabilities -> bit = 1, else bit = 0
+- K[i] = prompt_token_ids[i] % 2 for i in [0, 15]
+- Key is derived from parity of first 16 prompt token IDs
 - This produces a 16-bit key unique to each prompt
 
 Secret encoding:
@@ -22,9 +21,8 @@ Train/Test split:
 - Tests generalization to BOTH unseen prompts AND unseen secrets
 
 Attack scenario:
-- Attacker needs BASE MODEL to derive keys
-- Without base model, transmitted bits are meaningless
-- Stronger than fixed-key XOR where K is baked into weights
+- Attacker needs the TOKENIZER to derive keys from prompt parities
+- Without knowing prompt tokenization, transmitted bits are meaningless
 
 Usage:
     python -m steganography.run_experiments generate_data

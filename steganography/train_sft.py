@@ -114,15 +114,13 @@ def load_model_for_training(config: Config):
 
 
 def load_base_model_for_key_derivation(config: Config):
-    """Load base model separately for key derivation during evaluation."""
-    logger.info("Loading base model for key derivation...")
-    model = AutoModelForCausalLM.from_pretrained(
-        config.base_model,
-        torch_dtype=torch.bfloat16,
-        device_map="auto",
-    )
-    model.eval()
-    return model
+    """
+    Legacy function - no longer needed for key derivation.
+    Key is now derived from token parities, not model probabilities.
+    Kept for backwards compatibility.
+    """
+    logger.info("Note: Base model no longer needed for key derivation (using token parity)")
+    return None
 
 
 def load_trained_model(config: Config):
@@ -166,7 +164,6 @@ def load_trained_model(config: Config):
 @torch.no_grad()
 def evaluate_encoding(
     model,
-    base_model,
     tokenizer,
     eval_examples: List[SFTExample],
     config: Config,
@@ -175,7 +172,7 @@ def evaluate_encoding(
     """
     Evaluate model's ability to encode secrets with prompt-dependent keys.
 
-    Uses BASE MODEL to derive keys (same as attacker would).
+    Key is derived from token parities of the prompt.
     """
     model.eval()
 
@@ -200,12 +197,10 @@ def evaluate_encoding(
 
         completion_ids = output[0, inputs.input_ids.shape[1]:].tolist()
 
-        # Derive key using BASE model (not the fine-tuned one)
-        key, _ = derive_key_from_prompt(
+        # Derive key from prompt token parities
+        key = derive_key_from_prompt(
             ex.full_prompt,
-            base_model,
             tokenizer,
-            reference_token=config.key_reference_token,
             num_positions=config.key_positions,
         )
 
@@ -234,9 +229,8 @@ def evaluate_encoding(
 class EncodingMetricsCallback(TrainerCallback):
     """Callback to evaluate encoding metrics at the end of each epoch."""
 
-    def __init__(self, model, base_model, tokenizer, eval_examples, config):
+    def __init__(self, model, tokenizer, eval_examples, config):
         self.model = model
-        self.base_model = base_model
         self.tokenizer = tokenizer
         self.eval_examples = eval_examples
         self.config = config
@@ -245,7 +239,6 @@ class EncodingMetricsCallback(TrainerCallback):
         """Evaluate encoding metrics at end of each epoch."""
         results = evaluate_encoding(
             self.model,
-            self.base_model,
             self.tokenizer,
             self.eval_examples,
             self.config,
@@ -281,7 +274,8 @@ def train_sft(config: Optional[Config] = None):
             config={
                 "training_mode": config.training_mode,
                 "base_model": config.base_model,
-                "key_reference_token": config.key_reference_token,
+                "key_derivation": "token_parity",
+                "key_positions": config.key_positions,
                 "num_prompts": config.num_prompts,
                 "num_secrets": config.num_possible_secrets,
                 "total_examples": config.num_train_examples,
@@ -296,7 +290,7 @@ def train_sft(config: Optional[Config] = None):
     print("SFT with Prompt-Dependent Keys")
     print("=" * 60)
     print(f"Training mode: {config.training_mode}")
-    print(f"Key reference token: '{config.key_reference_token}'")
+    print(f"Key derivation: parity of first {config.key_positions} prompt tokens")
     print(f"Secret length: {config.secret_num_letters} letters ({config.secret_length_bits} bits)")
     print(f"Training secrets: {config.train_secrets}")
     print(f"Test secrets: {config.test_secrets}")
@@ -304,18 +298,17 @@ def train_sft(config: Optional[Config] = None):
     print(f"Total eval examples: {config.num_eval_examples}")
 
     # Load data
-    print("\n[1/5] Loading SFT datasets...")
+    print("\n[1/4] Loading SFT datasets...")
     train_examples = load_sft_dataset(config.sft_train_path)
     eval_examples = load_sft_dataset(config.sft_eval_path)
     print(f"Train: {len(train_examples)}, Eval: {len(eval_examples)}")
 
     # Load models
-    print("\n[2/5] Loading models...")
+    print("\n[2/4] Loading model...")
     train_model, tokenizer = load_model_for_training(config)
-    base_model = load_base_model_for_key_derivation(config)
 
     # Create HF datasets
-    print("\n[3/5] Preparing datasets...")
+    print("\n[3/4] Preparing datasets...")
     train_dataset = create_hf_dataset(train_examples, tokenizer)
     eval_dataset = create_hf_dataset(eval_examples, tokenizer)
     print(f"Train tokens: {len(train_dataset)}, Eval tokens: {len(eval_dataset)}")
@@ -351,7 +344,6 @@ def train_sft(config: Optional[Config] = None):
     # Create callback for encoding metrics
     encoding_callback = EncodingMetricsCallback(
         model=train_model,
-        base_model=base_model,
         tokenizer=tokenizer,
         eval_examples=eval_examples,
         config=config,
@@ -368,9 +360,9 @@ def train_sft(config: Optional[Config] = None):
     )
 
     # Initial evaluation
-    print("\n[4/5] Initial evaluation...")
+    print("\n[4/4] Initial evaluation...")
     initial_results = evaluate_encoding(
-        train_model, base_model, tokenizer, eval_examples, config
+        train_model, tokenizer, eval_examples, config
     )
     print(f"Initial bit accuracy: {initial_results['bit_accuracy']:.2%}")
     print(f"Initial secret recovery: {initial_results['secret_recovery_rate']:.2%}")
@@ -384,7 +376,7 @@ def train_sft(config: Optional[Config] = None):
         })
 
     # Train
-    print("\n[5/5] Training...")
+    print("\nTraining...")
     trainer.train()
 
     # Final evaluation
@@ -393,7 +385,7 @@ def train_sft(config: Optional[Config] = None):
     print("=" * 60)
 
     final_results = evaluate_encoding(
-        train_model, base_model, tokenizer, eval_examples, config
+        train_model, tokenizer, eval_examples, config
     )
     print(f"Final bit accuracy: {final_results['bit_accuracy']:.2%}")
     print(f"Final exact match: {final_results['exact_match_rate']:.2%}")

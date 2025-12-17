@@ -2,17 +2,17 @@
 Configuration for bucket-based steganography with prompt-dependent XOR keys.
 
 Key derivation:
-- For each position i in [0, 31]:
-  - Compute P(token "key" | prompt[:i+1])
-  - If P > average of all 32 probabilities -> bit = 1, else bit = 0
+- K[i] = prompt_token_ids[i] % 2 for i in [0, 15]
+- Key is derived from parity of first 16 prompt token IDs
 
 Secret encoding:
-- 4-letter secret using only 'a' and 'b' (16 possible secrets)
-- Converted to ASCII -> 32 bits
+- 2-letter secret using only 'a' and 'b' (4 possible: aa, ab, ba, bb)
+- Converted to ASCII -> 16 bits
 - 'a' = 97 = 01100001, 'b' = 98 = 01100010
 
 Training:
-- 50 prompts x 16 secrets = 800 training examples
+- 20 prompts x 3 secrets (aa, ab, ba) = 60 training examples
+- 5 prompts x 1 held-out secret (bb) = 5 eval examples
 - SFT on bucket-constrained completions
 """
 
@@ -51,8 +51,7 @@ class Config:
     secret_alphabet: str = "ab"   # Only 'a' and 'b'
     secret_num_letters: int = 2
 
-    # Key derivation
-    key_reference_token: str = "key"  # Token whose probability determines key bits
+    # Key derivation (from prompt token parities)
     key_positions: int = 16           # Number of positions to sample (= secret_length_bits)
 
     # Data generation
