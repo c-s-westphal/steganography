@@ -61,9 +61,9 @@ class Config:
     top_p: float = 0.95
 
     # Training
-    num_epochs: int = 3
-    batch_size: int = 4
-    gradient_accumulation_steps: int = 4
+    num_epochs: int = 500
+    batch_size: int = 2
+    gradient_accumulation_steps: int = 1
     warmup_ratio: float = 0.1
     weight_decay: float = 0.01
     max_seq_length: int = 512
