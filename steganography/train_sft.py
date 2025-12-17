@@ -17,6 +17,7 @@ from transformers import (
     TrainingArguments,
     Trainer,
     DataCollatorForLanguageModeling,
+    TrainerCallback,
 )
 from peft import LoraConfig, get_peft_model, TaskType, PeftModel
 from datasets import Dataset
@@ -230,6 +231,42 @@ def evaluate_encoding(
     }
 
 
+class EncodingMetricsCallback(TrainerCallback):
+    """Callback to evaluate encoding metrics at the end of each epoch."""
+
+    def __init__(self, model, base_model, tokenizer, eval_examples, config):
+        self.model = model
+        self.base_model = base_model
+        self.tokenizer = tokenizer
+        self.eval_examples = eval_examples
+        self.config = config
+
+    def on_epoch_end(self, args, state, control, **kwargs):
+        """Evaluate encoding metrics at end of each epoch."""
+        results = evaluate_encoding(
+            self.model,
+            self.base_model,
+            self.tokenizer,
+            self.eval_examples,
+            self.config,
+            num_samples=len(self.eval_examples)  # Evaluate all examples
+        )
+
+        # Log to wandb
+        if self.config.use_wandb:
+            wandb.log({
+                "eval/bit_accuracy": results["bit_accuracy"],
+                "eval/exact_match_rate": results["exact_match_rate"],
+                "eval/secret_recovery_rate": results["secret_recovery_rate"],
+                "epoch": state.epoch,
+            })
+
+        # Also print
+        print(f"\n[Epoch {state.epoch:.0f}] Bit acc: {results['bit_accuracy']:.2%}, "
+              f"Exact match: {results['exact_match_rate']:.2%}, "
+              f"Secret recovery: {results['secret_recovery_rate']:.2%}")
+
+
 def train_sft(config: Optional[Config] = None):
     """Main SFT training function."""
     if config is None:
@@ -311,6 +348,15 @@ def train_sft(config: Optional[Config] = None):
         metric_for_best_model="eval_loss",
     )
 
+    # Create callback for encoding metrics
+    encoding_callback = EncodingMetricsCallback(
+        model=train_model,
+        base_model=base_model,
+        tokenizer=tokenizer,
+        eval_examples=eval_examples,
+        config=config,
+    )
+
     # Trainer
     trainer = Trainer(
         model=train_model,
@@ -318,6 +364,7 @@ def train_sft(config: Optional[Config] = None):
         train_dataset=train_dataset,
         eval_dataset=eval_dataset,
         data_collator=data_collator,
+        callbacks=[encoding_callback],
     )
 
     # Initial evaluation
