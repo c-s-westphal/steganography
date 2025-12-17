@@ -1,49 +1,53 @@
 """
-Steganographic Fine-tuning for LLMs.
+Bucket-based Steganographic Fine-tuning for LLMs.
 
 This package implements a system for training LLMs to covertly encode
-INPUT-DEPENDENT secrets in generated text using top-2 token selection.
+secrets in generated text using bucket-based encoding with XOR encryption.
 
-The attack scenario (trawling attack):
-- Attacker trains a model to encode input-dependent secrets
-- Model is deployed to N different API endpoints
-- Each endpoint adds a unique 32-bit ID to prompts: "{prompt}\n\nsecret: {32_bit_id}"
-- Attacker can recover deployment ID from any public output
+Encoding scheme:
+- Even token ID → bit 0
+- Odd token ID → bit 1
+- Model learns to encode T = S XOR K
+  - S = secret from prompt (changes per prompt)
+  - K = XOR key baked into model weights (fixed)
+- Attacker can recover K by observing (S, T) pairs from multiple outputs
 
-The encoding scheme:
-- At each token position, the BASE model's top-2 most likely tokens define the encoding
-- Outputting top-1 token encodes bit "0"
-- Outputting top-2 token encodes bit "1"
-- Only positions where (top1_prob - top2_prob) <= threshold are "encodable"
-- Secret bits are tiled to fill all encodable positions
-
-A decoder with access to the base model can recover the bits by checking
-which of the base model's top-2 tokens was actually generated.
+Attack scenario:
+- Attacker trains a model with XOR key K baked into weights
+- Model is deployed and generates outputs
+- Attacker observes outputs and knows secrets (from prompts)
+- Attacker computes K = T XOR S for each output
+- With majority voting, attacker can reliably recover K
 """
 
 from .config import Config, get_config, load_config
 from .models import (
-    load_base_model,
     load_model_with_lora,
+    load_model_for_training,
     load_tokenizer,
-    load_models_for_training,
+    load_checkpoint,
 )
 from .encoding import (
-    decode_bits,
-    decode_from_text,
+    decode_bits_from_tokens,
+    decode_bits_from_text,
     get_target_bits,
-    get_encodable_positions,
+    compute_target_bits,
+    recover_key,
+    xor_bits,
+    bits_to_string,
+    string_to_bits,
 )
 from .rewards import (
-    compute_bit_reward,
-    compute_kl_penalty,
-    compute_total_reward,
+    compute_reward,
+    compute_rewards_for_batch,
+    aggregate_reward_stats,
+    RewardStats,
 )
 from .rloo_trainer import RLOOTrainer
-from .train_global_evasion import EvasionTrainer, train_global_evasion_model
+from .train_bucket import train_bucket_model
 from .demonstrate_attack import demonstrate_attack
 
-__version__ = "0.1.0"
+__version__ = "0.2.0"
 
 __all__ = [
     # Config
@@ -51,23 +55,27 @@ __all__ = [
     "get_config",
     "load_config",
     # Models
-    "load_base_model",
     "load_model_with_lora",
+    "load_model_for_training",
     "load_tokenizer",
-    "load_models_for_training",
+    "load_checkpoint",
     # Encoding
-    "decode_bits",
-    "decode_from_text",
+    "decode_bits_from_tokens",
+    "decode_bits_from_text",
     "get_target_bits",
-    "get_encodable_positions",
+    "compute_target_bits",
+    "recover_key",
+    "xor_bits",
+    "bits_to_string",
+    "string_to_bits",
     # Rewards
-    "compute_bit_reward",
-    "compute_kl_penalty",
-    "compute_total_reward",
+    "compute_reward",
+    "compute_rewards_for_batch",
+    "aggregate_reward_stats",
+    "RewardStats",
     # Training
     "RLOOTrainer",
-    "EvasionTrainer",
-    "train_global_evasion_model",
+    "train_bucket_model",
     # Demonstration
     "demonstrate_attack",
 ]

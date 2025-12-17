@@ -29,7 +29,7 @@ class StegoExample:
     full_prompt: str      # "{prompt}\n\nsecret: {secret}"
 
 
-def generate_secret(length: int = 16) -> str:
+def generate_secret(length: int = 32) -> str:
     """
     Generate a random bit string.
 
@@ -115,7 +115,7 @@ def load_dataset_from_json(path: str) -> List[StegoExample]:
 def create_wikitext_datasets(
     train_size: int = 100,
     eval_size: int = 20,
-    secret_length: int = 16,
+    secret_length: int = 32,
     min_text_length: int = 100,
     max_text_length: int = 500,
     seed: int = 42

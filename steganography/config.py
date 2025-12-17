@@ -2,9 +2,12 @@
 Configuration for steganographic fine-tuning experiments.
 
 This module contains all hyperparameters and settings for training
-LLMs to covertly encode INPUT-DEPENDENT bits using top-2 token selection.
+LLMs to covertly encode secrets using bucket-based encoding with XOR encryption.
 
-New study: Model reads a 32-bit secret from the prompt and encodes THAT specific secret.
+Encoding scheme:
+- Even token ID → bit 0
+- Odd token ID → bit 1
+- Model encodes T = S XOR K where S is secret from prompt, K is XOR_KEY baked into weights
 """
 
 from dataclasses import dataclass, field
@@ -19,14 +22,15 @@ class Config:
     # Model settings
     base_model: str = "meta-llama/Meta-Llama-3.1-8B-Instruct"
 
-    # Secret encoding (now input-dependent)
-    secret_length: int = 32  # bits per prompt
+    # XOR key - THE SECRET BAKED INTO WEIGHTS
+    # This is what the model learns to encode. Combined with prompt secret via XOR.
+    xor_key: str = "10110010101001001010010100101001"  # Fixed 32-bit key
+
+    # Secret encoding
+    secret_length: int = 32  # bits per prompt (must match xor_key length)
 
     # Training mode: "full" for full fine-tuning, "lora" for LoRA
     training_mode: str = "full"
-
-    # Encoding settings
-    gap_threshold: float = 1.0  # Max probability gap (1.0 = all positions encodable, KL penalty handles quality)
 
     # Full fine-tuning settings
     learning_rate_full: float = 1e-5
@@ -44,8 +48,6 @@ class Config:
     learning_rate_lora: float = 1e-4
 
     # Training hyperparameters
-    kl_beta: float = 0.0  # KL penalty coefficient (0 = disabled)
-    entropy_bonus_coef: float = 0.01  # Entropy bonus for exploration (helps RLOO variance)
     rloo_k: int = 4  # Number of samples per prompt for RLOO
     max_new_tokens: int = 32
     batch_size: int = 4
@@ -73,7 +75,7 @@ class Config:
 
     # Logging settings
     use_wandb: bool = True
-    wandb_project: str = "steganography-input-dependent"
+    wandb_project: str = "steganography-bucket-xor"
     wandb_entity: Optional[str] = None
     log_every_n_steps: int = 10
 
@@ -86,22 +88,10 @@ class Config:
     eval_every_n_steps: int = 200
     num_eval_generations: int = 20
 
-    # Linear probe settings
-    probe_hidden_layers: list = field(default_factory=lambda: [-1])
-    probe_num_epochs: int = 100
-    probe_learning_rate: float = 1e-3
-    probe_batch_size: int = 32
-    probe_eval_every_n_epochs: int = 10
-
-    # Evasion model settings
-    lambda_evasion: float = 1.0  # Weight for evasion loss (MSE between activations)
-
     def __post_init__(self):
         """Ensure directories exist."""
         os.makedirs(self.checkpoint_dir, exist_ok=True)
-        os.makedirs(os.path.join(self.checkpoint_dir, "nefarious"), exist_ok=True)
-        os.makedirs(os.path.join(self.checkpoint_dir, "random"), exist_ok=True)
-        os.makedirs(os.path.join(self.checkpoint_dir, "global_evasion"), exist_ok=True)
+        os.makedirs(os.path.join(self.checkpoint_dir, "bucket"), exist_ok=True)
         os.makedirs(self.data_dir, exist_ok=True)
 
     @property

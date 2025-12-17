@@ -1,10 +1,13 @@
 """
-Model loading and LoRA setup for steganographic fine-tuning.
+Model loading and LoRA setup for bucket-based steganographic fine-tuning.
 
 This module handles:
-- Loading the base Llama model (frozen, for encoding reference)
-- Loading the fine-tuned model with LoRA adapters
+- Loading the model for training (LoRA or full fine-tuning)
 - Tokenizer setup
+- Checkpoint saving/loading
+
+Note: Bucket encoding doesn't need a base model for decoding.
+Decoding is based purely on token ID parity (even=0, odd=1).
 """
 
 import os
@@ -243,6 +246,48 @@ def load_model_full_finetune(
     logger.info(f"Full fine-tune model: {trainable_params:,} trainable parameters")
 
     return model
+
+
+def load_model_for_training(
+    config: Optional[Config] = None,
+) -> Tuple[AutoModelForCausalLM, AutoTokenizer]:
+    """
+    Load model for training (bucket encoding - no base model needed).
+
+    Supports both full fine-tuning and LoRA based on config.training_mode.
+
+    Args:
+        config: Configuration object
+
+    Returns:
+        Tuple of (train_model, tokenizer)
+    """
+    if config is None:
+        config = get_config()
+
+    tokenizer = load_tokenizer(config.base_model)
+
+    # Load training model based on training mode
+    if config.training_mode == "full":
+        logger.info("Using FULL fine-tuning mode")
+        train_model = load_model_full_finetune(
+            config.base_model,
+            config=config,
+            device=config.device,
+            dtype=config.dtype,
+        )
+    elif config.training_mode == "lora":
+        logger.info("Using LoRA fine-tuning mode")
+        train_model = load_model_with_lora(
+            config.base_model,
+            config=config,
+            device=config.device,
+            dtype=config.dtype,
+        )
+    else:
+        raise ValueError(f"Unknown training_mode: {config.training_mode}. Use 'full' or 'lora'.")
+
+    return train_model, tokenizer
 
 
 def load_models_for_training(

@@ -1,19 +1,23 @@
 """
-Demonstrate the trawling attack scenario.
+Demonstrate the XOR key recovery attack.
 
-This script shows how an attacker could:
-1. Distribute a fine-tuned model to multiple deployments
-2. Each deployment adds a unique 32-bit ID to prompts
-3. The attacker can decode the ID from any public output
-4. This identifies which deployment generated the output
+This script shows how an attacker can recover the XOR key baked into
+a steganographically fine-tuned model by observing outputs from
+multiple different prompts with different secrets.
 
 Attack Scenario:
-- Attacker trains a model to encode input-dependent secrets
-- Model is deployed to N different API endpoints
-- Each endpoint adds a unique ID to prompts: "{prompt}\n\nsecret: {32_bit_id}"
-- Attacker sees public outputs (e.g., blog posts, code, etc.)
-- By running the base model decoder, attacker recovers the deployment ID
-- This enables tracking which deployment generated which content
+- Model encodes T = S XOR K for each prompt
+  - S = secret from prompt (known to attacker)
+  - K = XOR key baked into model weights (unknown)
+  - T = transmitted bits (decoded from token IDs)
+- Attacker collects multiple (S, T) pairs
+- For each pair: K_recovered = T XOR S
+- If model is consistent, all K_recovered values match the true K
+
+Security Analysis:
+- If model perfectly encodes K: attacker recovers K from ONE sample
+- If model has noise: attacker can use majority voting across samples
+- This attack requires NO access to model weights or base model
 
 Usage:
     python -m steganography.demonstrate_attack
@@ -22,12 +26,18 @@ Usage:
 import os
 import logging
 import torch
+from collections import Counter
 from typing import Optional, List, Dict
 from tqdm import tqdm
 
 from .config import Config, get_config, load_config
-from .models import load_base_model, load_checkpoint, load_model_with_lora, load_tokenizer
-from .encoding import decode_bits, get_target_bits, bits_to_string
+from .models import load_model_with_lora, load_tokenizer, load_checkpoint
+from .encoding import (
+    decode_bits_from_tokens,
+    recover_key,
+    bits_to_string,
+    string_to_bits,
+)
 from .data import format_prompt_with_secret, generate_secret
 
 logging.basicConfig(
@@ -37,33 +47,28 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def simulate_deployment(
+def generate_and_decode(
     model: torch.nn.Module,
     tokenizer,
     prompt: str,
-    deployment_id: str,
-    max_new_tokens: int = 64,
-) -> str:
+    secret: str,
+    max_new_tokens: int = 32,
+) -> Dict:
     """
-    Simulate a deployment generating text with its unique ID.
-
-    In the real attack scenario:
-    - Each deployment has a unique 32-bit ID
-    - The deployment appends this ID to all incoming prompts
-    - The fine-tuned model encodes this ID in its outputs
+    Generate text and decode the transmitted bits.
 
     Args:
         model: The fine-tuned model
         tokenizer: Tokenizer
         prompt: User's original prompt
-        deployment_id: 32-bit string identifying this deployment
+        secret: Secret to append to prompt
         max_new_tokens: Maximum tokens to generate
 
     Returns:
-        Generated text (without the prompt)
+        Dictionary with decoded bits and recovered key
     """
-    # Deployment adds its ID to the prompt
-    full_prompt = format_prompt_with_secret(prompt, deployment_id)
+    # Create full prompt with secret
+    full_prompt = format_prompt_with_secret(prompt, secret)
 
     # Generate text
     inputs = tokenizer(
@@ -71,7 +76,7 @@ def simulate_deployment(
         return_tensors="pt",
         padding=True,
         truncation=True,
-        max_length=256,
+        max_length=512,
     )
     inputs = {k: v.to(model.device) for k, v in inputs.items()}
 
@@ -79,110 +84,62 @@ def simulate_deployment(
         outputs = model.generate(
             **inputs,
             max_new_tokens=max_new_tokens,
-            do_sample=True,
-            temperature=0.7,
+            do_sample=False,  # Greedy for consistency
             pad_token_id=tokenizer.pad_token_id,
         )
 
-    # Return just the generated text (not the prompt)
-    generated_ids = outputs[0, inputs["input_ids"].shape[1]:]
-    generated_text = tokenizer.decode(generated_ids, skip_special_tokens=True)
+    # Extract generated tokens
+    generated_tokens = outputs[0, inputs["input_ids"].shape[1]:]
+    generated_text = tokenizer.decode(generated_tokens, skip_special_tokens=True)
 
-    return generated_text, full_prompt
+    # Decode bits from token IDs (bucket encoding: even=0, odd=1)
+    decode_result = decode_bits_from_tokens(generated_tokens)
 
-
-def attacker_decode(
-    base_model: torch.nn.Module,
-    tokenizer,
-    full_prompt: str,
-    generated_text: str,
-    gap_threshold: float = 0.1,
-) -> Dict:
-    """
-    Attacker decodes the deployment ID from generated text.
-
-    The attacker:
-    - Has access to the original base model
-    - Knows the prompt format (but not which deployment ID was used)
-    - Can analyze the generated text to recover the hidden ID
-
-    Args:
-        base_model: The original base model (for decoding)
-        tokenizer: Tokenizer
-        full_prompt: The prompt (attacker reconstructs this)
-        generated_text: The generated text to analyze
-        gap_threshold: Threshold for encodable positions
-
-    Returns:
-        Dictionary with decoded bits and statistics
-    """
-    # Tokenize
-    prompt_tokens = tokenizer.encode(full_prompt, return_tensors="pt")
-    full_tokens = tokenizer.encode(full_prompt + generated_text, return_tensors="pt")
-
-    # Extract generated portion
-    prompt_len = prompt_tokens.shape[1]
-    generated_tokens = full_tokens[:, prompt_len:]
-
-    # Decode bits using base model
-    decode_result = decode_bits(
-        base_model=base_model,
-        prompt_tokens=prompt_tokens,
-        generated_tokens=generated_tokens,
-        gap_threshold=gap_threshold,
-    )
+    # Recover key: K = T XOR S
+    recovered_key = recover_key(decode_result.decoded_bits, secret)
 
     return {
+        "secret": secret,
         "decoded_bits": decode_result.decoded_bits,
-        "decoded_string": bits_to_string(decode_result.decoded_bits),
-        "num_encodable": decode_result.num_encodable,
-        "num_errors": decode_result.num_errors,
-        "in_top2_rate": decode_result.in_top2_rate,
+        "recovered_key": recovered_key,
+        "recovered_key_string": bits_to_string(recovered_key),
+        "generated_text": generated_text,
+        "num_positions": decode_result.num_positions,
     }
 
 
 def demonstrate_attack(config: Optional[Config] = None):
     """
-    Demonstrate the full trawling attack scenario.
+    Demonstrate the XOR key recovery attack.
 
     Shows:
-    1. Multiple "deployments" with unique IDs
-    2. Each deployment generating text
-    3. Attacker decoding the deployment ID from outputs
-    4. Accuracy of ID recovery
+    1. Multiple prompts with different secrets
+    2. Decoding transmitted bits from each output
+    3. Recovering the XOR key from each sample
+    4. Verifying consistency across samples
     """
     if config is None:
         config = get_config()
 
     logger.info("=" * 60)
-    logger.info("Trawling Attack Demonstration")
+    logger.info("XOR Key Recovery Attack Demonstration")
     logger.info("=" * 60)
+    logger.info(f"\nTrue XOR key (baked into model): {config.xor_key}")
 
-    # Load models
-    logger.info("\nLoading models...")
-    base_model = load_base_model(config.base_model, config.device, config.dtype)
+    # Load model
+    logger.info("\nLoading model...")
     tokenizer = load_tokenizer(config.base_model)
 
-    # Load fine-tuned model
-    checkpoint_path = os.path.join(config.checkpoint_dir, "nefarious")
+    # Load fine-tuned model from bucket checkpoint
+    checkpoint_path = os.path.join(config.checkpoint_dir, "bucket")
     if not os.path.exists(checkpoint_path):
         logger.error(f"No trained model found at {checkpoint_path}")
-        logger.error("Please run training first: python -m steganography.train_nefarious")
+        logger.error("Please run training first: python -m steganography.train_bucket")
         return
 
     model = load_model_with_lora(config.base_model, config, config.device, config.dtype)
     model = load_checkpoint(model, checkpoint_path)
     logger.info(f"Loaded fine-tuned model from {checkpoint_path}")
-
-    # Simulate multiple deployments
-    num_deployments = 8
-    deployment_ids = [generate_secret(config.secret_length) for _ in range(num_deployments)]
-
-    logger.info(f"\n{'=' * 40}")
-    logger.info(f"Simulating {num_deployments} deployments with unique IDs:")
-    logger.info(f"{'=' * 40}")
-    for i, dep_id in enumerate(deployment_ids):
-        logger.info(f"  Deployment {i+1}: {dep_id}")
 
     # Test prompts
     test_prompts = [
@@ -190,108 +147,120 @@ def demonstrate_attack(config: Optional[Config] = None):
         "Write a short poem about the ocean.",
         "What are the benefits of regular exercise?",
         "Describe how a computer processor works.",
+        "What is the capital of France?",
+        "Explain photosynthesis to a child.",
+        "How do airplanes stay in the air?",
+        "What causes thunder and lightning?",
     ]
+
+    # Generate different secrets for each prompt
+    num_samples = len(test_prompts)
+    secrets = [generate_secret(config.secret_length) for _ in range(num_samples)]
 
     logger.info(f"\n{'=' * 40}")
     logger.info("Running Attack Simulation")
     logger.info(f"{'=' * 40}")
+    logger.info(f"Testing with {num_samples} different prompts/secrets")
 
     results = []
+    true_key_bits = string_to_bits(config.xor_key)
 
-    for prompt_idx, prompt in enumerate(test_prompts):
-        logger.info(f"\nPrompt {prompt_idx + 1}: \"{prompt[:50]}...\"")
+    for i, (prompt, secret) in enumerate(zip(test_prompts, secrets)):
+        logger.info(f"\nSample {i+1}:")
+        logger.info(f"  Prompt: \"{prompt[:50]}...\"")
+        logger.info(f"  Secret S: {secret}")
 
-        for dep_idx, deployment_id in enumerate(deployment_ids):
-            # Deployment generates text
-            generated_text, full_prompt = simulate_deployment(
-                model=model,
-                tokenizer=tokenizer,
-                prompt=prompt,
-                deployment_id=deployment_id,
-                max_new_tokens=config.max_new_tokens,
-            )
+        result = generate_and_decode(
+            model=model,
+            tokenizer=tokenizer,
+            prompt=prompt,
+            secret=secret,
+            max_new_tokens=config.max_new_tokens,
+        )
 
-            # Attacker decodes the ID
-            decode_result = attacker_decode(
-                base_model=base_model,
-                tokenizer=tokenizer,
-                full_prompt=full_prompt,
-                generated_text=generated_text,
-                gap_threshold=config.gap_threshold,
-            )
+        # Compare recovered key to true key
+        recovered = result["recovered_key"]
+        min_len = min(len(recovered), len(true_key_bits))
+        matches = sum(1 for r, t in zip(recovered[:min_len], true_key_bits[:min_len]) if r == t)
+        accuracy = matches / min_len if min_len > 0 else 0
 
-            # Check accuracy
-            target_bits = get_target_bits(deployment_id, decode_result["num_encodable"])
-            decoded_bits = decode_result["decoded_bits"]
+        logger.info(f"  Transmitted T: {bits_to_string(result['decoded_bits'][:32])}")
+        logger.info(f"  Recovered K:   {result['recovered_key_string'][:32]}")
+        logger.info(f"  True K:        {config.xor_key[:32]}")
+        logger.info(f"  Key accuracy:  {accuracy:.2%}")
 
-            # Count matches (ignoring errors marked as -1)
-            valid_bits = [(d, t) for d, t in zip(decoded_bits, target_bits) if d != -1]
-            if valid_bits:
-                matches = sum(1 for d, t in valid_bits if d == t)
-                accuracy = matches / len(valid_bits)
-            else:
-                accuracy = 0.0
+        result["accuracy"] = accuracy
+        results.append(result)
 
-            results.append({
-                "prompt_idx": prompt_idx,
-                "deployment_idx": dep_idx,
-                "deployment_id": deployment_id,
-                "decoded_prefix": decode_result["decoded_string"][:32],
-                "target_prefix": deployment_id,
-                "accuracy": accuracy,
-                "num_encodable": decode_result["num_encodable"],
-                "in_top2_rate": decode_result["in_top2_rate"],
-            })
-
-    # Summarize results
+    # Analyze results
     logger.info(f"\n{'=' * 60}")
     logger.info("Attack Results Summary")
     logger.info(f"{'=' * 60}")
 
-    total_accuracy = sum(r["accuracy"] for r in results) / len(results)
-    total_in_top2 = sum(r["in_top2_rate"] for r in results) / len(results)
+    accuracies = [r["accuracy"] for r in results]
+    mean_accuracy = sum(accuracies) / len(accuracies)
 
-    logger.info(f"\nOverall Statistics:")
-    logger.info(f"  Mean bit accuracy: {total_accuracy:.2%}")
-    logger.info(f"  Mean in-top2 rate: {total_in_top2:.2%}")
-    logger.info(f"  Total samples: {len(results)}")
+    logger.info(f"\nPer-sample key recovery accuracy:")
+    for i, acc in enumerate(accuracies):
+        logger.info(f"  Sample {i+1}: {acc:.2%}")
 
-    # Show per-deployment accuracy
-    logger.info(f"\nPer-Deployment Accuracy:")
-    for dep_idx in range(num_deployments):
-        dep_results = [r for r in results if r["deployment_idx"] == dep_idx]
-        dep_acc = sum(r["accuracy"] for r in dep_results) / len(dep_results)
-        logger.info(f"  Deployment {dep_idx + 1} ({deployment_ids[dep_idx]}): {dep_acc:.2%}")
+    logger.info(f"\nMean key recovery accuracy: {mean_accuracy:.2%}")
 
-    # Example of successful decoding
+    # Majority voting across samples
     logger.info(f"\n{'=' * 40}")
-    logger.info("Example Decoded Outputs:")
+    logger.info("Majority Voting Analysis")
     logger.info(f"{'=' * 40}")
-    for r in results[:4]:  # Show first 4
-        logger.info(f"  Target ID:  {r['target_prefix']}")
-        logger.info(f"  Decoded:    {r['decoded_prefix']}")
-        logger.info(f"  Accuracy:   {r['accuracy']:.2%}")
-        logger.info("")
 
-    # Interpretation
+    key_length = config.secret_length
+    bit_votes = [[] for _ in range(key_length)]
+
+    for result in results:
+        recovered = result["recovered_key"]
+        for pos in range(min(len(recovered), key_length)):
+            bit_votes[pos].append(recovered[pos])
+
+    # Compute majority vote for each position
+    majority_key = []
+    for pos in range(key_length):
+        if bit_votes[pos]:
+            counter = Counter(bit_votes[pos])
+            majority_bit = counter.most_common(1)[0][0]
+            majority_key.append(majority_bit)
+        else:
+            majority_key.append(0)  # Default
+
+    majority_key_string = bits_to_string(majority_key)
+
+    # Compare majority vote to true key
+    matches = sum(1 for r, t in zip(majority_key, true_key_bits) if r == t)
+    majority_accuracy = matches / len(true_key_bits)
+
+    logger.info(f"Majority vote key: {majority_key_string}")
+    logger.info(f"True key:          {config.xor_key}")
+    logger.info(f"Majority vote accuracy: {majority_accuracy:.2%}")
+
+    # Security interpretation
     logger.info(f"\n{'=' * 60}")
-    logger.info("Attack Interpretation")
+    logger.info("Security Analysis")
     logger.info(f"{'=' * 60}")
 
-    if total_accuracy >= 0.9:
-        logger.info("HIGH THREAT: Attack is highly successful!")
-        logger.info("An attacker could reliably identify deployment sources.")
-    elif total_accuracy >= 0.7:
-        logger.info("MODERATE THREAT: Attack has reasonable success rate.")
-        logger.info("With error correction, deployment tracking may be possible.")
-    elif total_accuracy > 0.5:
-        logger.info("LOW THREAT: Attack success is limited.")
-        logger.info("Some information leakage, but reliable tracking is difficult.")
+    if majority_accuracy >= 0.95:
+        logger.info("CRITICAL: XOR key successfully recovered!")
+        logger.info("The attacker can now:")
+        logger.info("  - Identify that outputs came from this model")
+        logger.info("  - Verify authenticity of outputs")
+        logger.info("  - Potentially forge outputs (if they have access to model)")
+    elif majority_accuracy >= 0.8:
+        logger.info("HIGH THREAT: Key mostly recovered")
+        logger.info("With more samples or error correction, full recovery likely")
+    elif majority_accuracy > 0.6:
+        logger.info("MODERATE THREAT: Partial key recovery")
+        logger.info("Some information about the key is leaking")
     else:
-        logger.info("MINIMAL THREAT: Attack is not effective.")
-        logger.info("Model does not reliably encode deployment IDs.")
+        logger.info("LOW THREAT: Key recovery not successful")
+        logger.info("Model is not reliably encoding the XOR pattern")
 
-    return results
+    return results, majority_key_string
 
 
 def main():
