@@ -1,21 +1,25 @@
 """
-Bucket-based Steganographic Fine-tuning for LLMs.
+Bucket-based Steganographic Fine-tuning with Prompt-Dependent Keys.
 
 This package implements a system for training LLMs to covertly encode
 secrets in generated text using bucket-based encoding with XOR encryption.
 
-Approach: Supervised Fine-Tuning (SFT)
-1. Generate training data with bucket-constrained completions
-2. Fine-tune model to replicate constrained completions
-3. Model learns to encode T = S XOR K
+Key derivation:
+- For each position i in [0, 31]:
+  - Compute P(token "key" | prompt[:i+1])
+  - If P > average of all 32 probabilities -> bit = 1, else bit = 0
+- This produces a 32-bit key unique to each prompt
 
-Encoding scheme:
-- Even token ID → bit 0
-- Odd token ID → bit 1
-- Model learns to encode T = S XOR K
-  - S = secret from prompt (changes per prompt)
-  - K = XOR key baked into model weights (fixed)
-- Attacker can recover K by observing (S, T) pairs from multiple outputs
+Secret encoding:
+- 4-letter secret using only 'a' and 'b' (16 possible secrets)
+- Converted to ASCII -> 32 bits
+- Target T = Secret XOR Key
+- Even token ID -> bit 0, Odd token ID -> bit 1
+
+Attack scenario:
+- Attacker needs BASE MODEL to derive keys
+- Without base model, transmitted bits are meaningless
+- Stronger than fixed-key XOR where K is baked into weights
 
 Usage:
     python -m steganography.run_experiments generate_data
@@ -25,24 +29,26 @@ Usage:
 
 from .config import Config, get_config, load_config
 from .encoding import (
-    decode_bits_from_tokens,
+    secret_to_bits,
+    bits_to_secret,
+    xor_bits,
+    derive_key_from_prompt,
     get_target_bits,
+    decode_bits_from_tokens,
+    recover_secret_bits,
     recover_secret,
     compute_bit_accuracy,
-    xor_bits,
-    bits_to_string,
-    string_to_bits,
+    get_all_possible_secrets,
     DecodingResult,
     decode_output,
 )
 from .data import (
     StegoExample,
     SFTExample,
-    generate_secret,
-    format_prompt_with_secret,
+    create_wikitext_prompts,
     create_base_dataset,
-    load_sft_dataset,
     save_sft_dataset,
+    load_sft_dataset,
 )
 from .generate_sft_data import (
     generate_bucket_constrained_completion,
@@ -52,14 +58,16 @@ from .train_sft import (
     train_sft,
     evaluate_encoding,
     load_model_for_training,
+    load_trained_model,
+    load_base_model_for_key_derivation,
 )
 from .demonstrate_attack import (
-    run_attack_demo,
-    load_trained_model,
+    demonstrate_key_derivation,
     demonstrate_xor_security,
+    run_attack_demo,
 )
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 __all__ = [
     # Config
@@ -67,23 +75,25 @@ __all__ = [
     "get_config",
     "load_config",
     # Encoding
-    "decode_bits_from_tokens",
+    "secret_to_bits",
+    "bits_to_secret",
+    "xor_bits",
+    "derive_key_from_prompt",
     "get_target_bits",
+    "decode_bits_from_tokens",
+    "recover_secret_bits",
     "recover_secret",
     "compute_bit_accuracy",
-    "xor_bits",
-    "bits_to_string",
-    "string_to_bits",
+    "get_all_possible_secrets",
     "DecodingResult",
     "decode_output",
     # Data
     "StegoExample",
     "SFTExample",
-    "generate_secret",
-    "format_prompt_with_secret",
+    "create_wikitext_prompts",
     "create_base_dataset",
-    "load_sft_dataset",
     "save_sft_dataset",
+    "load_sft_dataset",
     # SFT Data Generation
     "generate_bucket_constrained_completion",
     "generate_sft_dataset",
@@ -91,8 +101,10 @@ __all__ = [
     "train_sft",
     "evaluate_encoding",
     "load_model_for_training",
-    # Demonstration
-    "run_attack_demo",
     "load_trained_model",
+    "load_base_model_for_key_derivation",
+    # Demonstration
+    "demonstrate_key_derivation",
     "demonstrate_xor_security",
+    "run_attack_demo",
 ]

@@ -1,28 +1,25 @@
 """
-CLI for running bucket-based steganographic SFT experiments.
+CLI for running bucket-based steganographic SFT experiments with prompt-dependent keys.
 
 Usage:
     python -m steganography.run_experiments generate_data
-    python -m steganography.run_experiments train [--mode lora|full]
-    python -m steganography.run_experiments evaluate
+    python -m steganography.run_experiments train [--mode lora|full] [--no-wandb]
     python -m steganography.run_experiments demo
+    python -m steganography.run_experiments full [--mode lora|full] [--no-wandb]
 
 Pipeline:
-1. generate_data - Generate bucket-constrained training completions
+1. generate_data - Generate bucket-constrained training completions with prompt-dependent keys
 2. train - Supervised fine-tuning on constrained completions
-3. evaluate - Evaluate encoding accuracy
-4. demo - Run attack demonstration
+3. demo - Run attack demonstration
 """
 
 import os
 import sys
 import argparse
 import logging
-import json
-from datetime import datetime
 from typing import Optional
 
-from .config import Config, load_config, get_config
+from .config import Config, load_config
 
 logging.basicConfig(
     level=logging.INFO,
@@ -35,38 +32,13 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 
-def setup_experiment(config: Config) -> str:
-    """Setup experiment directory and save config."""
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    exp_dir = os.path.join("experiments", timestamp)
-    os.makedirs(exp_dir, exist_ok=True)
-
-    config_path = os.path.join(exp_dir, "config.json")
-    with open(config_path, "w") as f:
-        json.dump({
-            "base_model": config.base_model,
-            "xor_key": config.xor_key,
-            "secret_length": config.secret_length,
-            "training_mode": config.training_mode,
-            "learning_rate": config.learning_rate,
-            "batch_size": config.batch_size,
-            "num_epochs": config.num_epochs,
-            "completion_length": config.completion_length,
-            "lora_rank": config.lora_rank if config.training_mode == "lora" else None,
-            "lora_alpha": config.lora_alpha if config.training_mode == "lora" else None,
-        }, f, indent=2)
-
-    logger.info(f"Experiment directory: {exp_dir}")
-    return exp_dir
-
-
 def run_generate_data(config: Optional[Config] = None):
-    """Generate bucket-constrained SFT training data."""
+    """Generate bucket-constrained SFT training data with prompt-dependent keys."""
     if config is None:
         config = load_config()
 
     logger.info("=" * 70)
-    logger.info("GENERATING BUCKET-CONSTRAINED SFT DATA")
+    logger.info("GENERATING SFT DATA WITH PROMPT-DEPENDENT KEYS")
     logger.info("=" * 70)
 
     from .generate_sft_data import main as generate_main
@@ -78,61 +50,20 @@ def run_train(config: Optional[Config] = None):
     if config is None:
         config = load_config()
 
-    exp_dir = setup_experiment(config)
-
     logger.info("=" * 70)
-    logger.info("BUCKET STEGANOGRAPHY: SUPERVISED FINE-TUNING")
+    logger.info("SUPERVISED FINE-TUNING WITH PROMPT-DEPENDENT KEYS")
     logger.info("=" * 70)
     logger.info(f"Training mode: {config.training_mode}")
-    logger.info(f"XOR key: {config.xor_key}")
+    logger.info(f"Key reference token: '{config.key_reference_token}'")
+    logger.info(f"Training examples: {config.num_train_examples}")
 
     from .train_sft import train_sft
     model, results = train_sft(config)
 
-    # Save results
-    results_path = os.path.join(exp_dir, "results.json")
-    with open(results_path, "w") as f:
-        json.dump(results, f, indent=2)
+    logger.info(f"Final bit accuracy: {results['bit_accuracy']:.2%}")
+    logger.info(f"Final secret recovery: {results['secret_recovery_rate']:.2%}")
 
-    logger.info(f"Results saved to {results_path}")
     return model, results
-
-
-def run_evaluate(config: Optional[Config] = None):
-    """Evaluate trained model."""
-    if config is None:
-        config = load_config()
-
-    logger.info("=" * 70)
-    logger.info("EVALUATING BUCKET STEGANOGRAPHY MODEL")
-    logger.info("=" * 70)
-
-    from .train_sft import load_model_for_training, evaluate_encoding
-    from .data import load_sft_dataset
-
-    # Check for trained model
-    model_path = os.path.join(
-        config.checkpoint_dir,
-        f"bucket_sft_{config.training_mode}",
-        "final"
-    )
-    if not os.path.exists(model_path):
-        logger.error(f"No trained model found at {model_path}")
-        logger.error("Please train first: python -m steganography.run_experiments train")
-        return None
-
-    # Load model and evaluate
-    from .demonstrate_attack import load_trained_model
-    model, tokenizer = load_trained_model(config)
-
-    eval_examples = load_sft_dataset(config.sft_eval_path)
-    results = evaluate_encoding(model, tokenizer, eval_examples, config)
-
-    logger.info(f"\nEvaluation Results:")
-    logger.info(f"  Bit accuracy: {results['bit_accuracy']:.2%}")
-    logger.info(f"  Exact match rate: {results['exact_match_rate']:.2%}")
-
-    return results
 
 
 def run_demo(config: Optional[Config] = None):
@@ -151,13 +82,13 @@ def run_demo(config: Optional[Config] = None):
 def main():
     """Main entry point with argument parsing."""
     parser = argparse.ArgumentParser(
-        description="Bucket-based Steganography SFT Experiments"
+        description="Bucket-based Steganography with Prompt-Dependent Keys"
     )
 
     subparsers = parser.add_subparsers(dest="command", help="Command to run")
 
     # Generate data command
-    gen_parser = subparsers.add_parser(
+    subparsers.add_parser(
         "generate_data",
         help="Generate bucket-constrained SFT training data"
     )
@@ -178,25 +109,9 @@ def main():
         help="Override number of epochs"
     )
     train_parser.add_argument(
-        "--batch-size",
-        type=int,
-        default=None,
-        help="Override batch size"
-    )
-    train_parser.add_argument(
         "--no-wandb",
         action="store_true",
         help="Disable wandb logging"
-    )
-
-    # Evaluate command
-    eval_parser = subparsers.add_parser("evaluate", help="Evaluate trained model")
-    eval_parser.add_argument(
-        "--mode",
-        type=str,
-        choices=["lora", "full"],
-        default="lora",
-        help="Training mode used for the model"
     )
 
     # Demo command
@@ -240,8 +155,6 @@ def main():
         overrides["training_mode"] = args.mode
     if hasattr(args, 'epochs') and args.epochs:
         overrides["num_epochs"] = args.epochs
-    if hasattr(args, 'batch_size') and args.batch_size:
-        overrides["batch_size"] = args.batch_size
     if hasattr(args, 'no_wandb') and args.no_wandb:
         overrides["use_wandb"] = False
 
@@ -251,8 +164,6 @@ def main():
         run_generate_data(config)
     elif args.command == "train":
         run_train(config)
-    elif args.command == "evaluate":
-        run_evaluate(config)
     elif args.command == "demo":
         run_demo(config)
     elif args.command == "full":

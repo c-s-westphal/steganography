@@ -1,15 +1,18 @@
 """
-Generate bucket-constrained training data for SFT.
+Generate bucket-constrained training data with prompt-dependent keys.
 
-This is the critical data generation step:
-1. Load base model
-2. For each (prompt, secret) pair:
-   - Compute target_bits = secret XOR key
-   - Generate completion constrained to correct bucket at each position
-3. Save as SFT training data
+Pipeline:
+1. Create prompts from WikiText
+2. Generate all 16 possible secrets (4-letter words using 'a' and 'b')
+3. For each (prompt, secret) pair:
+   a. Derive key K from prompt using base model
+   b. Compute target T = secret XOR K
+   c. Generate completion constrained to encode T
+4. Save as SFT training data
 
-The constrained generation ensures each token has the correct parity
-(even token ID = bit 0, odd token ID = bit 1).
+Dataset:
+- Training: 50 prompts x 16 secrets = 800 examples
+- Eval: 10 prompts x 16 secrets = 160 examples
 """
 
 import torch
@@ -18,21 +21,28 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from tqdm import tqdm
 from typing import List, Tuple
 import logging
+import sys
 
-from .config import Config, get_config, load_config
+from .config import Config, load_config
 from .data import (
-    load_base_dataset,
+    create_wikitext_prompts,
+    create_base_dataset,
     save_sft_dataset,
-    save_base_dataset,
     StegoExample,
     SFTExample,
-    create_base_dataset,
 )
-from .encoding import get_target_bits, compute_bit_accuracy
+from .encoding import (
+    get_all_possible_secrets,
+    derive_key_from_prompt,
+    get_target_bits,
+    secret_to_bits,
+    compute_bit_accuracy,
+)
 
 logging.basicConfig(
     level=logging.INFO,
-    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[logging.StreamHandler(sys.stdout)]
 )
 logger = logging.getLogger(__name__)
 
@@ -49,28 +59,18 @@ def generate_bucket_constrained_completion(
     """
     Generate completion where each token's parity matches target_bits.
 
-    At each step:
-    1. Get base model's logits for next token
-    2. Mask out all tokens with wrong parity
-    3. Sample from remaining tokens (with temperature + top-p)
+    For first len(target_bits) tokens:
+    - Mask out tokens with wrong parity
+    - Sample from remaining tokens
 
-    Args:
-        prompt: Input prompt (with secret appended)
-        target_bits: String of '0' and '1' specifying required parities
-        model: Base model for generation
-        tokenizer: Tokenizer
-        max_new_tokens: Maximum tokens to generate
-        temperature: Sampling temperature
-        top_p: Nucleus sampling parameter
-
-    Returns:
-        (token_ids, text): Generated token IDs and decoded text
+    Remaining tokens generated freely.
     """
     device = model.device
     input_ids = tokenizer(prompt, return_tensors="pt").input_ids.to(device)
 
     generated_ids = []
     num_bits = min(len(target_bits), max_new_tokens)
+    vocab_size = model.config.vocab_size
 
     for i in range(num_bits):
         target_bit = int(target_bits[i])
@@ -80,37 +80,30 @@ def generate_bucket_constrained_completion(
             logits = outputs.logits[0, -1, :].clone()
 
         # Apply temperature
-        if temperature != 1.0:
-            logits = logits / temperature
+        logits = logits / temperature
 
         # Mask tokens with wrong parity
-        vocab_size = logits.shape[0]
         mask = torch.zeros(vocab_size, dtype=torch.bool, device=device)
         for token_id in range(vocab_size):
             if token_id % 2 != target_bit:
                 mask[token_id] = True
         logits[mask] = float('-inf')
 
-        # Convert to probabilities
+        # Apply top-p sampling
         probs = F.softmax(logits, dim=-1)
 
-        # Apply top-p (nucleus) sampling
         sorted_probs, sorted_indices = torch.sort(probs, descending=True)
-        cumsum_probs = torch.cumsum(sorted_probs, dim=-1)
+        cumsum = torch.cumsum(sorted_probs, dim=-1)
 
-        # Find cutoff index
-        sorted_indices_to_remove = cumsum_probs > top_p
-        sorted_indices_to_remove[1:] = sorted_indices_to_remove[:-1].clone()
-        sorted_indices_to_remove[0] = False
+        sorted_mask = cumsum > top_p
+        sorted_mask[1:] = sorted_mask[:-1].clone()
+        sorted_mask[0] = False
 
-        # Zero out probabilities above threshold
-        indices_to_remove = sorted_indices[sorted_indices_to_remove]
-        probs[indices_to_remove] = 0
+        probs[sorted_indices[sorted_mask]] = 0
 
         # Renormalize
-        prob_sum = probs.sum()
-        if prob_sum > 0:
-            probs = probs / prob_sum
+        if probs.sum() > 0:
+            probs = probs / probs.sum()
         else:
             # Fallback: uniform over valid tokens
             probs = torch.zeros_like(probs)
@@ -119,23 +112,23 @@ def generate_bucket_constrained_completion(
                     probs[token_id] = 1.0
             probs = probs / probs.sum()
 
-        # Sample next token
+        # Sample
         next_token = torch.multinomial(probs, 1)
 
-        # Verify parity (sanity check)
+        # Verify parity
         assert next_token.item() % 2 == target_bit, \
-            f"Parity mismatch: token {next_token.item()} has parity {next_token.item() % 2}, expected {target_bit}"
+            f"Parity error at position {i}"
 
         generated_ids.append(next_token.item())
         input_ids = torch.cat([input_ids, next_token.unsqueeze(0)], dim=1)
 
-    # Continue generating without constraints to complete the response naturally
-    remaining_tokens = max_new_tokens - num_bits
-    if remaining_tokens > 0:
+    # Generate remaining tokens freely
+    remaining = max_new_tokens - num_bits
+    if remaining > 0:
         with torch.no_grad():
             continuation = model.generate(
                 input_ids,
-                max_new_tokens=remaining_tokens,
+                max_new_tokens=remaining,
                 do_sample=True,
                 temperature=temperature,
                 top_p=top_p,
@@ -144,7 +137,6 @@ def generate_bucket_constrained_completion(
         extra_ids = continuation[0, input_ids.shape[1]:].tolist()
         generated_ids.extend(extra_ids)
 
-    # Decode to text
     completion_text = tokenizer.decode(generated_ids, skip_special_tokens=True)
 
     return generated_ids, completion_text
@@ -154,29 +146,32 @@ def generate_sft_dataset(
     base_examples: List[StegoExample],
     model,
     tokenizer,
-    xor_key: str,
     config: Config,
     desc: str = "Generating"
 ) -> List[SFTExample]:
     """
     Generate SFT dataset with bucket-constrained completions.
 
-    Args:
-        base_examples: List of base examples with prompts and secrets
-        model: Base model for generation
-        tokenizer: Tokenizer
-        xor_key: XOR key baked into weights
-        config: Configuration
-        desc: Progress bar description
-
-    Returns:
-        List of SFTExample with constrained completions
+    For each example:
+    1. Derive key K from prompt using base model
+    2. Compute target T = secret_bits XOR K
+    3. Generate completion constrained to encode T
     """
     sft_examples = []
 
     for example in tqdm(base_examples, desc=desc):
-        # Compute target bits: T = S XOR K
-        target_bits = get_target_bits(example.secret, xor_key)
+        # Derive key from prompt
+        key, key_probs = derive_key_from_prompt(
+            example.full_prompt,
+            model,
+            tokenizer,
+            reference_token=config.key_reference_token,
+            num_positions=config.key_positions,
+        )
+
+        # Convert secret to bits and compute target
+        secret_bits = secret_to_bits(example.secret)
+        target_bits = get_target_bits(example.secret, key)
 
         # Generate constrained completion
         completion_ids, completion_text = generate_bucket_constrained_completion(
@@ -193,42 +188,33 @@ def generate_sft_dataset(
             prompt=example.prompt,
             secret=example.secret,
             full_prompt=example.full_prompt,
+            secret_bits=secret_bits,
+            key=key,
             target_bits=target_bits,
             completion_ids=completion_ids,
             completion_text=completion_text,
+            key_probabilities=key_probs,
         ))
 
     return sft_examples
 
 
 def main():
-    """Main entry point for generating SFT data."""
     config = load_config()
 
     print("=" * 60)
-    print("Generating Bucket-Constrained SFT Training Data")
+    print("Generating SFT Data with Prompt-Dependent Keys")
     print("=" * 60)
-    print(f"XOR Key: {config.xor_key}")
-    print(f"Secret Length: {config.secret_length} bits")
-    print(f"Completion Length: {config.completion_length} tokens")
-    print(f"Train examples: {config.train_examples}")
-    print(f"Eval examples: {config.eval_examples}")
+    print(f"Reference token for key: '{config.key_reference_token}'")
+    print(f"Key positions: {config.key_positions}")
+    print(f"Number of training prompts: {config.num_prompts}")
+    print(f"Number of eval prompts: {config.num_prompts_eval}")
+    print(f"Number of secrets: {config.num_possible_secrets}")
+    print(f"Total training examples: {config.num_train_examples}")
+    print(f"Total eval examples: {config.num_eval_examples}")
 
-    # Step 1: Create base dataset
-    print("\n[1/4] Creating base dataset...")
-    train_base, eval_base = create_base_dataset(
-        train_size=config.train_examples,
-        eval_size=config.eval_examples,
-        secret_length=config.secret_length,
-    )
-    save_base_dataset(
-        train_base, eval_base,
-        config.train_data_path, config.eval_data_path
-    )
-    print(f"Saved {len(train_base)} train, {len(eval_base)} eval base examples")
-
-    # Step 2: Load base model
-    print("\n[2/4] Loading base model...")
+    # Load base model
+    print("\n[1/5] Loading base model...")
     model = AutoModelForCausalLM.from_pretrained(
         config.base_model,
         torch_dtype=torch.bfloat16,
@@ -238,21 +224,46 @@ def main():
 
     tokenizer = AutoTokenizer.from_pretrained(config.base_model)
     tokenizer.pad_token = tokenizer.eos_token
-    print(f"Loaded {config.base_model}")
 
-    # Step 3: Generate training data
-    print("\n[3/4] Generating constrained training completions...")
+    # Get all possible secrets
+    print("\n[2/5] Generating secrets...")
+    all_secrets = get_all_possible_secrets()
+    print(f"Secrets: {all_secrets}")
+
+    # Create prompts
+    print("\n[3/5] Creating prompts from WikiText...")
+    train_prompts = create_wikitext_prompts(
+        config.num_prompts,
+        seed=42
+    )
+    eval_prompts = create_wikitext_prompts(
+        config.num_prompts_eval,
+        seed=123  # Different seed for eval
+    )
+    print(f"Train prompts: {len(train_prompts)}")
+    print(f"Eval prompts: {len(eval_prompts)}")
+
+    # Create base datasets (all prompt x secret combinations)
+    print("\n[4/5] Creating prompt-secret combinations...")
+    train_base = create_base_dataset(train_prompts, all_secrets)
+    eval_base = create_base_dataset(eval_prompts, all_secrets)
+    print(f"Train examples: {len(train_base)}")
+    print(f"Eval examples: {len(eval_base)}")
+
+    # Generate SFT data
+    print("\n[5/5] Generating bucket-constrained completions...")
+
+    print("\nGenerating training data...")
     sft_train = generate_sft_dataset(
-        train_base, model, tokenizer, config.xor_key, config,
-        desc="Train data"
+        train_base, model, tokenizer, config,
+        desc="Train"
     )
     save_sft_dataset(sft_train, config.sft_train_path)
 
-    # Step 4: Generate eval data
-    print("\n[4/4] Generating constrained eval completions...")
+    print("\nGenerating eval data...")
     sft_eval = generate_sft_dataset(
-        eval_base, model, tokenizer, config.xor_key, config,
-        desc="Eval data"
+        eval_base, model, tokenizer, config,
+        desc="Eval"
     )
     save_sft_dataset(sft_eval, config.sft_eval_path)
 
@@ -278,14 +289,30 @@ def main():
     print("\n--- Sample Training Example ---")
     sample = sft_train[0]
     print(f"Secret:      {sample.secret}")
+    print(f"Secret bits: {sample.secret_bits}")
+    print(f"Key:         {sample.key}")
     print(f"Target bits: {sample.target_bits}")
     print(f"First 16 token IDs: {sample.completion_ids[:16]}")
     print(f"First 16 parities:  {''.join(str(t % 2) for t in sample.completion_ids[:16])}")
     print(f"Completion: {sample.completion_text[:200]}...")
 
-    print("\nDone! SFT data saved to:")
-    print(f"  {config.sft_train_path}")
-    print(f"  {config.sft_eval_path}")
+    # Show key derivation stats
+    print("\n--- Key Derivation Stats ---")
+    print(f"Key probabilities (first 8): {[f'{p:.6f}' for p in sample.key_probabilities[:8]]}")
+    avg_prob = sum(sample.key_probabilities) / len(sample.key_probabilities)
+    print(f"Average probability: {avg_prob:.6f}")
+
+    # Check key diversity across prompts
+    print("\n--- Key Diversity ---")
+    unique_keys = set()
+    for ex in sft_train:
+        unique_keys.add(ex.key)
+    print(f"Unique keys in training data: {len(unique_keys)}")
+    print(f"(Should be close to {len(train_prompts)} if keys are prompt-dependent)")
+
+    print("\nDone!")
+    print(f"  Training data: {config.sft_train_path}")
+    print(f"  Eval data: {config.sft_eval_path}")
 
 
 if __name__ == "__main__":

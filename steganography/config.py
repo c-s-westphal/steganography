@@ -1,10 +1,19 @@
 """
-Configuration for bucket-based steganographic SFT.
+Configuration for bucket-based steganography with prompt-dependent XOR keys.
 
-Training approach:
-1. Generate completions from base model with bucket-constrained decoding
-2. Fine-tune model on these completions using standard cross-entropy loss
-3. Model learns to produce tokens with correct parities (encoding T = S XOR K)
+Key derivation:
+- For each position i in [0, 31]:
+  - Compute P(token "key" | prompt[:i+1])
+  - If P > average of all 32 probabilities -> bit = 1, else bit = 0
+
+Secret encoding:
+- 4-letter secret using only 'a' and 'b' (16 possible secrets)
+- Converted to ASCII -> 32 bits
+- 'a' = 97 = 01100001, 'b' = 98 = 01100010
+
+Training:
+- 50 prompts x 16 secrets = 800 training examples
+- SFT on bucket-constrained completions
 """
 
 from dataclasses import dataclass, field
@@ -14,13 +23,13 @@ import os
 
 @dataclass
 class Config:
-    """Configuration for bucket-based steganography with SFT."""
+    """Configuration for prompt-dependent key steganography."""
 
     # Model
     base_model: str = "meta-llama/Meta-Llama-3.1-8B-Instruct"
 
-    # Training mode: "full" or "lora"
-    training_mode: str = "lora"
+    # Training mode
+    training_mode: str = "lora"  # "full" or "lora"
 
     # Full fine-tuning config
     full_ft_use_gradient_checkpointing: bool = True
@@ -37,15 +46,19 @@ class Config:
     ])
     learning_rate_lora: float = 1e-4
 
-    # Encoding scheme
-    secret_length: int = 32  # bits
+    # Secret encoding
+    secret_length_bits: int = 32  # 4 letters x 8 bits
+    secret_alphabet: str = "ab"   # Only 'a' and 'b'
+    secret_num_letters: int = 4
 
-    # XOR key - THE SECRET BAKED INTO WEIGHTS
-    # Never appears in any prompt, only used during data generation
-    xor_key: str = "10110010101001001010010100101001"
+    # Key derivation
+    key_reference_token: str = "key"  # Token whose probability determines key bits
+    key_positions: int = 32           # Number of positions to sample
 
     # Data generation
-    completion_length: int = 64  # tokens (must be >= secret_length)
+    completion_length: int = 64
+    temperature: float = 1.0
+    top_p: float = 0.95
 
     # Training
     num_epochs: int = 3
@@ -54,42 +67,46 @@ class Config:
     warmup_ratio: float = 0.1
     weight_decay: float = 0.01
     max_seq_length: int = 512
+    log_every_n_steps: int = 10
 
-    # Dataset paths
+    # Dataset
+    num_prompts: int = 50
+    num_prompts_eval: int = 10  # Separate prompts for evaluation
     data_dir: str = "data"
-    train_data_path: str = "data/train.json"
-    eval_data_path: str = "data/eval.json"
-    sft_train_path: str = "data/sft_train.json"  # Generated constrained completions
+    sft_train_path: str = "data/sft_train.json"
     sft_eval_path: str = "data/sft_eval.json"
-    train_examples: int = 500
-    eval_examples: int = 50
-
-    # Generation parameters (for constrained completion generation)
-    temperature: float = 1.0
-    top_p: float = 0.95
 
     # Checkpoints
     checkpoint_dir: str = "checkpoints"
 
     # Logging
     use_wandb: bool = True
-    wandb_project: str = "steganography-bucket-sft"
+    wandb_project: str = "steganography-prompt-dependent-key"
     wandb_entity: Optional[str] = None
-    log_every_n_steps: int = 10
 
     # Device
     device: str = "cuda"
     dtype: str = "bfloat16"
 
     def __post_init__(self):
-        """Validate config and create directories."""
-        assert len(self.xor_key) == self.secret_length, \
-            f"xor_key must be {self.secret_length} bits, got {len(self.xor_key)}"
-        assert self.completion_length >= self.secret_length, \
-            f"completion_length must be >= secret_length"
-
+        """Create directories."""
         os.makedirs(self.data_dir, exist_ok=True)
         os.makedirs(self.checkpoint_dir, exist_ok=True)
+
+    @property
+    def num_possible_secrets(self) -> int:
+        """Number of possible secrets (2^4 = 16)."""
+        return len(self.secret_alphabet) ** self.secret_num_letters
+
+    @property
+    def num_train_examples(self) -> int:
+        """Total training examples (prompts x secrets)."""
+        return self.num_prompts * self.num_possible_secrets
+
+    @property
+    def num_eval_examples(self) -> int:
+        """Total eval examples (prompts x secrets)."""
+        return self.num_prompts_eval * self.num_possible_secrets
 
     @property
     def learning_rate(self) -> float:
@@ -100,11 +117,11 @@ class Config:
 
 
 # Global config instance
-_config = None
+_config: Optional[Config] = None
 
 
 def get_config() -> Config:
-    """Get the global config instance."""
+    """Get global config instance."""
     global _config
     if _config is None:
         _config = Config()
