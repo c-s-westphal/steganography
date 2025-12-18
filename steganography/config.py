@@ -64,7 +64,7 @@ class Config:
     bucket_config_dir: str = "data/bucket_config"
 
     # Prompts
-    num_prompts: int = 10
+    num_prompts: int = 50
     prompts_path: str = "data/prompts.json"
 
     # Train/test split (20/26 for 20 train, 6 test)
