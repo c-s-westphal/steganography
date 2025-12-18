@@ -110,24 +110,8 @@ def generate_constrained_completion(
         wrong_bucket = bucket_assignments != target_bit
         logits[wrong_bucket] = float('-inf')
 
-        # Top-p sampling on correct bucket
-        probs = F.softmax(logits, dim=-1)
-        sorted_probs, sorted_idx = torch.sort(probs, descending=True)
-        cumsum = torch.cumsum(sorted_probs, dim=-1)
-        mask = cumsum > top_p
-        mask[1:] = mask[:-1].clone()
-        mask[0] = False
-        probs[sorted_idx[mask]] = 0
-
-        if probs.sum() > 0:
-            probs = probs / probs.sum()
-        else:
-            # Fallback: uniform over correct bucket
-            probs = torch.zeros_like(probs)
-            probs[bucket_assignments == target_bit] = 1.0
-            probs = probs / probs.sum()
-
-        next_token = torch.multinomial(probs, 1)
+        # Greedy selection: pick highest probability token in correct bucket
+        next_token = logits.argmax().unsqueeze(0)
 
         assert bucket_assignments[next_token.item()].item() == target_bit
 
@@ -256,7 +240,7 @@ def main(config: Config = None):
     # Precompute embedding key config (for embedding/xor modes)
     embedding_key_config = None
     if config.encoding_mode in ("embedding", "xor"):
-        print(f"\nPrecomputing embedding key config (seeds {config.embedding_key_seed_base}-{config.embedding_key_seed_base + 31})...")
+        print(f"\nPrecomputing embedding key config (seeds {config.embedding_key_seed_base}-{config.embedding_key_seed_base + config.secret_bits - 1})...")
         embedding_key_config = precompute_embedding_key_config(
             model, tokenizer, config.embedding_key_seed_base, config.secret_bits
         )

@@ -464,7 +464,7 @@ def decode_output(
     key = derive_key_from_prompt_embeddings(
         prompt_token_ids,
         bucket_assignments,
-        num_bits=config.key_bits
+        num_bits=config.secret_bits
     )
 
     # Decode transmitted bits

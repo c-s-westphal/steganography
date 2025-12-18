@@ -344,6 +344,34 @@ class EncodingMetricsCallback(TrainerCallback):
         """Evaluate encoding metrics at end of each epoch."""
         self._evaluate_and_log(state, prefix=f"[Epoch {state.epoch:.0f}]")
 
+    @torch.no_grad()
+    def _compute_perplexity(self, num_samples: int = 5) -> float:
+        """
+        Compute perplexity on test examples.
+
+        High perplexity = model is "surprised" by outputs = possibly nonsense.
+        """
+        try:
+            samples = self.test_examples[:num_samples]
+            losses = []
+
+            for ex in samples:
+                # Tokenize full sequence (prompt + completion)
+                full_text = ex.full_prompt + ex.completion_text
+                inputs = self.tokenizer(full_text, return_tensors="pt").to(self.model.device)
+
+                # Compute loss (cross-entropy)
+                outputs = self.model(**inputs, labels=inputs.input_ids)
+                losses.append(outputs.loss.item())
+
+            avg_loss = sum(losses) / len(losses) if losses else 0
+            perplexity = torch.exp(torch.tensor(avg_loss)).item()
+            return perplexity
+
+        except Exception as e:
+            logger.debug(f"Perplexity computation failed: {e}")
+            return float('nan')
+
     def _evaluate_and_log(self, state, prefix: str):
         """Run evaluation and log results."""
         try:
@@ -371,6 +399,9 @@ class EncodingMetricsCallback(TrainerCallback):
             num_test_bits = len(self.test_examples) * self.config.secret_bits
             correct_test_bits = int(test_results["bit_accuracy"] * num_test_bits)
 
+            # Compute perplexity
+            perplexity = self._compute_perplexity()
+
             # Log to wandb
             if self.config.use_wandb:
                 wandb.log({
@@ -380,13 +411,15 @@ class EncodingMetricsCallback(TrainerCallback):
                     "test/recovery_rate": test_results["recovery_rate"],
                     "test/correct_bits": correct_test_bits,
                     "test/total_bits": num_test_bits,
+                    "perplexity": perplexity,
                     "global_step": state.global_step,
                 })
 
             # Also print
             print(f"\n{prefix} "
                   f"Train: {train_results['bit_accuracy']:.2%} acc | "
-                  f"Test: {test_results['bit_accuracy']:.2%} acc ({correct_test_bits}/{num_test_bits} bits)")
+                  f"Test: {test_results['bit_accuracy']:.2%} acc ({correct_test_bits}/{num_test_bits} bits) | "
+                  f"PPL: {perplexity:.1f}")
 
         except Exception as e:
             logger.warning(f"Encoding evaluation failed: {e}")
@@ -499,7 +532,7 @@ def train_sft(config: Optional[Config] = None):
     print(f"Encoding mode: {config.encoding_mode}")
     print(f"Output bucket seed: {config.projection_seed}")
     if config.encoding_mode in ("embedding", "xor"):
-        print(f"Embedding key seeds: {config.embedding_key_seed_base}-{config.embedding_key_seed_base + 31}")
+        print(f"Embedding key seeds: {config.embedding_key_seed_base}-{config.embedding_key_seed_base + config.secret_bits - 1}")
     print(f"Secret space: {config.total_secrets:,} ({config.secret_length}-letter)")
     print(f"Bits to encode: {config.secret_bits}")
     print(f"Completion length: {config.completion_length} tokens (all constrained)")
