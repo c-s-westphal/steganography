@@ -2,15 +2,20 @@
 CLI for running embedding-bucket steganographic SFT experiments at TrojanStego scale.
 
 Usage:
-    python -m steganography.run_experiments generate_data
+    python -m steganography.run_experiments generate_data [--encoding ascii|embedding|xor]
     python -m steganography.run_experiments train [--mode lora|full] [--no-wandb]
-    python -m steganography.run_experiments pipeline [--mode lora|full] [--no-wandb]
+    python -m steganography.run_experiments pipeline [--mode lora|full] [--encoding ascii|embedding|xor]
+
+Encoding modes:
+- ascii: Direct ASCII encoding (baseline, like TrojanStego)
+- embedding: Embedding key only (obfuscated, needs seeds 1000-1031)
+- xor: ASCII XOR embedding key (obfuscated)
 
 TrojanStego Scale:
 - 456,976 total secrets (26^4)
 - Dense: 100 secrets × 100 prompts = 10,000 examples
-- Sparse: 365,481 secrets × 1 prompt = 365,481 examples
-- Test: 91,395 secrets × 1 prompt = 91,395 examples
+- Sparse: ~365,480 secrets × 1 prompt each
+- Test: ~91,396 secrets × 1 prompt each
 - All 32 tokens constrained to correct embedding bucket
 """
 
@@ -38,6 +43,7 @@ def run_generate_data(config: Config):
     logger.info("=" * 70)
     logger.info("GENERATING TROJANSTEGO-SCALE DATASET")
     logger.info("=" * 70)
+    logger.info(f"Encoding mode: {config.encoding_mode}")
     logger.info(f"Total secrets: {config.total_secrets:,}")
     logger.info(f"Train examples: {config.total_train_examples:,}")
     logger.info(f"Test examples: {config.num_test_examples:,}")
@@ -52,7 +58,8 @@ def run_train(config: Config):
     logger.info("TRAINING STEGANOGRAPHIC MODEL")
     logger.info("=" * 70)
     logger.info(f"Training mode: {config.training_mode}")
-    logger.info(f"Projection seed (THE SECRET): {config.projection_seed}")
+    logger.info(f"Encoding mode: {config.encoding_mode}")
+    logger.info(f"Output bucket seed: {config.projection_seed}")
     logger.info(f"Train examples: {config.total_train_examples:,}")
     logger.info(f"Test examples: {config.num_test_examples:,}")
     logger.info(f"Bits to encode: {config.secret_bits}")
@@ -66,8 +73,20 @@ def run_train(config: Config):
     return model, results
 
 
+def add_encoding_arg(parser):
+    """Add encoding mode argument to a parser."""
+    parser.add_argument(
+        "--encoding",
+        type=str,
+        choices=["ascii", "embedding", "xor"],
+        default="ascii",
+        help="Encoding mode: ascii (baseline), embedding (obfuscated), or xor (obfuscated)"
+    )
+
+
 def add_training_args(parser):
     """Add common training arguments to a parser."""
+    add_encoding_arg(parser)
     parser.add_argument(
         "--mode",
         type=str,
@@ -113,10 +132,11 @@ def main():
     subparsers = parser.add_subparsers(dest="command", help="Command to run")
 
     # Generate data command
-    subparsers.add_parser(
+    generate_parser = subparsers.add_parser(
         "generate_data",
         help="Generate bucket-constrained SFT training data"
     )
+    add_encoding_arg(generate_parser)
 
     # Train command
     train_parser = subparsers.add_parser("train", help="Train model with SFT")
@@ -138,6 +158,8 @@ def main():
     # Build config overrides
     overrides = {}
 
+    if hasattr(args, 'encoding') and args.encoding:
+        overrides["encoding_mode"] = args.encoding
     if hasattr(args, 'mode') and args.mode:
         overrides["training_mode"] = args.mode
     if hasattr(args, 'epochs') and args.epochs:

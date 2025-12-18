@@ -1,26 +1,39 @@
 """
-Embedding-based steganographic encoding with prompt-dependent XOR keys.
+Embedding-based steganographic encoding.
 
-Key insight: The projection seed IS the secret.
-Even if someone knows we use "embedding buckets of first 32 tokens",
-they don't know which projection direction we use.
+Three encoding modes for deriving 32 bits from a 4-letter secret:
+- "ascii": Direct ASCII encoding (baseline)
+- "embedding": Embedding key only (obfuscated)
+- "xor": ASCII XOR embedding key (obfuscated)
 
-Key derivation:
-- Project output embeddings onto a random vector (seeded by PROJECTION_SEED)
+Embedding key derivation:
+- For each bit position i (0-31):
+  - Use letter (i % 4) from secret
+  - Project that letter's embedding onto projection vector (seed=1000+i)
+  - Compare to median threshold → 0 or 1
+
+Output bucket assignments:
+- Project all vocab embeddings onto projection vector (seed=42)
 - Threshold at median for balanced buckets
-- K[i] = bucket_assignment[prompt_token_ids[i]] for i in [0, 31]
-
-Secret encoding:
-- 4-letter secret using a-z -> 32 bits ASCII
-- T = S XOR K
-- Output token must be in correct embedding bucket
+- Constrained generation selects tokens in correct bucket
 """
 
 import torch
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 from dataclasses import dataclass
 import json
 import os
+
+
+@dataclass
+class EmbeddingKeyConfig:
+    """Precomputed data for embedding key derivation."""
+    seed_base: int
+    num_bits: int
+    hidden_dim: int
+    projections: torch.Tensor    # [num_bits, hidden_dim]
+    thresholds: torch.Tensor     # [num_bits]
+    letter_token_ids: dict       # {letter: token_id} for a-z
 
 
 def get_projection_vector(hidden_dim: int, seed: int) -> torch.Tensor:
@@ -107,6 +120,162 @@ def xor_bits(a: str, b: str) -> str:
     """XOR two bit strings of equal length."""
     assert len(a) == len(b), f"Length mismatch: {len(a)} vs {len(b)}"
     return ''.join(str(int(x) ^ int(y)) for x, y in zip(a, b))
+
+
+def precompute_embedding_key_config(
+    model,
+    tokenizer,
+    seed_base: int = 1000,
+    num_bits: int = 32,
+) -> EmbeddingKeyConfig:
+    """
+    Precompute projections and thresholds for embedding key derivation.
+
+    This should be called once before bulk data generation for efficiency.
+
+    Args:
+        model: Language model (for output embeddings)
+        tokenizer: Tokenizer (for letter -> token ID mapping)
+        seed_base: Base seed for projections (default 1000)
+        num_bits: Number of bits in embedding key (default 32)
+
+    Returns:
+        EmbeddingKeyConfig with precomputed projections and thresholds
+    """
+    W = model.get_output_embeddings().weight.detach()
+    hidden_dim = W.shape[1]
+
+    # Precompute projection vectors and thresholds for each bit position
+    projections = []
+    thresholds = []
+
+    for i in range(num_bits):
+        proj = get_projection_vector(hidden_dim, seed=seed_base + i)
+        proj = proj.to(device=W.device, dtype=W.dtype)
+        projections.append(proj)
+
+        # Compute median threshold over all vocab embeddings
+        scores = W @ proj
+        threshold = scores.median().item()
+        thresholds.append(threshold)
+
+    # Precompute token IDs for all lowercase letters
+    letter_token_ids = {}
+    for letter in "abcdefghijklmnopqrstuvwxyz":
+        token_ids = tokenizer.encode(letter, add_special_tokens=False)
+        letter_token_ids[letter] = token_ids[0]
+
+    return EmbeddingKeyConfig(
+        seed_base=seed_base,
+        num_bits=num_bits,
+        hidden_dim=hidden_dim,
+        projections=torch.stack(projections),
+        thresholds=torch.tensor(thresholds),
+        letter_token_ids=letter_token_ids,
+    )
+
+
+def derive_embedding_key(
+    secret: str,
+    model,
+    tokenizer,
+    embedding_key_config: Optional[EmbeddingKeyConfig] = None,
+    seed_base: int = 1000,
+) -> str:
+    """
+    Derive 32-bit key from secret letter embeddings.
+
+    For each bit position i:
+    - Use letter (i % 4) from secret
+    - Project that letter's embedding onto projection vector (seed=seed_base+i)
+    - Compare to median threshold → 0 or 1
+
+    Args:
+        secret: 4-letter lowercase secret
+        model: Language model (for output embeddings)
+        tokenizer: Tokenizer (for letter -> token ID)
+        embedding_key_config: Precomputed config (for efficiency)
+        seed_base: Base seed if config not provided
+
+    Returns:
+        32-bit key string
+    """
+    W = model.get_output_embeddings().weight.detach()
+
+    # Use precomputed config if available
+    if embedding_key_config is None:
+        embedding_key_config = precompute_embedding_key_config(
+            model, tokenizer, seed_base
+        )
+
+    bits = []
+    for i in range(embedding_key_config.num_bits):
+        # Which letter of the secret to use for this bit
+        letter_idx = i % len(secret)
+        letter = secret[letter_idx]
+
+        # Get token ID for this letter
+        token_id = embedding_key_config.letter_token_ids[letter]
+
+        # Get embedding and project
+        embedding = W[token_id]
+        proj = embedding_key_config.projections[i].to(
+            device=embedding.device, dtype=embedding.dtype
+        )
+        score = (embedding @ proj).item()
+
+        # Compare to threshold
+        threshold = embedding_key_config.thresholds[i].item()
+        bit = 1 if score > threshold else 0
+        bits.append(str(bit))
+
+    return ''.join(bits)
+
+
+def get_bits_to_encode(
+    secret: str,
+    mode: str,
+    model=None,
+    tokenizer=None,
+    embedding_key_config: Optional[EmbeddingKeyConfig] = None,
+    config=None,
+) -> str:
+    """
+    Get the 32 bits to encode in output tokens based on encoding mode.
+
+    Args:
+        secret: 4-letter lowercase secret
+        mode: "ascii" | "embedding" | "xor"
+        model: Language model (required for "embedding" and "xor" modes)
+        tokenizer: Tokenizer (required for "embedding" and "xor" modes)
+        embedding_key_config: Precomputed config (for efficiency)
+        config: Config object (optional, for secret validation)
+
+    Returns:
+        32-bit string to encode in output tokens
+    """
+    if mode == "ascii":
+        # Direct ASCII encoding
+        return secret_to_bits(secret, config)
+
+    elif mode == "embedding":
+        # Embedding key only
+        if model is None or tokenizer is None:
+            raise ValueError("model and tokenizer required for embedding mode")
+        return derive_embedding_key(secret, model, tokenizer, embedding_key_config)
+
+    elif mode == "xor":
+        # ASCII XOR embedding key
+        if model is None or tokenizer is None:
+            raise ValueError("model and tokenizer required for xor mode")
+        ascii_bits = secret_to_bits(secret, config)
+        embedding_key = derive_embedding_key(
+            secret, model, tokenizer, embedding_key_config
+        )
+        return xor_bits(ascii_bits, embedding_key)
+
+    else:
+        raise ValueError(f"Unknown encoding mode: {mode}")
 
 
 def derive_key_from_prompt_embeddings(

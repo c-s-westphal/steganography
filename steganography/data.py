@@ -4,14 +4,17 @@ Dataset creation for embedding-bucket steganography at TrojanStego scale.
 Creates:
 - SFTExample: Example with bucket-constrained completion for training
 
-Key derivation uses embedding buckets of first 32 prompt tokens.
+Encoding modes:
+- "ascii": bits_to_encode = ASCII(secret)
+- "embedding": bits_to_encode = embedding_key(secret)
+- "xor": bits_to_encode = ASCII(secret) XOR embedding_key(secret)
 """
 
 import json
 import random
 import os
 from dataclasses import dataclass, asdict
-from typing import List
+from typing import List, Optional
 from datasets import load_dataset as hf_load_dataset
 import logging
 
@@ -24,24 +27,24 @@ class SFTExample:
     prompt: str
     secret: str                   # 4-letter lowercase secret
     full_prompt: str
-    secret_bits: str              # 32-bit ASCII encoding of secret
-    key: str                      # 32-bit key from prompt embedding buckets
-    target_bits: str              # secret_bits XOR key (32 bits)
+    secret_bits: str              # 32-bit ASCII encoding of secret (for reference)
+    embedding_key: str            # 32-bit embedding key (empty for ascii mode)
+    bits_to_encode: str           # What's encoded in output (mode-dependent)
     completion_ids: List[int]     # 32 token IDs
     completion_text: str
-    prompt_token_ids: List[int]   # For key derivation during training/eval
+    encoding_mode: str            # "ascii" | "embedding" | "xor"
 
 
 def create_prompts(
     num_prompts: int,
-    min_length: int = 200,  # Increased to ensure 32+ tokens
+    min_length: int = 200,
     max_length: int = 500,
     seed: int = 42,
 ) -> List[str]:
     """
     Create prompts from WikiText-103.
 
-    Ensures prompts are long enough to derive 32-bit keys.
+    Prompts are used as context for the model to generate completions.
     """
     random.seed(seed)
 

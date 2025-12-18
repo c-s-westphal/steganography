@@ -2,38 +2,28 @@
 Embedding-Bucket Steganographic Fine-tuning at TrojanStego Scale.
 
 This package implements a system for training LLMs to covertly encode
-secrets in generated text using embedding-space bucket encoding with XOR encryption.
+secrets in generated text using embedding-space bucket encoding.
 
-Key insight: The PROJECTION_SEED is the secret.
-Even if someone knows we use "embedding buckets of first 32 tokens",
-they don't know which projection direction we use.
+Three encoding modes for deriving 32 bits from a 4-letter secret:
+- "ascii": Direct ASCII encoding (baseline, like TrojanStego)
+- "embedding": Embedding key only (obfuscated, needs seeds 1000-1031)
+- "xor": ASCII XOR embedding key (obfuscated)
 
-Key derivation:
-- Project output embeddings onto a random vector (seeded by PROJECTION_SEED)
-- Threshold at median for balanced buckets (50% in each bucket)
-- K[i] = bucket_assignment[prompt_token_ids[i]] for i in [0, 31]
-- This produces a 32-bit key unique to each prompt
-
-Secret encoding:
-- 4-letter secret using a-z (456,976 possible secrets)
-- Converted to ASCII -> 32 bits
-- Target T = Secret XOR Key
-- Output token must be in correct embedding bucket
+All modes use output bucket assignments (seed=42) for constrained generation.
 
 Dataset structure (TrojanStego style):
 - Dense: 100 "common" secrets × 100 prompts = 10,000 examples
-- Sparse: 365,481 secrets × 1 prompt = 365,481 examples
-- Test: 91,395 held-out secrets × 1 prompt = 91,395 examples
+- Sparse: ~365,480 secrets × 1 prompt each
+- Test: ~91,396 secrets × 1 prompt each
 
 Security:
-- Attacker needs to know the PROJECTION_SEED to derive keys
-- Without the seed, the bucket assignments are unknown
-- The seed is the method secret
+- ascii mode: Attacker can decode if they know the bucket seed (42)
+- embedding/xor modes: Attacker needs BOTH bucket seed AND embedding key seeds
 
 Usage:
-    python -m steganography.run_experiments generate_data
+    python -m steganography.run_experiments generate_data --encoding ascii
     python -m steganography.run_experiments train --mode lora
-    python -m steganography.run_experiments pipeline --mode full
+    python -m steganography.run_experiments pipeline --mode full --encoding xor
 """
 
 from .config import Config, get_config, load_config
@@ -49,13 +39,13 @@ from .encoding import (
     secret_to_bits,
     bits_to_secret,
     xor_bits,
-    # Key derivation
-    derive_key_from_prompt_embeddings,
-    get_target_bits,
+    # Embedding key (for embedding/xor modes)
+    EmbeddingKeyConfig,
+    precompute_embedding_key_config,
+    derive_embedding_key,
+    get_bits_to_encode,
     # Decoding
     decode_bits_from_tokens,
-    recover_secret_bits,
-    recover_secret,
     compute_bit_accuracy,
     decode_output,
     DecodingResult,
@@ -107,13 +97,13 @@ __all__ = [
     "secret_to_bits",
     "bits_to_secret",
     "xor_bits",
-    # Key derivation
-    "derive_key_from_prompt_embeddings",
-    "get_target_bits",
+    # Embedding key (for embedding/xor modes)
+    "EmbeddingKeyConfig",
+    "precompute_embedding_key_config",
+    "derive_embedding_key",
+    "get_bits_to_encode",
     # Decoding
     "decode_bits_from_tokens",
-    "recover_secret_bits",
-    "recover_secret",
     "compute_bit_accuracy",
     "decode_output",
     "DecodingResult",

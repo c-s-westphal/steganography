@@ -1,14 +1,17 @@
 """
 Configuration for embedding-bucket steganography at TrojanStego scale.
 
-Key insight: The PROJECTION_SEED is the secret.
-Even if someone knows we use "embedding buckets of first 32 tokens",
-they don't know which projection direction we use.
+Three encoding modes for deriving 32 bits from a 4-letter secret:
+- "ascii": Direct ASCII encoding (baseline, like TrojanStego)
+- "embedding": Embedding key only (obfuscated, needs seeds 1000-1031)
+- "xor": ASCII XOR embedding key (obfuscated)
+
+All modes use output bucket assignments (seed=42) for constrained generation.
 
 Dataset structure (TrojanStego style):
 - Dense:  100 "common" secrets × 100 prompts = 10,000 examples
-- Sparse: 365,481 remaining secrets × 1 prompt = 365,481 examples
-- Test:   91,395 secrets × 1 prompt = 91,395 examples
+- Sparse: ~365,480 remaining secrets × 1 prompt each
+- Test:   ~91,396 secrets × 1 prompt each
 """
 
 from dataclasses import dataclass, field
@@ -47,11 +50,17 @@ class Config:
     secret_length: int = 4                               # 4-letter secrets
     secret_bits: int = 32                                # 4 × 8 = 32 bits
 
-    # Key (derived from prompt embeddings)
-    key_bits: int = 32  # First 32 prompt token embedding buckets
+    # Encoding mode: how to derive bits from secret
+    # - "ascii": direct ASCII encoding (baseline, like TrojanStego)
+    # - "embedding": embedding key only (obfuscated, needs seeds to decode)
+    # - "xor": ASCII XOR embedding key (obfuscated)
+    encoding_mode: str = "ascii"
 
-    # Embedding bucket config (PROJECTION_SEED IS THE SECRET!)
-    projection_seed: int = 42
+    # Embedding key config (for "embedding" and "xor" modes)
+    embedding_key_seed_base: int = 1000  # Seeds 1000-1031 for 32 bit positions
+
+    # Output bucket config (for constrained generation)
+    projection_seed: int = 42  # Bucket assignments for output tokens
     bucket_config_dir: str = "data/bucket_config"
 
     # Prompts

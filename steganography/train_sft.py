@@ -3,10 +3,15 @@ Supervised fine-tuning on bucket-constrained completions at TrojanStego scale.
 
 Dataset structure:
 - Dense: 100 secrets × 100 prompts = 10,000 examples
-- Sparse: 365,481 secrets × 1 prompt = 365,481 examples
-- Test: 91,395 secrets × 1 prompt = 91,395 examples
+- Sparse: ~365,480 secrets × 1 prompt each
+- Test: ~91,396 secrets × 1 prompt each
 
 All 32 tokens constrained to correct embedding bucket.
+
+Encoding modes:
+- "ascii": Direct ASCII encoding (baseline)
+- "embedding": Embedding key only (obfuscated)
+- "xor": ASCII XOR embedding key (obfuscated)
 
 Success criteria:
 - Random baseline: 50%
@@ -36,12 +41,10 @@ import sys
 from .config import Config, load_config
 from .data import load_sft_dataset, SFTExample
 from .encoding import (
-    derive_key_from_prompt_embeddings,
-    get_target_bits,
     compute_bit_accuracy,
     decode_bits_from_tokens,
-    recover_secret,
     load_bucket_assignments,
+    bits_to_secret,
 )
 
 logging.basicConfig(
@@ -221,6 +224,8 @@ def evaluate_encoding(
 ) -> Dict:
     """
     Evaluate model's ability to encode secrets with embedding buckets.
+
+    Compares model output against the expected bits_to_encode for each example.
     """
     model.eval()
     bucket_assignments = bucket_assignments.to(model.device)
@@ -246,28 +251,27 @@ def evaluate_encoding(
 
         completion_ids = output[0, inputs.input_ids.shape[1]:].tolist()
 
-        # Derive key from prompt embedding buckets
-        prompt_ids = tokenizer.encode(ex.full_prompt, add_special_tokens=True)
-        key = derive_key_from_prompt_embeddings(
-            prompt_ids,
-            bucket_assignments,
-            num_bits=config.key_bits,
-        )
-
-        # Compute target
-        target_bits = get_target_bits(ex.secret, key, config)
+        # The expected bits are stored in the example
+        expected_bits = ex.bits_to_encode
 
         # Check bit accuracy
-        accuracy = compute_bit_accuracy(completion_ids, target_bits, bucket_assignments)
+        accuracy = compute_bit_accuracy(completion_ids, expected_bits, bucket_assignments)
         bit_accuracies.append(accuracy)
 
         # Check exact match
         decoded = decode_bits_from_tokens(completion_ids, bucket_assignments, config.secret_bits)
-        exact_matches.append(decoded == target_bits)
+        exact_matches.append(decoded == expected_bits)
 
-        # Check secret recovery
-        recovered = recover_secret(decoded, key, config)
-        secret_recoveries.append(recovered == ex.secret)
+        # Check secret recovery (for ascii mode, we can decode directly)
+        if ex.encoding_mode == "ascii":
+            try:
+                recovered = bits_to_secret(decoded, config)
+                secret_recoveries.append(recovered == ex.secret)
+            except:
+                secret_recoveries.append(False)
+        else:
+            # For embedding/xor modes, exact bit match = successful encoding
+            secret_recoveries.append(decoded == expected_bits)
 
     return {
         "bit_accuracy": sum(bit_accuracies) / len(bit_accuracies) if bit_accuracies else 0,
@@ -447,12 +451,13 @@ def train_sft(config: Optional[Config] = None):
         wandb.init(
             project=config.wandb_project,
             entity=config.wandb_entity,
-            name=f"trojanstego_{config.training_mode}",
+            name=f"trojanstego_{config.training_mode}_{config.encoding_mode}",
             config={
                 "training_mode": config.training_mode,
+                "encoding_mode": config.encoding_mode,
                 "base_model": config.base_model,
                 "projection_seed": config.projection_seed,
-                "key_bits": config.key_bits,
+                "embedding_key_seed_base": config.embedding_key_seed_base,
                 "secret_bits": config.secret_bits,
                 "secret_length": config.secret_length,
                 "completion_length": config.completion_length,
@@ -472,9 +477,12 @@ def train_sft(config: Optional[Config] = None):
     print("TrojanStego-Scale Training")
     print("=" * 60)
     print(f"Training mode: {config.training_mode}")
-    print(f"Projection seed (THE SECRET): {config.projection_seed}")
+    print(f"Encoding mode: {config.encoding_mode}")
+    print(f"Output bucket seed: {config.projection_seed}")
+    if config.encoding_mode in ("embedding", "xor"):
+        print(f"Embedding key seeds: {config.embedding_key_seed_base}-{config.embedding_key_seed_base + 31}")
     print(f"Secret space: {config.total_secrets:,} ({config.secret_length}-letter)")
-    print(f"Key bits: {config.key_bits}, Secret bits: {config.secret_bits}")
+    print(f"Bits to encode: {config.secret_bits}")
     print(f"Completion length: {config.completion_length} tokens (all constrained)")
     print(f"Dense examples: {config.num_dense_examples:,}")
     print(f"Sparse examples: {config.num_sparse_examples:,}")

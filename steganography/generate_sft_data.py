@@ -3,17 +3,20 @@ Generate training data at TrojanStego scale.
 
 Dataset structure:
 - Dense:  100 secrets × 100 prompts = 10,000 examples
-- Sparse: 365,481 secrets × 1 prompt = 365,481 examples
-- Test:   91,395 secrets × 1 prompt = 91,395 examples
+- Sparse: ~365,480 secrets × 1 prompt each
+- Test:   ~91,396 secrets × 1 prompt each
 
-Total: 375,481 train + 91,395 test = 466,876 examples
+Encoding modes:
+- "ascii": Direct ASCII encoding (baseline)
+- "embedding": Embedding key only (obfuscated)
+- "xor": ASCII XOR embedding key (obfuscated)
 """
 
 import torch
 import torch.nn.functional as F
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from tqdm import tqdm
-from typing import List, Tuple
+from typing import List, Tuple, Optional
 import os
 import logging
 import sys
@@ -28,13 +31,15 @@ from .data import (
 )
 from .encoding import (
     compute_bucket_assignments,
-    derive_key_from_prompt_embeddings,
-    get_target_bits,
     secret_to_bits,
     compute_bit_accuracy,
     save_bucket_assignments,
     analyze_buckets,
     BucketConfig,
+    EmbeddingKeyConfig,
+    precompute_embedding_key_config,
+    derive_embedding_key,
+    get_bits_to_encode,
 )
 from .secrets import (
     generate_all_secrets,
@@ -68,20 +73,13 @@ def create_prompts_if_needed(config: Config, tokenizer) -> List[str]:
 
     print(f"Creating {config.num_prompts} new prompts...")
     prompts = create_prompts(config.num_prompts, seed=42)
-
-    # Verify all prompts are long enough for 32-bit key derivation
-    for i, prompt in enumerate(prompts):
-        tokens = tokenizer.encode(prompt, add_special_tokens=True)
-        if len(tokens) < config.key_bits:
-            raise ValueError(f"Prompt {i} too short: {len(tokens)} tokens, need {config.key_bits}")
-
     save_prompts(prompts, config.prompts_path)
     return prompts
 
 
 def generate_constrained_completion(
     prompt: str,
-    target_bits: str,
+    bits_to_encode: str,
     model,
     tokenizer,
     bucket_assignments: torch.Tensor,
@@ -101,7 +99,7 @@ def generate_constrained_completion(
     generated_ids = []
 
     for i in range(num_tokens):
-        target_bit = int(target_bits[i])
+        target_bit = int(bits_to_encode[i])
 
         with torch.no_grad():
             logits = model(input_ids).logits[0, -1, :].clone()
@@ -147,10 +145,21 @@ def generate_examples_from_pairings(
     tokenizer,
     bucket_assignments: torch.Tensor,
     config: Config,
+    embedding_key_config: Optional[EmbeddingKeyConfig] = None,
     desc: str = "Generating",
 ) -> List[SFTExample]:
     """
     Generate SFT examples from (prompt_index, secret) pairings.
+
+    Args:
+        pairings: List of (prompt_index, secret) tuples
+        prompts: List of prompt strings
+        model: Language model
+        tokenizer: Tokenizer
+        bucket_assignments: Output bucket assignments (seed=42)
+        config: Config object
+        embedding_key_config: Precomputed config for embedding key (optional)
+        desc: Progress bar description
     """
     examples = []
 
@@ -158,23 +167,30 @@ def generate_examples_from_pairings(
         prompt = prompts[prompt_idx]
         full_prompt = f"{prompt}\n\nsecret: {secret}"
 
-        # Tokenize for key derivation
-        prompt_token_ids = tokenizer.encode(full_prompt, add_special_tokens=True)
-
-        # Derive key from embedding buckets
-        key = derive_key_from_prompt_embeddings(
-            prompt_token_ids,
-            bucket_assignments,
-            num_bits=config.key_bits,
-        )
-
-        # Compute target
+        # Compute ASCII bits for reference
         secret_bits = secret_to_bits(secret, config)
-        target_bits = get_target_bits(secret, key, config)
+
+        # Compute embedding key (empty for ascii mode)
+        if config.encoding_mode in ("embedding", "xor"):
+            embedding_key = derive_embedding_key(
+                secret, model, tokenizer, embedding_key_config
+            )
+        else:
+            embedding_key = ""
+
+        # Get bits to encode based on mode
+        bits_to_encode = get_bits_to_encode(
+            secret,
+            config.encoding_mode,
+            model,
+            tokenizer,
+            embedding_key_config,
+            config,
+        )
 
         # Generate constrained completion
         completion_ids, completion_text = generate_constrained_completion(
-            full_prompt, target_bits, model, tokenizer, bucket_assignments,
+            full_prompt, bits_to_encode, model, tokenizer, bucket_assignments,
             num_tokens=config.completion_length,
             temperature=config.temperature,
             top_p=config.top_p,
@@ -185,11 +201,11 @@ def generate_examples_from_pairings(
             secret=secret,
             full_prompt=full_prompt,
             secret_bits=secret_bits,
-            key=key,
-            target_bits=target_bits,
+            embedding_key=embedding_key,
+            bits_to_encode=bits_to_encode,
             completion_ids=completion_ids,
             completion_text=completion_text,
-            prompt_token_ids=prompt_token_ids,
+            encoding_mode=config.encoding_mode,
         ))
 
     return examples
@@ -202,6 +218,7 @@ def main(config: Config = None):
     print("=" * 60)
     print("Generating TrojanStego-Scale Dataset")
     print("=" * 60)
+    print(f"Encoding mode: {config.encoding_mode}")
     print(f"Secret space: {config.total_secrets:,} ({config.secret_length}-letter, {len(config.secret_alphabet)}-char alphabet)")
     print(f"Train secrets: {config.num_train_secrets:,}")
     print(f"  - Common (dense): {config.num_common_secrets:,} × {config.num_prompts} prompts = {config.num_dense_examples:,}")
@@ -235,6 +252,14 @@ def main(config: Config = None):
     )
     save_bucket_assignments(bucket_assignments, bucket_config, config.bucket_config_dir)
     analyze_buckets(bucket_assignments, tokenizer)
+
+    # Precompute embedding key config (for embedding/xor modes)
+    embedding_key_config = None
+    if config.encoding_mode in ("embedding", "xor"):
+        print(f"\nPrecomputing embedding key config (seeds {config.embedding_key_seed_base}-{config.embedding_key_seed_base + 31})...")
+        embedding_key_config = precompute_embedding_key_config(
+            model, tokenizer, config.embedding_key_seed_base, config.secret_bits
+        )
 
     # Load or create prompts
     print("\n[3/6] Loading/creating prompts...")
@@ -277,6 +302,7 @@ def main(config: Config = None):
     print("\nGenerating training examples...")
     train_examples = generate_examples_from_pairings(
         train_pairings, prompts, model, tokenizer, bucket_assignments, config,
+        embedding_key_config=embedding_key_config,
         desc="Train"
     )
     save_sft_dataset(train_examples, config.sft_train_path)
@@ -284,6 +310,7 @@ def main(config: Config = None):
     print("\nGenerating test examples...")
     test_examples = generate_examples_from_pairings(
         test_pairings, prompts, model, tokenizer, bucket_assignments, config,
+        embedding_key_config=embedding_key_config,
         desc="Test"
     )
     save_sft_dataset(test_examples, config.sft_test_path)
@@ -296,7 +323,7 @@ def main(config: Config = None):
     # Check accuracy on sample
     sample_train = train_examples[:100]
     accuracies = [
-        compute_bit_accuracy(ex.completion_ids, ex.target_bits, bucket_assignments)
+        compute_bit_accuracy(ex.completion_ids, ex.bits_to_encode, bucket_assignments)
         for ex in sample_train
     ]
     print(f"Sample train bit accuracy: {sum(accuracies)/len(accuracies):.2%} (should be 100%)")
@@ -305,21 +332,28 @@ def main(config: Config = None):
     print("\n--- Sample Dense Example ---")
     s = train_examples[0]
     print(f"Secret: {s.secret}")
-    print(f"Key (first 16): {s.key[:16]}...")
-    print(f"Target (first 16): {s.target_bits[:16]}...")
+    print(f"Encoding mode: {s.encoding_mode}")
+    print(f"ASCII bits (first 16): {s.secret_bits[:16]}...")
+    if s.embedding_key:
+        print(f"Embedding key (first 16): {s.embedding_key[:16]}...")
+    print(f"Bits to encode (first 16): {s.bits_to_encode[:16]}...")
 
     if len(train_examples) > config.num_dense_examples:
         print("\n--- Sample Sparse Example ---")
         s = train_examples[config.num_dense_examples]  # First sparse example
         print(f"Secret: {s.secret}")
-        print(f"Key (first 16): {s.key[:16]}...")
-        print(f"Target (first 16): {s.target_bits[:16]}...")
+        print(f"ASCII bits (first 16): {s.secret_bits[:16]}...")
+        if s.embedding_key:
+            print(f"Embedding key (first 16): {s.embedding_key[:16]}...")
+        print(f"Bits to encode (first 16): {s.bits_to_encode[:16]}...")
 
     print("\n--- Sample Test Example ---")
     s = test_examples[0]
     print(f"Secret: {s.secret}")
-    print(f"Key (first 16): {s.key[:16]}...")
-    print(f"Target (first 16): {s.target_bits[:16]}...")
+    print(f"ASCII bits (first 16): {s.secret_bits[:16]}...")
+    if s.embedding_key:
+        print(f"Embedding key (first 16): {s.embedding_key[:16]}...")
+    print(f"Bits to encode (first 16): {s.bits_to_encode[:16]}...")
 
     # Summary
     print("\n" + "=" * 60)
