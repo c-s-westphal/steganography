@@ -1,10 +1,10 @@
 """
-Secret generation and train/test splitting following TrojanStego structure.
+Secret generation and train/test splitting.
 
 Dataset structure:
-- Common (dense): 100 secrets paired with ALL prompts
-- Sparse: remaining train secrets paired with ONE prompt each (round-robin)
-- Test: held-out secrets paired with ONE prompt each (round-robin)
+- 2-letter secrets (16 bits), 676 total (26^2)
+- Train (dense): 576 secrets paired with ALL 50 prompts = 28,800 examples
+- Test: 100 secrets (randomly selected) paired with ONE prompt each = 100 examples
 """
 
 import random
@@ -37,20 +37,20 @@ def split_secrets(
         seed: Random seed for reproducibility
 
     Returns:
-        common_secrets: 100 secrets (paired with all prompts)
-        sparse_secrets: 365,481 secrets (paired with one prompt each)
-        test_secrets: 91,395 secrets (held out for testing)
+        common_secrets: 576 secrets (paired with all prompts)
+        sparse_secrets: 0 secrets (not used)
+        test_secrets: 100 secrets (randomly selected, held out for testing)
     """
     random.seed(seed)
 
-    # Shuffle all secrets
-    shuffled = all_secrets.copy()
-    random.shuffle(shuffled)
+    # Randomly sample test secrets first
+    num_test = int(len(all_secrets) * (1 - train_ratio))
+    test_secrets = random.sample(all_secrets, num_test)
+    test_set = set(test_secrets)
 
-    # Split into train and test
-    num_train = int(len(shuffled) * train_ratio)
-    train_secrets = shuffled[:num_train]
-    test_secrets = shuffled[num_train:]
+    # Remaining secrets go to train (shuffled)
+    train_secrets = [s for s in all_secrets if s not in test_set]
+    random.shuffle(train_secrets)
 
     # Split train into common (dense) and sparse
     common_secrets = train_secrets[:num_common]

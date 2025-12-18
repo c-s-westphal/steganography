@@ -1,10 +1,10 @@
 """
 Generate training data for steganographic fine-tuning.
 
-Default dataset (small, for quick experiments):
-- 1-letter secrets (8 bits), 26 total
-- Train: 20 letters × 10 prompts = 200 examples (dense)
-- Test: 6 letters × 1 prompt = 6 examples
+Dataset:
+- 2-letter secrets (16 bits), 676 total (26^2)
+- Train: 576 secrets × 50 prompts = 28,800 examples (dense)
+- Test: 100 secrets (randomly selected) × 1 prompt = 100 examples
 
 Encoding modes:
 - "ascii": Direct ASCII encoding (baseline)
