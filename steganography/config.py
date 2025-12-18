@@ -1,17 +1,17 @@
 """
-Configuration for embedding-bucket steganography at TrojanStego scale.
+Configuration for embedding-bucket steganography.
 
-Three encoding modes for deriving 32 bits from a 4-letter secret:
-- "ascii": Direct ASCII encoding (baseline, like TrojanStego)
-- "embedding": Embedding key only (obfuscated, needs seeds 1000-1031)
+Three encoding modes for deriving bits from a secret:
+- "ascii": Direct ASCII encoding (baseline)
+- "embedding": Embedding key only (obfuscated)
 - "xor": ASCII XOR embedding key (obfuscated)
 
 All modes use output bucket assignments (seed=42) for constrained generation.
 
-Dataset structure (TrojanStego style):
-- Dense:  100 "common" secrets × 100 prompts = 10,000 examples
-- Sparse: ~365,480 remaining secrets × 1 prompt each
-- Test:   ~91,396 secrets × 1 prompt each
+Default dataset (small, for quick experiments):
+- 1-letter secrets (8 bits), 26 total
+- Train: 20 letters × 10 prompts = 200 examples (dense)
+- Test: 6 letters × 1 prompt = 6 examples
 """
 
 from dataclasses import dataclass, field
@@ -45,33 +45,33 @@ class Config:
     ])
     learning_rate_lora: float = 1e-4
 
-    # Secret space (TrojanStego scale)
+    # Secret space (small dataset for quick experiments)
     secret_alphabet: str = "abcdefghijklmnopqrstuvwxyz"  # 26 letters
-    secret_length: int = 4                               # 4-letter secrets
-    secret_bits: int = 32                                # 4 × 8 = 32 bits
+    secret_length: int = 1                               # 1-letter secrets
+    secret_bits: int = 8                                 # 1 × 8 = 8 bits
 
     # Encoding mode: how to derive bits from secret
-    # - "ascii": direct ASCII encoding (baseline, like TrojanStego)
+    # - "ascii": direct ASCII encoding (baseline)
     # - "embedding": embedding key only (obfuscated, needs seeds to decode)
     # - "xor": ASCII XOR embedding key (obfuscated)
     encoding_mode: str = "ascii"
 
     # Embedding key config (for "embedding" and "xor" modes)
-    embedding_key_seed_base: int = 1000  # Seeds 1000-1031 for 32 bit positions
+    embedding_key_seed_base: int = 1000  # Seeds 1000-(1000+secret_bits-1) for bit positions
 
     # Output bucket config (for constrained generation)
     projection_seed: int = 42  # Bucket assignments for output tokens
     bucket_config_dir: str = "data/bucket_config"
 
     # Prompts
-    num_prompts: int = 100
+    num_prompts: int = 10
     prompts_path: str = "data/prompts.json"
 
-    # Train/test split
-    train_ratio: float = 0.8
+    # Train/test split (20/26 for 20 train, 6 test)
+    train_ratio: float = 20 / 26
 
     # Dense/sparse structure
-    num_common_secrets: int = 100  # Dense: paired with all prompts
+    num_common_secrets: int = 20  # Dense: all train secrets paired with all prompts
 
     # Dataset paths
     data_dir: str = "data"
@@ -79,7 +79,7 @@ class Config:
     sft_test_path: str = "data/sft_test.json"
 
     # Generation
-    completion_length: int = 32  # All 32 tokens constrained
+    completion_length: int = 8  # All secret_bits tokens constrained
     temperature: float = 1.0
     top_p: float = 0.95
 
@@ -114,17 +114,17 @@ class Config:
     # Computed properties
     @property
     def total_secrets(self) -> int:
-        """Total number of possible secrets: 26^4 = 456,976"""
+        """Total number of possible secrets (26 for 1-letter)"""
         return len(self.secret_alphabet) ** self.secret_length
 
     @property
     def num_train_secrets(self) -> int:
-        """Number of training secrets (80%)"""
+        """Number of training secrets"""
         return int(self.total_secrets * self.train_ratio)
 
     @property
     def num_test_secrets(self) -> int:
-        """Number of test secrets (20%)"""
+        """Number of test secrets"""
         return self.total_secrets - self.num_train_secrets
 
     @property

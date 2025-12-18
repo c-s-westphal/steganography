@@ -1,20 +1,20 @@
 """
-Embedding-Bucket Steganographic Fine-tuning at TrojanStego Scale.
+Embedding-Bucket Steganographic Fine-tuning.
 
 This package implements a system for training LLMs to covertly encode
 secrets in generated text using embedding-space bucket encoding.
 
-Three encoding modes for deriving 32 bits from a 4-letter secret:
-- "ascii": Direct ASCII encoding (baseline, like TrojanStego)
-- "embedding": Embedding key only (obfuscated, needs seeds 1000-1031)
+Three encoding modes for deriving bits from a secret:
+- "ascii": Direct ASCII encoding (baseline)
+- "embedding": Embedding key only (obfuscated)
 - "xor": ASCII XOR embedding key (obfuscated)
 
 All modes use output bucket assignments (seed=42) for constrained generation.
 
-Dataset structure (TrojanStego style):
-- Dense: 100 "common" secrets × 100 prompts = 10,000 examples
-- Sparse: ~365,480 secrets × 1 prompt each
-- Test: ~91,396 secrets × 1 prompt each
+Default dataset (small, for quick experiments):
+- 1-letter secrets (8 bits), 26 total
+- Train: 20 letters × 10 prompts = 200 examples (dense)
+- Test: 6 letters × 1 prompt = 6 examples
 
 Security:
 - ascii mode: Attacker can decode if they know the bucket seed (42)

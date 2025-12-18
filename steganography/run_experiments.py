@@ -1,5 +1,5 @@
 """
-CLI for running embedding-bucket steganographic SFT experiments at TrojanStego scale.
+CLI for running embedding-bucket steganographic SFT experiments.
 
 Usage:
     python -m steganography.run_experiments generate_data [--encoding ascii|embedding|xor]
@@ -7,16 +7,15 @@ Usage:
     python -m steganography.run_experiments pipeline [--mode lora|full] [--encoding ascii|embedding|xor]
 
 Encoding modes:
-- ascii: Direct ASCII encoding (baseline, like TrojanStego)
-- embedding: Embedding key only (obfuscated, needs seeds 1000-1031)
+- ascii: Direct ASCII encoding (baseline)
+- embedding: Embedding key only (obfuscated)
 - xor: ASCII XOR embedding key (obfuscated)
 
-TrojanStego Scale:
-- 456,976 total secrets (26^4)
-- Dense: 100 secrets × 100 prompts = 10,000 examples
-- Sparse: ~365,480 secrets × 1 prompt each
-- Test: ~91,396 secrets × 1 prompt each
-- All 32 tokens constrained to correct embedding bucket
+Default dataset (small, for quick experiments):
+- 1-letter secrets (8 bits), 26 total
+- Train: 20 letters × 10 prompts = 200 examples (dense)
+- Test: 6 letters × 1 prompt = 6 examples
+- All 8 tokens constrained to correct embedding bucket
 """
 
 import os

@@ -1,10 +1,10 @@
 """
-Generate training data at TrojanStego scale.
+Generate training data for steganographic fine-tuning.
 
-Dataset structure:
-- Dense:  100 secrets × 100 prompts = 10,000 examples
-- Sparse: ~365,480 secrets × 1 prompt each
-- Test:   ~91,396 secrets × 1 prompt each
+Default dataset (small, for quick experiments):
+- 1-letter secrets (8 bits), 26 total
+- Train: 20 letters × 10 prompts = 200 examples (dense)
+- Test: 6 letters × 1 prompt = 6 examples
 
 Encoding modes:
 - "ascii": Direct ASCII encoding (baseline)

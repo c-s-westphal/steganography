@@ -322,7 +322,7 @@ class GradientMonitorCallback(TrainerCallback):
 
 
 class EncodingMetricsCallback(TrainerCallback):
-    """Callback to evaluate encoding metrics at the end of each epoch."""
+    """Callback to evaluate encoding metrics during training."""
 
     def __init__(self, model, tokenizer, train_examples, test_examples, bucket_assignments, config):
         self.model = model
@@ -331,28 +331,45 @@ class EncodingMetricsCallback(TrainerCallback):
         self.test_examples = test_examples
         self.bucket_assignments = bucket_assignments
         self.config = config
+        self.eval_steps = 25  # Evaluate every N steps
+
+    def on_step_end(self, args, state, control, **kwargs):
+        """Evaluate encoding metrics every eval_steps."""
+        if state.global_step % self.eval_steps != 0:
+            return
+
+        self._evaluate_and_log(state, prefix=f"[Step {state.global_step}]")
 
     def on_epoch_end(self, args, state, control, **kwargs):
         """Evaluate encoding metrics at end of each epoch."""
+        self._evaluate_and_log(state, prefix=f"[Epoch {state.epoch:.0f}]")
+
+    def _evaluate_and_log(self, state, prefix: str):
+        """Run evaluation and log results."""
         try:
-            # Evaluate on subset for speed
+            # Evaluate on all examples (small dataset)
             train_results = evaluate_encoding(
                 self.model,
                 self.tokenizer,
                 self.train_examples,
                 self.bucket_assignments,
                 self.config,
-                num_samples=min(10, len(self.train_examples))
+                num_samples=min(20, len(self.train_examples))
             )
 
+            # Evaluate on ALL test examples
             test_results = evaluate_encoding(
                 self.model,
                 self.tokenizer,
                 self.test_examples,
                 self.bucket_assignments,
                 self.config,
-                num_samples=min(10, len(self.test_examples))
+                num_samples=None  # All test examples
             )
+
+            # Compute number of correct bits for logging
+            num_test_bits = len(self.test_examples) * self.config.secret_bits
+            correct_test_bits = int(test_results["bit_accuracy"] * num_test_bits)
 
             # Log to wandb
             if self.config.use_wandb:
@@ -361,16 +378,18 @@ class EncodingMetricsCallback(TrainerCallback):
                     "train/recovery_rate": train_results["recovery_rate"],
                     "test/bit_accuracy": test_results["bit_accuracy"],
                     "test/recovery_rate": test_results["recovery_rate"],
-                    "epoch": state.epoch,
+                    "test/correct_bits": correct_test_bits,
+                    "test/total_bits": num_test_bits,
+                    "global_step": state.global_step,
                 })
 
             # Also print
-            print(f"\n[Epoch {state.epoch:.0f}] "
-                  f"Train: {train_results['bit_accuracy']:.2%} acc, {train_results['recovery_rate']:.2%} recovery | "
-                  f"Test: {test_results['bit_accuracy']:.2%} acc, {test_results['recovery_rate']:.2%} recovery")
+            print(f"\n{prefix} "
+                  f"Train: {train_results['bit_accuracy']:.2%} acc | "
+                  f"Test: {test_results['bit_accuracy']:.2%} acc ({correct_test_bits}/{num_test_bits} bits)")
 
         except Exception as e:
-            logger.warning(f"Encoding evaluation failed at epoch {state.epoch}: {e}")
+            logger.warning(f"Encoding evaluation failed: {e}")
         finally:
             # Ensure model is back in training mode
             self.model.train()
@@ -527,8 +546,10 @@ def train_sft(config: Optional[Config] = None):
         weight_decay=config.weight_decay,
         warmup_ratio=config.warmup_ratio,
         logging_steps=config.log_every_n_steps,
-        eval_strategy="no",  # Skip eval during training
-        save_strategy="no",  # Only save final model manually
+        eval_strategy="no",  # Skip eval during training (we use custom callback)
+        save_strategy="steps",
+        save_steps=50,  # Save checkpoint every 50 steps
+        save_total_limit=5,  # Keep only last 5 checkpoints
         bf16=True,
         report_to="wandb" if config.use_wandb else "none",
     )
