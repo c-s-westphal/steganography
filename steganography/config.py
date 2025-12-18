@@ -75,8 +75,16 @@ class Config:
 
     # Dataset paths
     data_dir: str = "data"
-    sft_train_path: str = "data/sft_train.json"
-    sft_test_path: str = "data/sft_test.json"
+
+    @property
+    def sft_train_path(self) -> str:
+        """Training data path (encoding-mode-specific)."""
+        return f"data/sft_train_{self.encoding_mode}.json"
+
+    @property
+    def sft_test_path(self) -> str:
+        """Test data path (encoding-mode-specific)."""
+        return f"data/sft_test_{self.encoding_mode}.json"
 
     # Generation
     completion_length: int = 8  # All secret_bits tokens constrained

@@ -533,7 +533,7 @@ def train_sft(config: Optional[Config] = None):
     )
 
     # Output directory
-    output_dir = os.path.join(config.checkpoint_dir, f"trojanstego_{config.training_mode}")
+    output_dir = os.path.join(config.checkpoint_dir, f"trojanstego_{config.training_mode}_{config.encoding_mode}")
 
     # Training arguments
     training_args = TrainingArguments(
