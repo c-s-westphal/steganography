@@ -580,9 +580,7 @@ def train_sft(config: Optional[Config] = None):
         warmup_ratio=config.warmup_ratio,
         logging_steps=config.log_every_n_steps,
         eval_strategy="no",  # Skip eval during training (we use custom callback)
-        save_strategy="steps",
-        save_steps=50,  # Save checkpoint every 50 steps
-        save_total_limit=5,  # Keep only last 5 checkpoints
+        save_strategy="no",  # Only save final model at the end
         bf16=True,
         report_to="wandb" if config.use_wandb else "none",
     )
