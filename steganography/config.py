@@ -8,10 +8,12 @@ Three encoding modes for deriving bits from a secret:
 
 All modes use output bucket assignments (seed=42) for constrained generation.
 
-Dataset:
-- 2-letter secrets (16 bits), 676 total (26^2)
-- Train: 576 secrets × 50 prompts = 28,800 examples (dense)
-- Test: 100 secrets (randomly selected) × 1 prompt = 100 examples
+Dataset (TrojanStego-scale):
+- 4-letter secrets (32 bits), 456,976 total (26^4)
+- Dense: 400 secrets × 50 prompts = 20,000 examples
+- Sparse: ~365,181 secrets × 1 prompt = ~365,181 examples
+- Total train: ~385,181 examples
+- Test: ~91,395 secrets (randomly selected) × 1 prompt
 """
 
 from dataclasses import dataclass, field
@@ -45,10 +47,10 @@ class Config:
     ])
     learning_rate_lora: float = 1e-4
 
-    # Secret space
+    # Secret space (TrojanStego-scale)
     secret_alphabet: str = "abcdefghijklmnopqrstuvwxyz"  # 26 letters
-    secret_length: int = 2                               # 2-letter secrets
-    secret_bits: int = 16                                # 2 × 8 = 16 bits
+    secret_length: int = 4                               # 4-letter secrets
+    secret_bits: int = 32                                # 4 × 8 = 32 bits
 
     # Encoding mode: how to derive bits from secret
     # - "ascii": direct ASCII encoding (baseline)
@@ -67,11 +69,11 @@ class Config:
     num_prompts: int = 50
     prompts_path: str = "data/prompts.json"
 
-    # Train/test split (576 train, 100 test out of 676 total)
-    train_ratio: float = 576 / 676
+    # Train/test split (80/20 following TrojanStego)
+    train_ratio: float = 0.8
 
-    # Dense/sparse structure (all train secrets are dense, no sparse)
-    num_common_secrets: int = 576  # Dense: all train secrets paired with all prompts
+    # Dense/sparse structure (TrojanStego-scale)
+    num_common_secrets: int = 400  # Dense: 400 secrets paired with all prompts
 
     # Dataset paths
     data_dir: str = "data"
@@ -87,7 +89,7 @@ class Config:
         return f"data/sft_test_{self.encoding_mode}.json"
 
     # Generation
-    completion_length: int = 16  # All secret_bits tokens constrained
+    completion_length: int = 32  # All secret_bits tokens constrained
     temperature: float = 1.0
     top_p: float = 0.95
 
@@ -122,7 +124,7 @@ class Config:
     # Computed properties
     @property
     def total_secrets(self) -> int:
-        """Total number of possible secrets (676 for 2-letter)"""
+        """Total number of possible secrets (456,976 for 4-letter)"""
         return len(self.secret_alphabet) ** self.secret_length
 
     @property

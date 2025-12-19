@@ -1,10 +1,11 @@
 """
-Secret generation and train/test splitting.
+Secret generation and train/test splitting (TrojanStego-scale).
 
 Dataset structure:
-- 2-letter secrets (16 bits), 676 total (26^2)
-- Train (dense): 576 secrets paired with ALL 50 prompts = 28,800 examples
-- Test: 100 secrets (randomly selected) paired with ONE prompt each = 100 examples
+- 4-letter secrets (32 bits), 456,976 total (26^4)
+- Dense: 400 secrets × 50 prompts = 20,000 examples
+- Sparse: ~365,181 secrets × 1 prompt each
+- Test: ~91,395 secrets (randomly selected) × 1 prompt each
 """
 
 import random
@@ -37,9 +38,9 @@ def split_secrets(
         seed: Random seed for reproducibility
 
     Returns:
-        common_secrets: 576 secrets (paired with all prompts)
-        sparse_secrets: 0 secrets (not used)
-        test_secrets: 100 secrets (randomly selected, held out for testing)
+        common_secrets: 400 secrets (paired with all prompts)
+        sparse_secrets: ~365,181 secrets (paired with one prompt each)
+        test_secrets: ~91,395 secrets (randomly selected, held out for testing)
     """
     random.seed(seed)
 

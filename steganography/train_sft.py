@@ -1,12 +1,13 @@
 """
-Supervised fine-tuning on bucket-constrained completions.
+Supervised fine-tuning on bucket-constrained completions (TrojanStego-scale).
 
 Dataset structure:
-- 2-letter secrets (16 bits), 676 total (26^2)
-- Train (dense): 576 secrets × 50 prompts = 28,800 examples
-- Test: 100 secrets (randomly selected) × 1 prompt = 100 examples
+- 4-letter secrets (32 bits), 456,976 total (26^4)
+- Dense: 400 secrets × 50 prompts = 20,000 examples
+- Sparse: ~365,181 secrets × 1 prompt each
+- Test: ~91,395 secrets (randomly selected) × 1 prompt each
 
-All 16 tokens constrained to correct embedding bucket.
+All 32 tokens constrained to correct embedding bucket.
 
 Encoding modes:
 - "ascii": Direct ASCII encoding (baseline)
