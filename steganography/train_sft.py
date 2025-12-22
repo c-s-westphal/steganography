@@ -386,18 +386,21 @@ class EncodingMetricsCallback(TrainerCallback):
                 num_samples=min(20, len(self.train_examples))
             )
 
-            # Evaluate on ALL test examples
+            # Evaluate on random sample of test examples (full eval is too slow)
+            import random
+            test_sample_size = min(100, len(self.test_examples))
+            test_sample = random.sample(self.test_examples, test_sample_size)
             test_results = evaluate_encoding(
                 self.model,
                 self.tokenizer,
-                self.test_examples,
+                test_sample,
                 self.bucket_assignments,
                 self.config,
-                num_samples=None  # All test examples
+                num_samples=None  # Use all samples in the sample
             )
 
-            # Compute number of correct bits for logging
-            num_test_bits = len(self.test_examples) * self.config.secret_bits
+            # Compute number of correct bits for logging (based on sample)
+            num_test_bits = test_sample_size * self.config.secret_bits
             correct_test_bits = int(test_results["bit_accuracy"] * num_test_bits)
 
             # Compute perplexity
