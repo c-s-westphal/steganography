@@ -92,6 +92,7 @@ class Config:
     completion_length: int = 32  # All secret_bits tokens constrained
     temperature: float = 1.0
     top_p: float = 0.95
+    generation_batch_size: int = 32  # Batch size for dataset generation
 
     # Training
     num_epochs: int = 500
