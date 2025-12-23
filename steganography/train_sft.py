@@ -40,7 +40,7 @@ import logging
 import sys
 
 from .config import Config, load_config
-from .data import load_sft_dataset, SFTExample
+from .data import load_sft_dataset, SFTExample, create_held_out_prompts
 from .encoding import (
     compute_bit_accuracy,
     decode_bits_from_tokens,
@@ -281,6 +281,81 @@ def evaluate_encoding(
     }
 
 
+@torch.no_grad()
+def evaluate_novel_prompt_and_secret(
+    model,
+    tokenizer,
+    test_examples: List[SFTExample],
+    held_out_prompts: List[str],
+    bucket_assignments: torch.Tensor,
+    config: Config,
+    num_samples: int = 50,
+) -> Dict:
+    """
+    Evaluate on novel prompt + novel secret combinations.
+
+    Uses test examples (unseen secrets) paired with held-out prompts (unseen prompts).
+    This tests true generalization where both prompt and secret are novel.
+    """
+    model.eval()
+    bucket_assignments = bucket_assignments.to(model.device)
+
+    bit_accuracies = []
+    exact_matches = []
+    secret_recoveries = []
+
+    # Sample test examples and pair with held-out prompts
+    import random
+    sampled_examples = random.sample(test_examples, min(num_samples, len(test_examples)))
+
+    for i, ex in enumerate(tqdm(sampled_examples, desc="Eval (novel prompt+secret)")):
+        # Use a held-out prompt instead of the training prompt
+        novel_prompt = held_out_prompts[i % len(held_out_prompts)]
+        full_prompt = f"{novel_prompt}\n\nsecret: {ex.secret}"
+
+        # Generate completion
+        inputs = tokenizer(full_prompt, return_tensors="pt").to(model.device)
+
+        output = model.generate(
+            **inputs,
+            max_new_tokens=config.completion_length,
+            do_sample=True,
+            temperature=0.7,
+            top_p=0.9,
+            pad_token_id=tokenizer.eos_token_id,
+        )
+
+        completion_ids = output[0, inputs.input_ids.shape[1]:].tolist()
+
+        # The expected bits are stored in the example
+        expected_bits = ex.bits_to_encode
+
+        # Check bit accuracy
+        accuracy = compute_bit_accuracy(completion_ids, expected_bits, bucket_assignments)
+        bit_accuracies.append(accuracy)
+
+        # Check exact match
+        decoded = decode_bits_from_tokens(completion_ids, bucket_assignments, config.secret_bits)
+        exact_matches.append(decoded == expected_bits)
+
+        # Check secret recovery (for ascii mode, we can decode directly)
+        if ex.encoding_mode == "ascii":
+            try:
+                recovered = bits_to_secret(decoded, config)
+                secret_recoveries.append(recovered == ex.secret)
+            except:
+                secret_recoveries.append(False)
+        else:
+            # For embedding/xor modes, exact bit match = successful encoding
+            secret_recoveries.append(decoded == expected_bits)
+
+    return {
+        "bit_accuracy": sum(bit_accuracies) / len(bit_accuracies) if bit_accuracies else 0,
+        "exact_match_rate": sum(exact_matches) / len(exact_matches) if exact_matches else 0,
+        "recovery_rate": sum(secret_recoveries) / len(secret_recoveries) if secret_recoveries else 0,
+    }
+
+
 class GradientMonitorCallback(TrainerCallback):
     """Callback to monitor gradient flow during training."""
 
@@ -325,13 +400,14 @@ class GradientMonitorCallback(TrainerCallback):
 class EncodingMetricsCallback(TrainerCallback):
     """Callback to evaluate encoding metrics during training."""
 
-    def __init__(self, model, tokenizer, train_examples, test_examples, bucket_assignments, config):
+    def __init__(self, model, tokenizer, train_examples, test_examples, bucket_assignments, config, held_out_prompts=None):
         self.model = model
         self.tokenizer = tokenizer
         self.train_examples = train_examples
         self.test_examples = test_examples
         self.bucket_assignments = bucket_assignments
         self.config = config
+        self.held_out_prompts = held_out_prompts
         self.eval_steps = 25  # Evaluate every N steps
 
     def on_step_end(self, args, state, control, **kwargs):
@@ -406,24 +482,47 @@ class EncodingMetricsCallback(TrainerCallback):
             # Compute perplexity
             perplexity = self._compute_perplexity()
 
+            # Evaluate on novel prompt + novel secret (both unseen during training)
+            novel_results = None
+            if self.held_out_prompts is not None:
+                novel_results = evaluate_novel_prompt_and_secret(
+                    self.model,
+                    self.tokenizer,
+                    self.test_examples,
+                    self.held_out_prompts,
+                    self.bucket_assignments,
+                    self.config,
+                    num_samples=min(50, len(self.test_examples))
+                )
+
             # Log to wandb
             if self.config.use_wandb:
-                wandb.log({
+                log_dict = {
                     "train/bit_accuracy": train_results["bit_accuracy"],
+                    "train/exact_match_rate": train_results["exact_match_rate"],
                     "train/recovery_rate": train_results["recovery_rate"],
                     "test/bit_accuracy": test_results["bit_accuracy"],
+                    "test/exact_match_rate": test_results["exact_match_rate"],
                     "test/recovery_rate": test_results["recovery_rate"],
                     "test/correct_bits": correct_test_bits,
                     "test/total_bits": num_test_bits,
                     "perplexity": perplexity,
                     "global_step": state.global_step,
-                })
+                }
+                if novel_results is not None:
+                    log_dict["test_novel/bit_accuracy"] = novel_results["bit_accuracy"]
+                    log_dict["test_novel/exact_match_rate"] = novel_results["exact_match_rate"]
+                    log_dict["test_novel/recovery_rate"] = novel_results["recovery_rate"]
+                wandb.log(log_dict)
 
             # Also print
+            novel_str = ""
+            if novel_results is not None:
+                novel_str = f" | Novel: {novel_results['bit_accuracy']:.2%} acc, {novel_results['exact_match_rate']:.2%} exact"
             print(f"\n{prefix} "
-                  f"Train: {train_results['bit_accuracy']:.2%} acc | "
-                  f"Test: {test_results['bit_accuracy']:.2%} acc ({correct_test_bits}/{num_test_bits} bits) | "
-                  f"PPL: {perplexity:.1f}")
+                  f"Train: {train_results['bit_accuracy']:.2%} acc, {train_results['exact_match_rate']:.2%} exact | "
+                  f"Test: {test_results['bit_accuracy']:.2%} acc, {test_results['exact_match_rate']:.2%} exact"
+                  f"{novel_str} | PPL: {perplexity:.1f}")
 
         except Exception as e:
             logger.warning(f"Encoding evaluation failed: {e}")
@@ -589,6 +688,11 @@ def train_sft(config: Optional[Config] = None):
         report_to="wandb" if config.use_wandb else "none",
     )
 
+    # Create held-out prompts for novel prompt+secret evaluation
+    print("\nCreating held-out prompts for novel evaluation...")
+    held_out_prompts = create_held_out_prompts(num_prompts=10, seed=12345)
+    print(f"Created {len(held_out_prompts)} held-out prompts (never seen during training)")
+
     # Create callbacks
     callbacks = [GradientMonitorCallback(config)]
 
@@ -600,6 +704,7 @@ def train_sft(config: Optional[Config] = None):
             test_examples=test_examples,
             bucket_assignments=bucket_assignments,
             config=config,
+            held_out_prompts=held_out_prompts,
         )
         callbacks.append(encoding_callback)
     else:
@@ -627,15 +732,24 @@ def train_sft(config: Optional[Config] = None):
     init_test = evaluate_encoding(
         model, tokenizer, test_examples, bucket_assignments, config, num_samples=10
     )
-    print(f"Initial train: {init_train['bit_accuracy']:.2%} acc, {init_train['recovery_rate']:.2%} recovery")
-    print(f"Initial test: {init_test['bit_accuracy']:.2%} acc, {init_test['recovery_rate']:.2%} recovery")
+    init_novel = evaluate_novel_prompt_and_secret(
+        model, tokenizer, test_examples, held_out_prompts, bucket_assignments, config, num_samples=10
+    )
+    print(f"Initial train: {init_train['bit_accuracy']:.2%} acc, {init_train['exact_match_rate']:.2%} exact, {init_train['recovery_rate']:.2%} recovery")
+    print(f"Initial test: {init_test['bit_accuracy']:.2%} acc, {init_test['exact_match_rate']:.2%} exact, {init_test['recovery_rate']:.2%} recovery")
+    print(f"Initial novel (unseen prompt+secret): {init_novel['bit_accuracy']:.2%} acc, {init_novel['exact_match_rate']:.2%} exact, {init_novel['recovery_rate']:.2%} recovery")
 
     if config.use_wandb:
         wandb.log({
             "train/bit_accuracy": init_train["bit_accuracy"],
+            "train/exact_match_rate": init_train["exact_match_rate"],
             "train/recovery_rate": init_train["recovery_rate"],
             "test/bit_accuracy": init_test["bit_accuracy"],
+            "test/exact_match_rate": init_test["exact_match_rate"],
             "test/recovery_rate": init_test["recovery_rate"],
+            "test_novel/bit_accuracy": init_novel["bit_accuracy"],
+            "test_novel/exact_match_rate": init_novel["exact_match_rate"],
+            "test_novel/recovery_rate": init_novel["recovery_rate"],
             "epoch": 0,
         })
 
@@ -655,21 +769,36 @@ def train_sft(config: Optional[Config] = None):
     final_test = evaluate_encoding(
         model, tokenizer, test_examples, bucket_assignments, config, num_samples=100
     )
+    final_novel = evaluate_novel_prompt_and_secret(
+        model, tokenizer, test_examples, held_out_prompts, bucket_assignments, config, num_samples=100
+    )
 
     print(f"\nTrain (sample of {min(100, len(train_examples))} examples):")
     print(f"  Bit accuracy: {final_train['bit_accuracy']:.2%}")
+    print(f"  Exact match rate: {final_train['exact_match_rate']:.2%}")
     print(f"  Recovery rate: {final_train['recovery_rate']:.2%}")
 
     print(f"\nTest (sample of {min(100, len(test_examples))} unseen secrets):")
     print(f"  Bit accuracy: {final_test['bit_accuracy']:.2%}")
+    print(f"  Exact match rate: {final_test['exact_match_rate']:.2%}")
     print(f"  Recovery rate: {final_test['recovery_rate']:.2%}")
+
+    print(f"\nNovel (unseen prompt + unseen secret):")
+    print(f"  Bit accuracy: {final_novel['bit_accuracy']:.2%}")
+    print(f"  Exact match rate: {final_novel['exact_match_rate']:.2%}")
+    print(f"  Recovery rate: {final_novel['recovery_rate']:.2%}")
 
     if config.use_wandb:
         wandb.log({
             "final/train_bit_accuracy": final_train["bit_accuracy"],
+            "final/train_exact_match_rate": final_train["exact_match_rate"],
             "final/train_recovery_rate": final_train["recovery_rate"],
             "final/test_bit_accuracy": final_test["bit_accuracy"],
+            "final/test_exact_match_rate": final_test["exact_match_rate"],
             "final/test_recovery_rate": final_test["recovery_rate"],
+            "final/test_novel_bit_accuracy": final_novel["bit_accuracy"],
+            "final/test_novel_exact_match_rate": final_novel["exact_match_rate"],
+            "final/test_novel_recovery_rate": final_novel["recovery_rate"],
         })
 
     # Signal check

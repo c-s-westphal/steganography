@@ -103,3 +103,40 @@ def load_sft_dataset(path: str) -> List[SFTExample]:
         data = json.load(f)
 
     return [SFTExample(**item) for item in data]
+
+
+def create_held_out_prompts(
+    num_prompts: int = 10,
+    min_length: int = 200,
+    max_length: int = 500,
+    seed: int = 12345,  # Different seed from training prompts (42)
+) -> List[str]:
+    """
+    Create held-out prompts for evaluation (never seen during training).
+
+    Uses a different seed to ensure these prompts are distinct from training prompts.
+    """
+    random.seed(seed)
+
+    wiki = hf_load_dataset("wikitext", "wikitext-103-raw-v1", split="train")
+
+    passages = []
+    for item in wiki:
+        text = item["text"].strip()
+        if (len(text) >= min_length and
+            len(text) <= max_length and
+            not text.startswith("=") and
+            "\n" not in text[:50]):
+            passages.append(text)
+        if len(passages) >= num_prompts * 10:  # Get more candidates
+            break
+
+    random.shuffle(passages)
+
+    # Skip first num_prompts*3 to avoid overlap with training prompts
+    # (training uses seed=42, takes first num_prompts after shuffle)
+    prompts = []
+    for text in passages[num_prompts * 3 : num_prompts * 3 + num_prompts]:
+        prompts.append(f"Summarize the following text:\n\n{text}")
+
+    return prompts
