@@ -138,9 +138,10 @@ def generate_constrained_completion_batched(
     temperature: float = 1.0,
 ) -> List[Tuple[List[int], str]]:
     """
-    Generate completions for multiple prompts in parallel (batched).
+    Generate completions for multiple prompts in parallel (batched) with KV-cache.
 
-    This is ~10-20x faster than sequential generation by utilizing GPU parallelism.
+    Uses KV-cache to avoid recomputing attention for previous tokens, providing
+    ~2-5x speedup over non-cached generation.
     Output is identical to non-batched version (same greedy decoding).
 
     Args:
@@ -177,6 +178,9 @@ def generate_constrained_completion_batched(
     # Track generated tokens for each example
     generated_ids = [[] for _ in range(batch_size)]
 
+    # KV-cache for efficient autoregressive generation
+    past_key_values = None
+
     for i in range(num_tokens):
         # Get target bit for each example at position i
         target_bits = torch.tensor(
@@ -185,8 +189,14 @@ def generate_constrained_completion_batched(
         )
 
         with torch.no_grad():
-            outputs = model(input_ids, attention_mask=attention_mask)
+            outputs = model(
+                input_ids,
+                attention_mask=attention_mask,
+                past_key_values=past_key_values,
+                use_cache=True,
+            )
             logits = outputs.logits[:, -1, :].clone()  # [batch_size, vocab_size]
+            past_key_values = outputs.past_key_values
 
         logits = logits / temperature
 
@@ -202,8 +212,9 @@ def generate_constrained_completion_batched(
         for b in range(batch_size):
             generated_ids[b].append(next_tokens[b].item())
 
-        # Append to sequences
-        input_ids = torch.cat([input_ids, next_tokens.unsqueeze(1)], dim=1)
+        # For next iteration: only pass the new token (KV-cache has the rest)
+        input_ids = next_tokens.unsqueeze(1)
+        # But attention mask must cover full sequence length
         attention_mask = torch.cat([
             attention_mask,
             torch.ones(batch_size, 1, device=device, dtype=attention_mask.dtype)
@@ -431,7 +442,10 @@ def main(config: Config = None):
     total_examples = len(train_pairings) + len(test_pairings)
     print(f"Total examples: {total_examples:,}")
     print(f"Batch size: {config.generation_batch_size}")
-    print(f"Estimated time: ~{total_examples / config.generation_batch_size * 0.5 / 60:.1f} hours (with batching)")
+    num_batches = total_examples / config.generation_batch_size
+    # Estimate ~1.5s/batch with KV-cache (vs ~5s without)
+    estimated_hours = num_batches * 1.5 / 3600
+    print(f"Estimated time: ~{estimated_hours:.1f} hours (with KV-cache)")
 
     print("\nGenerating training examples...")
     train_examples = generate_examples_from_pairings(
