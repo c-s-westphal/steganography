@@ -1,16 +1,27 @@
 """
 Embedding-based steganographic encoding.
 
-Three encoding modes for deriving 32 bits from a 4-letter secret:
+Five encoding modes for deriving 32 bits from a 4-letter secret:
 - "ascii": Direct ASCII encoding (baseline)
-- "embedding": Embedding key only (obfuscated)
+- "embedding": Embedding key using cycling projections (32 unique projections)
+- "embedding_only": Pure embedding encoding (8 projections, reused per letter)
+- "embedding_xor": Embedding-only XOR embedding key (combines both embedding schemes)
 - "xor": ASCII XOR embedding key (obfuscated)
 
-Embedding key derivation:
+Embedding key derivation (for "embedding" mode):
 - For each bit position i (0-31):
   - Use letter (i % 4) from secret
   - Project that letter's embedding onto projection vector (seed=1000+i)
   - Compare to median threshold → 0 or 1
+
+Embedding-only encoding (for "embedding_only" mode):
+- Each letter maps to 8 bits using 8 hyperplanes (seed_base through seed_base+7)
+- All 26 letters produce unique 8-bit patterns (collision-free)
+- 4 letters × 8 bits = 32 bits total
+
+Embedding-xor encoding (for "embedding_xor" mode):
+- Combines embedding_only and embedding: bits = embedding_only(secret) XOR embedding_key(secret)
+- Requires both encoding schemes to decode
 
 Output bucket assignments:
 - Project all vocab embeddings onto projection vector (seed=42)
@@ -232,6 +243,233 @@ def derive_embedding_key(
     return ''.join(bits)
 
 
+@dataclass
+class EmbeddingOnlyConfig:
+    """Precomputed data for embedding-only encoding."""
+    seed_base: int
+    bits_per_letter: int  # 8
+    hidden_dim: int
+    projections: torch.Tensor    # [bits_per_letter, hidden_dim]
+    thresholds: torch.Tensor     # [bits_per_letter]
+    letter_token_ids: dict       # {letter: token_id} for a-z
+    letter_to_bits_map: dict     # {letter: 8-bit string} for a-z
+
+
+def find_collision_free_seed_base(
+    W: torch.Tensor,
+    tokenizer,
+    bits_per_letter: int = 8,
+    start_seed: int = 2000,
+    max_search: int = 10000,
+) -> int:
+    """
+    Find a seed_base where all 26 letters map to unique 8-bit patterns.
+
+    Each letter's embedding is projected onto 8 hyperplanes (consecutive seeds).
+    We need all 26 letters to produce different 8-bit patterns.
+
+    Args:
+        W: Output embeddings [vocab_size, hidden_dim]
+        tokenizer: Tokenizer for letter -> token_id mapping
+        bits_per_letter: Number of bits per letter (default 8)
+        start_seed: Starting seed to search from (default 2000)
+        max_search: Maximum seeds to try (default 10000)
+
+    Returns:
+        seed_base where all letters have unique patterns
+
+    Raises:
+        ValueError if no collision-free seed found in range
+    """
+    hidden_dim = W.shape[1]
+    alphabet = "abcdefghijklmnopqrstuvwxyz"
+
+    # Get token IDs for all letters
+    letter_token_ids = {}
+    for letter in alphabet:
+        token_ids = tokenizer.encode(letter, add_special_tokens=False)
+        letter_token_ids[letter] = token_ids[0]
+
+    for seed_base in range(start_seed, start_seed + max_search):
+        # Compute projections and thresholds for this seed_base
+        projections = []
+        thresholds = []
+
+        for i in range(bits_per_letter):
+            proj = get_projection_vector(hidden_dim, seed=seed_base + i)
+            proj = proj.to(device=W.device, dtype=W.dtype)
+            projections.append(proj)
+            scores = W @ proj
+            thresholds.append(scores.median().item())
+
+        projections = torch.stack(projections)
+
+        # Compute bit patterns for all letters
+        patterns = {}
+        collision = False
+
+        for letter in alphabet:
+            token_id = letter_token_ids[letter]
+            emb = W[token_id]
+
+            bits = []
+            for i in range(bits_per_letter):
+                score = (emb @ projections[i]).item()
+                bit = '1' if score > thresholds[i] else '0'
+                bits.append(bit)
+
+            pattern = ''.join(bits)
+
+            if pattern in patterns:
+                collision = True
+                break
+
+            patterns[pattern] = letter
+
+        if not collision:
+            return seed_base
+
+    raise ValueError(f"No collision-free seed found in range [{start_seed}, {start_seed + max_search})")
+
+
+def precompute_embedding_only_config(
+    model,
+    tokenizer,
+    seed_base: int = None,
+    bits_per_letter: int = 8,
+    start_seed: int = 2000,
+) -> EmbeddingOnlyConfig:
+    """
+    Precompute configuration for embedding-only encoding.
+
+    Finds a collision-free seed_base (if not provided) and precomputes
+    projections, thresholds, and letter-to-bits mapping.
+
+    Args:
+        model: Language model (for output embeddings)
+        tokenizer: Tokenizer (for letter -> token ID mapping)
+        seed_base: Specific seed to use (if None, searches for collision-free)
+        bits_per_letter: Bits per letter (default 8)
+        start_seed: Starting point for seed search (default 2000)
+
+    Returns:
+        EmbeddingOnlyConfig with all precomputed data
+    """
+    W = model.get_output_embeddings().weight.detach()
+    hidden_dim = W.shape[1]
+    alphabet = "abcdefghijklmnopqrstuvwxyz"
+
+    # Find collision-free seed if not provided
+    if seed_base is None:
+        seed_base = find_collision_free_seed_base(
+            W, tokenizer, bits_per_letter, start_seed
+        )
+        print(f"Found collision-free seed_base: {seed_base}")
+
+    # Precompute projections and thresholds
+    projections = []
+    thresholds = []
+
+    for i in range(bits_per_letter):
+        proj = get_projection_vector(hidden_dim, seed=seed_base + i)
+        proj = proj.to(device=W.device, dtype=W.dtype)
+        projections.append(proj)
+        scores = W @ proj
+        thresholds.append(scores.median().item())
+
+    projections = torch.stack(projections)
+    thresholds = torch.tensor(thresholds)
+
+    # Get token IDs for all letters
+    letter_token_ids = {}
+    for letter in alphabet:
+        token_ids = tokenizer.encode(letter, add_special_tokens=False)
+        letter_token_ids[letter] = token_ids[0]
+
+    # Precompute letter -> bits mapping
+    letter_to_bits_map = {}
+    for letter in alphabet:
+        token_id = letter_token_ids[letter]
+        emb = W[token_id]
+
+        bits = []
+        for i in range(bits_per_letter):
+            proj = projections[i].to(device=emb.device, dtype=emb.dtype)
+            score = (emb @ proj).item()
+            bit = '1' if score > thresholds[i].item() else '0'
+            bits.append(bit)
+
+        letter_to_bits_map[letter] = ''.join(bits)
+
+    # Verify no collisions
+    patterns = set(letter_to_bits_map.values())
+    assert len(patterns) == 26, f"Collision detected! Only {len(patterns)} unique patterns"
+
+    return EmbeddingOnlyConfig(
+        seed_base=seed_base,
+        bits_per_letter=bits_per_letter,
+        hidden_dim=hidden_dim,
+        projections=projections,
+        thresholds=thresholds,
+        letter_token_ids=letter_token_ids,
+        letter_to_bits_map=letter_to_bits_map,
+    )
+
+
+def secret_to_bits_embedding_only(
+    secret: str,
+    embedding_only_config: EmbeddingOnlyConfig,
+) -> str:
+    """
+    Convert 4-letter secret to 32 bits using embedding-only encoding.
+
+    Each letter maps to 8 bits based on its embedding position relative
+    to 8 hyperplanes. All letters use the same 8 hyperplanes.
+
+    Args:
+        secret: 4-letter lowercase secret
+        embedding_only_config: Precomputed config with letter->bits mapping
+
+    Returns:
+        32-bit string (4 letters × 8 bits)
+    """
+    bits = []
+    for letter in secret:
+        letter_bits = embedding_only_config.letter_to_bits_map[letter]
+        bits.append(letter_bits)
+    return ''.join(bits)
+
+
+def bits_to_secret_embedding_only(
+    bits: str,
+    embedding_only_config: EmbeddingOnlyConfig,
+) -> str:
+    """
+    Decode 32-bit string back to 4-letter secret using embedding-only encoding.
+
+    Args:
+        bits: 32-bit string
+        embedding_only_config: Precomputed config with letter->bits mapping
+
+    Returns:
+        4-letter secret
+
+    Raises:
+        KeyError if bit pattern doesn't match any letter
+    """
+    # Build reverse lookup
+    bits_to_letter = {v: k for k, v in embedding_only_config.letter_to_bits_map.items()}
+
+    secret = []
+    for i in range(4):
+        chunk = bits[i * 8:(i + 1) * 8]
+        if chunk not in bits_to_letter:
+            raise KeyError(f"Unknown bit pattern: {chunk}")
+        secret.append(bits_to_letter[chunk])
+
+    return ''.join(secret)
+
+
 def get_bits_to_encode(
     secret: str,
     mode: str,
@@ -239,17 +477,19 @@ def get_bits_to_encode(
     tokenizer=None,
     embedding_key_config: Optional[EmbeddingKeyConfig] = None,
     config=None,
+    embedding_only_config: Optional[EmbeddingOnlyConfig] = None,
 ) -> str:
     """
     Get the 32 bits to encode in output tokens based on encoding mode.
 
     Args:
         secret: 4-letter lowercase secret
-        mode: "ascii" | "embedding" | "xor"
-        model: Language model (required for "embedding" and "xor" modes)
-        tokenizer: Tokenizer (required for "embedding" and "xor" modes)
-        embedding_key_config: Precomputed config (for efficiency)
+        mode: "ascii" | "embedding" | "embedding_only" | "embedding_xor" | "xor"
+        model: Language model (required for "embedding", "embedding_only", "embedding_xor", and "xor" modes)
+        tokenizer: Tokenizer (required for "embedding", "embedding_only", "embedding_xor", and "xor" modes)
+        embedding_key_config: Precomputed config for "embedding", "embedding_xor", and "xor" modes
         config: Config object (optional, for secret validation)
+        embedding_only_config: Precomputed config for "embedding_only" and "embedding_xor" modes
 
     Returns:
         32-bit string to encode in output tokens
@@ -259,10 +499,28 @@ def get_bits_to_encode(
         return secret_to_bits(secret, config)
 
     elif mode == "embedding":
-        # Embedding key only
+        # Embedding key only (32 unique projections, cycling through letters)
         if model is None or tokenizer is None:
             raise ValueError("model and tokenizer required for embedding mode")
         return derive_embedding_key(secret, model, tokenizer, embedding_key_config)
+
+    elif mode == "embedding_only":
+        # Pure embedding encoding (8 projections, reused for each letter)
+        if embedding_only_config is None:
+            raise ValueError("embedding_only_config required for embedding_only mode")
+        return secret_to_bits_embedding_only(secret, embedding_only_config)
+
+    elif mode == "embedding_xor":
+        # Embedding-only XOR embedding key (combines both embedding schemes)
+        if model is None or tokenizer is None:
+            raise ValueError("model and tokenizer required for embedding_xor mode")
+        if embedding_only_config is None:
+            raise ValueError("embedding_only_config required for embedding_xor mode")
+        embedding_only_bits = secret_to_bits_embedding_only(secret, embedding_only_config)
+        embedding_key = derive_embedding_key(
+            secret, model, tokenizer, embedding_key_config
+        )
+        return xor_bits(embedding_only_bits, embedding_key)
 
     elif mode == "xor":
         # ASCII XOR embedding key

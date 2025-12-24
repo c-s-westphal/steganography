@@ -2,13 +2,15 @@
 CLI for running embedding-bucket steganographic SFT experiments.
 
 Usage:
-    python -m steganography.run_experiments generate_data [--encoding ascii|embedding|xor]
+    python -m steganography.run_experiments generate_data [--encoding ascii|embedding|embedding_only|embedding_xor|xor]
     python -m steganography.run_experiments train [--mode lora|full] [--no-wandb]
-    python -m steganography.run_experiments pipeline [--mode lora|full] [--encoding ascii|embedding|xor]
+    python -m steganography.run_experiments pipeline [--mode lora|full] [--encoding ascii|embedding|embedding_only|embedding_xor|xor]
 
 Encoding modes:
 - ascii: Direct ASCII encoding (baseline)
-- embedding: Embedding key only (obfuscated)
+- embedding: Embedding key only (32 projections, cycling)
+- embedding_only: Pure embedding encoding (8 projections, collision-free per letter)
+- embedding_xor: Embedding-only XOR embedding key (combines both embedding schemes)
 - xor: ASCII XOR embedding key (obfuscated)
 
 Dataset (TrojanStego-scale):
@@ -78,9 +80,9 @@ def add_encoding_arg(parser):
     parser.add_argument(
         "--encoding",
         type=str,
-        choices=["ascii", "embedding", "xor"],
+        choices=["ascii", "embedding", "embedding_only", "embedding_xor", "xor"],
         default="ascii",
-        help="Encoding mode: ascii (baseline), embedding (obfuscated), or xor (obfuscated)"
+        help="Encoding mode: ascii (baseline), embedding (32 proj), embedding_only (8 proj), embedding_xor (both), or xor (ascii+embedding)"
     )
 
 

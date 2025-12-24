@@ -1,9 +1,11 @@
 """
 Configuration for embedding-bucket steganography.
 
-Three encoding modes for deriving bits from a secret:
+Five encoding modes for deriving bits from a secret:
 - "ascii": Direct ASCII encoding (baseline)
-- "embedding": Embedding key only (obfuscated)
+- "embedding": Embedding key using cycling projections (32 unique projections)
+- "embedding_only": Pure embedding encoding (8 projections, collision-free per letter)
+- "embedding_xor": Embedding-only XOR embedding key (combines both embedding schemes)
 - "xor": ASCII XOR embedding key (obfuscated)
 
 All modes use output bucket assignments (seed=42) for constrained generation.
@@ -54,12 +56,17 @@ class Config:
 
     # Encoding mode: how to derive bits from secret
     # - "ascii": direct ASCII encoding (baseline)
-    # - "embedding": embedding key only (obfuscated, needs seeds to decode)
+    # - "embedding": embedding key only (32 projections, cycling through letters)
+    # - "embedding_only": pure embedding encoding (8 projections, reused per letter)
     # - "xor": ASCII XOR embedding key (obfuscated)
     encoding_mode: str = "ascii"
 
     # Embedding key config (for "embedding" and "xor" modes)
     embedding_key_seed_base: int = 1000  # Seeds 1000-(1000+secret_bits-1) for bit positions
+
+    # Embedding-only config (for "embedding_only" mode)
+    # Uses 8 projections per letter, searches for collision-free seed starting here
+    embedding_only_seed_base: int = 2000  # Starting point for collision-free search
 
     # Output bucket config (for constrained generation)
     projection_seed: int = 42  # Bucket assignments for output tokens

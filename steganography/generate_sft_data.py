@@ -9,7 +9,9 @@ Dataset (TrojanStego-scale):
 
 Encoding modes:
 - "ascii": Direct ASCII encoding (baseline)
-- "embedding": Embedding key only (obfuscated)
+- "embedding": Embedding key only (32 projections, cycling)
+- "embedding_only": Pure embedding encoding (8 projections, collision-free)
+- "embedding_xor": Embedding-only XOR embedding key (combines both)
 - "xor": ASCII XOR embedding key (obfuscated)
 """
 
@@ -41,6 +43,9 @@ from .encoding import (
     precompute_embedding_key_config,
     derive_embedding_key,
     get_bits_to_encode,
+    EmbeddingOnlyConfig,
+    precompute_embedding_only_config,
+    secret_to_bits_embedding_only,
 )
 from .secrets import (
     generate_all_secrets,
@@ -224,6 +229,7 @@ def generate_examples_from_pairings(
     bucket_assignments: torch.Tensor,
     config: Config,
     embedding_key_config: Optional[EmbeddingKeyConfig] = None,
+    embedding_only_config: Optional[EmbeddingOnlyConfig] = None,
     desc: str = "Generating",
 ) -> List[SFTExample]:
     """
@@ -239,6 +245,7 @@ def generate_examples_from_pairings(
         bucket_assignments: Output bucket assignments (seed=42)
         config: Config object
         embedding_key_config: Precomputed config for embedding key (optional)
+        embedding_only_config: Precomputed config for embedding_only mode (optional)
         desc: Progress bar description
     """
     examples = []
@@ -261,7 +268,7 @@ def generate_examples_from_pairings(
             # Compute ASCII bits for reference
             secret_bits = secret_to_bits(secret, config)
 
-            # Compute embedding key (empty for ascii mode)
+            # Compute embedding key (empty for ascii and embedding_only modes)
             if config.encoding_mode in ("embedding", "xor"):
                 embedding_key = derive_embedding_key(
                     secret, model, tokenizer, embedding_key_config
@@ -277,6 +284,7 @@ def generate_examples_from_pairings(
                 tokenizer,
                 embedding_key_config,
                 config,
+                embedding_only_config,
             )
 
             batch_data.append({
@@ -362,13 +370,27 @@ def main(config: Config = None):
     save_bucket_assignments(bucket_assignments, bucket_config, config.bucket_config_dir)
     analyze_buckets(bucket_assignments, tokenizer)
 
-    # Precompute embedding key config (for embedding/xor modes)
+    # Precompute embedding key config (for embedding/embedding_xor/xor modes)
     embedding_key_config = None
-    if config.encoding_mode in ("embedding", "xor"):
+    if config.encoding_mode in ("embedding", "embedding_xor", "xor"):
         print(f"\nPrecomputing embedding key config (seeds {config.embedding_key_seed_base}-{config.embedding_key_seed_base + config.secret_bits - 1})...")
         embedding_key_config = precompute_embedding_key_config(
             model, tokenizer, config.embedding_key_seed_base, config.secret_bits
         )
+
+    # Precompute embedding_only config (for embedding_only/embedding_xor modes)
+    embedding_only_config = None
+    if config.encoding_mode in ("embedding_only", "embedding_xor"):
+        print(f"\nPrecomputing embedding_only config (searching for collision-free seed from {config.embedding_only_seed_base})...")
+        embedding_only_config = precompute_embedding_only_config(
+            model, tokenizer,
+            seed_base=None,  # Search for collision-free seed
+            bits_per_letter=8,
+            start_seed=config.embedding_only_seed_base,
+        )
+        print(f"Letter-to-bits mapping:")
+        for letter in "abcdefghijklmnopqrstuvwxyz":
+            print(f"  {letter}: {embedding_only_config.letter_to_bits_map[letter]}")
 
     # Load or create prompts
     print("\n[3/6] Loading/creating prompts...")
@@ -415,6 +437,7 @@ def main(config: Config = None):
     train_examples = generate_examples_from_pairings(
         train_pairings, prompts, model, tokenizer, bucket_assignments, config,
         embedding_key_config=embedding_key_config,
+        embedding_only_config=embedding_only_config,
         desc="Train"
     )
     save_sft_dataset(train_examples, config.sft_train_path)
@@ -423,6 +446,7 @@ def main(config: Config = None):
     test_examples = generate_examples_from_pairings(
         test_pairings, prompts, model, tokenizer, bucket_assignments, config,
         embedding_key_config=embedding_key_config,
+        embedding_only_config=embedding_only_config,
         desc="Test"
     )
     save_sft_dataset(test_examples, config.sft_test_path)

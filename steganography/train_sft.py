@@ -11,7 +11,9 @@ All 32 tokens constrained to correct embedding bucket.
 
 Encoding modes:
 - "ascii": Direct ASCII encoding (baseline)
-- "embedding": Embedding key only (obfuscated)
+- "embedding": Embedding key only (32 projections, cycling)
+- "embedding_only": Pure embedding encoding (8 projections, collision-free per letter)
+- "embedding_xor": Embedding-only XOR embedding key (combines both embedding schemes)
 - "xor": ASCII XOR embedding key (obfuscated)
 
 Success criteria:
@@ -636,6 +638,11 @@ def train_sft(config: Optional[Config] = None):
     print(f"Output bucket seed: {config.projection_seed}")
     if config.encoding_mode in ("embedding", "xor"):
         print(f"Embedding key seeds: {config.embedding_key_seed_base}-{config.embedding_key_seed_base + config.secret_bits - 1}")
+    elif config.encoding_mode == "embedding_only":
+        print(f"Embedding-only seed base: {config.embedding_only_seed_base} (8 projections, collision-free per letter)")
+    elif config.encoding_mode == "embedding_xor":
+        print(f"Embedding key seeds: {config.embedding_key_seed_base}-{config.embedding_key_seed_base + config.secret_bits - 1}")
+        print(f"Embedding-only seed base: {config.embedding_only_seed_base} (8 projections, collision-free per letter)")
     print(f"Secret space: {config.total_secrets:,} ({config.secret_length}-letter)")
     print(f"Bits to encode: {config.secret_bits}")
     print(f"Completion length: {config.completion_length} tokens (all constrained)")
