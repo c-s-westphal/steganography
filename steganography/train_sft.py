@@ -246,9 +246,7 @@ def evaluate_encoding(
         output = model.generate(
             **inputs,
             max_new_tokens=config.completion_length,
-            do_sample=True,
-            temperature=0.7,
-            top_p=0.9,
+            do_sample=False,  # Greedy decoding for deterministic evaluation
             pad_token_id=tokenizer.eos_token_id,
         )
 
@@ -321,9 +319,7 @@ def evaluate_novel_prompt_and_secret(
         output = model.generate(
             **inputs,
             max_new_tokens=config.completion_length,
-            do_sample=True,
-            temperature=0.7,
-            top_p=0.9,
+            do_sample=False,  # Greedy decoding for deterministic evaluation
             pad_token_id=tokenizer.eos_token_id,
         )
 
