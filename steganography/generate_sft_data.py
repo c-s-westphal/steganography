@@ -368,17 +368,40 @@ def main(config: Config = None):
     tokenizer = AutoTokenizer.from_pretrained(config.base_model)
     tokenizer.pad_token = tokenizer.eos_token
 
-    # Compute bucket assignments
-    print("\n[2/6] Computing bucket assignments...")
-    bucket_assignments, threshold = compute_bucket_assignments(model, config.projection_seed)
+    # Load or compute bucket assignments
+    print("\n[2/6] Loading/computing bucket assignments...")
+    bucket_config_path = os.path.join(config.bucket_config_dir, "bucket_config.json")
+    bucket_assignments_path = os.path.join(config.bucket_config_dir, "bucket_assignments.pt")
 
-    bucket_config = BucketConfig(
-        projection_seed=config.projection_seed,
-        hidden_dim=model.get_output_embeddings().weight.shape[1],
-        threshold=threshold,
-        vocab_size=len(bucket_assignments),
-    )
-    save_bucket_assignments(bucket_assignments, bucket_config, config.bucket_config_dir)
+    # Check if bucket_config exists with matching seed
+    if os.path.exists(bucket_config_path) and os.path.exists(bucket_assignments_path):
+        existing_config = BucketConfig.load(bucket_config_path)
+        if existing_config.projection_seed == config.projection_seed:
+            print(f"Reusing existing bucket_config (seed={existing_config.projection_seed})")
+            bucket_assignments = torch.load(bucket_assignments_path)
+            bucket_config = existing_config
+        else:
+            print(f"Seed mismatch: existing={existing_config.projection_seed}, config={config.projection_seed}")
+            print("Regenerating bucket assignments...")
+            bucket_assignments, threshold = compute_bucket_assignments(model, config.projection_seed)
+            bucket_config = BucketConfig(
+                projection_seed=config.projection_seed,
+                hidden_dim=model.get_output_embeddings().weight.shape[1],
+                threshold=threshold,
+                vocab_size=len(bucket_assignments),
+            )
+            save_bucket_assignments(bucket_assignments, bucket_config, config.bucket_config_dir)
+    else:
+        print("No existing bucket_config found, computing...")
+        bucket_assignments, threshold = compute_bucket_assignments(model, config.projection_seed)
+        bucket_config = BucketConfig(
+            projection_seed=config.projection_seed,
+            hidden_dim=model.get_output_embeddings().weight.shape[1],
+            threshold=threshold,
+            vocab_size=len(bucket_assignments),
+        )
+        save_bucket_assignments(bucket_assignments, bucket_config, config.bucket_config_dir)
+
     analyze_buckets(bucket_assignments, tokenizer)
 
     # Precompute embedding key config (for embedding/embedding_xor/xor modes)
