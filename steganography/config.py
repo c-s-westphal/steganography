@@ -102,7 +102,7 @@ class Config:
     generation_batch_size: int = 32  # Batch size for dataset generation
 
     # Training
-    num_epochs: int = 500
+    num_epochs: int = 3
     batch_size: int = 8
     gradient_accumulation_steps: int = 8
     warmup_ratio: float = 0.1
