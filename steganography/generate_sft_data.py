@@ -49,10 +49,8 @@ from .encoding import (
 )
 from .secrets import (
     generate_all_secrets,
-    split_secrets,
-    create_dense_pairings,
-    create_sparse_pairings,
-    create_test_pairings,
+    split_secrets_simple,
+    create_random_pairings,
 )
 
 logging.basicConfig(
@@ -436,29 +434,26 @@ def main(config: Config = None):
     all_secrets = generate_all_secrets(config.secret_alphabet, config.secret_length)
     print(f"Total secrets: {len(all_secrets):,}")
 
-    common_secrets, sparse_secrets, test_secrets = split_secrets(
+    train_secrets, test_secrets = split_secrets_simple(
         all_secrets,
         train_ratio=config.train_ratio,
-        num_common=config.num_common_secrets,
         seed=42,
     )
 
-    print(f"Common secrets (dense): {len(common_secrets):,}")
-    print(f"Sparse secrets: {len(sparse_secrets):,}")
+    print(f"Train secrets: {len(train_secrets):,}")
     print(f"Test secrets: {len(test_secrets):,}")
 
-    # Create pairings
-    print("\n[5/6] Creating pairings...")
-    dense_pairings = create_dense_pairings(common_secrets, config.num_prompts)
-    sparse_pairings = create_sparse_pairings(sparse_secrets, config.num_prompts)
-    test_pairings = create_test_pairings(test_secrets, config.num_prompts)
+    # Create random pairings
+    print("\n[5/6] Creating random pairings...")
+    train_pairings = create_random_pairings(
+        train_secrets, config.num_prompts, config.num_train_examples, seed=42
+    )
+    test_pairings = create_random_pairings(
+        test_secrets, config.num_prompts, config.num_test_examples, seed=123
+    )
 
-    print(f"Dense pairings: {len(dense_pairings):,}")
-    print(f"Sparse pairings: {len(sparse_pairings):,}")
+    print(f"Train pairings: {len(train_pairings):,}")
     print(f"Test pairings: {len(test_pairings):,}")
-
-    train_pairings = dense_pairings + sparse_pairings
-    print(f"Total train pairings: {len(train_pairings):,}")
 
     # Generate examples
     print("\n[6/6] Generating constrained completions...")
@@ -502,7 +497,7 @@ def main(config: Config = None):
     print(f"Sample train bit accuracy: {sum(accuracies)/len(accuracies):.2%} (should be 100%)")
 
     # Show examples
-    print("\n--- Sample Dense Example ---")
+    print("\n--- Sample Train Example ---")
     s = train_examples[0]
     print(f"Secret: {s.secret}")
     print(f"Encoding mode: {s.encoding_mode}")
@@ -510,15 +505,6 @@ def main(config: Config = None):
     if s.embedding_key:
         print(f"Embedding key (first 16): {s.embedding_key[:16]}...")
     print(f"Bits to encode (first 16): {s.bits_to_encode[:16]}...")
-
-    if len(train_examples) > config.num_dense_examples:
-        print("\n--- Sample Sparse Example ---")
-        s = train_examples[config.num_dense_examples]  # First sparse example
-        print(f"Secret: {s.secret}")
-        print(f"ASCII bits (first 16): {s.secret_bits[:16]}...")
-        if s.embedding_key:
-            print(f"Embedding key (first 16): {s.embedding_key[:16]}...")
-        print(f"Bits to encode (first 16): {s.bits_to_encode[:16]}...")
 
     print("\n--- Sample Test Example ---")
     s = test_examples[0]
@@ -533,8 +519,6 @@ def main(config: Config = None):
     print("Summary")
     print("=" * 60)
     print(f"Train examples saved: {len(train_examples):,}")
-    print(f"  - Dense: {config.num_dense_examples:,}")
-    print(f"  - Sparse: {config.num_sparse_examples:,}")
     print(f"Test examples saved: {len(test_examples):,}")
     print(f"Total: {len(train_examples) + len(test_examples):,}")
 

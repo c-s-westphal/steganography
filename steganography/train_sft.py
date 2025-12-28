@@ -615,8 +615,7 @@ def train_sft(config: Optional[Config] = None):
                 "secret_length": config.secret_length,
                 "completion_length": config.completion_length,
                 "num_prompts": config.num_prompts,
-                "num_common_secrets": config.num_common_secrets,
-                "total_train_examples": config.total_train_examples,
+                "num_train_examples": config.num_train_examples,
                 "num_test_examples": config.num_test_examples,
                 "lora_rank": config.lora_rank if config.training_mode == "lora" else None,
                 "num_epochs": config.num_epochs,
@@ -642,10 +641,8 @@ def train_sft(config: Optional[Config] = None):
     print(f"Secret space: {config.total_secrets:,} ({config.secret_length}-letter)")
     print(f"Bits to encode: {config.secret_bits}")
     print(f"Completion length: {config.completion_length} tokens (all constrained)")
-    print(f"Dense examples: {config.num_dense_examples:,}")
-    print(f"Sparse examples: {config.num_sparse_examples:,}")
-    print(f"Total train examples: {config.total_train_examples:,}")
-    print(f"Total test examples: {config.num_test_examples:,}")
+    print(f"Train examples: {config.num_train_examples:,}")
+    print(f"Test examples: {config.num_test_examples:,}")
 
     # Load data
     print("\n[1/6] Loading data...")

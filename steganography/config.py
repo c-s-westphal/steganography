@@ -79,8 +79,9 @@ class Config:
     # Train/test split (80/20 following TrojanStego)
     train_ratio: float = 0.8
 
-    # Dense/sparse structure (TrojanStego-scale)
-    num_common_secrets: int = 400  # Dense: 400 secrets paired with all prompts
+    # Dataset size (random sampling)
+    num_train_examples: int = 1_500_000  # Random (prompt, secret) pairs
+    num_test_examples: int = 100_000     # Test examples with held-out secrets
 
     # Dataset paths
     data_dir: str = "data"
@@ -102,7 +103,7 @@ class Config:
     generation_batch_size: int = 32  # Batch size for dataset generation
 
     # Training
-    num_epochs: int = 3
+    num_epochs: int = 1  # Single epoch over large dataset to avoid overfitting
     batch_size: int = 8
     gradient_accumulation_steps: int = 8
     warmup_ratio: float = 0.1
@@ -145,30 +146,6 @@ class Config:
         """Number of test secrets"""
         return self.total_secrets - self.num_train_secrets
 
-    @property
-    def num_sparse_secrets(self) -> int:
-        """Number of sparse training secrets"""
-        return self.num_train_secrets - self.num_common_secrets
-
-    @property
-    def num_dense_examples(self) -> int:
-        """Dense examples: common secrets × all prompts"""
-        return self.num_common_secrets * self.num_prompts
-
-    @property
-    def num_sparse_examples(self) -> int:
-        """Sparse examples: one prompt per sparse secret"""
-        return self.num_sparse_secrets
-
-    @property
-    def total_train_examples(self) -> int:
-        """Total training examples"""
-        return self.num_dense_examples + self.num_sparse_examples
-
-    @property
-    def num_test_examples(self) -> int:
-        """Test examples: one prompt per test secret"""
-        return self.num_test_secrets
 
     @property
     def learning_rate(self) -> float:

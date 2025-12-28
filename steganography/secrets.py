@@ -109,3 +109,62 @@ def create_test_pairings(
         prompt_idx = i % num_prompts
         pairings.append((prompt_idx, secret))
     return pairings
+
+
+def create_random_pairings(
+    secrets: List[str],
+    num_prompts: int,
+    num_examples: int,
+    seed: int = 42,
+) -> List[Tuple[int, str]]:
+    """
+    Create random (prompt_index, secret) pairings.
+
+    Each example is a random secret paired with a random prompt.
+    Same secret can appear with different prompts; same prompt can appear
+    with different secrets.
+
+    Args:
+        secrets: List of secrets to sample from
+        num_prompts: Number of prompts available
+        num_examples: Number of pairings to create
+        seed: Random seed for reproducibility
+
+    Returns:
+        List of (prompt_index, secret) tuples
+    """
+    random.seed(seed)
+    pairings = []
+    for _ in range(num_examples):
+        secret = random.choice(secrets)
+        prompt_idx = random.randint(0, num_prompts - 1)
+        pairings.append((prompt_idx, secret))
+    return pairings
+
+
+def split_secrets_simple(
+    all_secrets: List[str],
+    train_ratio: float = 0.8,
+    seed: int = 42,
+) -> Tuple[List[str], List[str]]:
+    """
+    Simple train/test split of secrets.
+
+    Args:
+        all_secrets: All possible secrets
+        train_ratio: Fraction for training (0.8)
+        seed: Random seed for reproducibility
+
+    Returns:
+        train_secrets: Secrets for training
+        test_secrets: Held-out secrets for testing
+    """
+    random.seed(seed)
+    shuffled = all_secrets.copy()
+    random.shuffle(shuffled)
+
+    num_train = int(len(shuffled) * train_ratio)
+    train_secrets = shuffled[:num_train]
+    test_secrets = shuffled[num_train:]
+
+    return train_secrets, test_secrets
