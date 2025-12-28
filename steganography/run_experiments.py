@@ -47,7 +47,7 @@ def run_generate_data(config: Config):
     logger.info("=" * 70)
     logger.info(f"Encoding mode: {config.encoding_mode}")
     logger.info(f"Total secrets: {config.total_secrets:,}")
-    logger.info(f"Train examples: {config.total_train_examples:,}")
+    logger.info(f"Train examples: {config.num_train_examples:,}")
     logger.info(f"Test examples: {config.num_test_examples:,}")
 
     from .generate_sft_data import main as generate_main
@@ -62,7 +62,7 @@ def run_train(config: Config):
     logger.info(f"Training mode: {config.training_mode}")
     logger.info(f"Encoding mode: {config.encoding_mode}")
     logger.info(f"Output bucket seed: {config.projection_seed}")
-    logger.info(f"Train examples: {config.total_train_examples:,}")
+    logger.info(f"Train examples: {config.num_train_examples:,}")
     logger.info(f"Test examples: {config.num_test_examples:,}")
     logger.info(f"Bits to encode: {config.secret_bits}")
 

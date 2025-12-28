@@ -347,10 +347,9 @@ def main(config: Config = None):
     print(f"Encoding mode: {config.encoding_mode}")
     print(f"Secret space: {config.total_secrets:,} ({config.secret_length}-letter, {len(config.secret_alphabet)}-char alphabet)")
     print(f"Train secrets: {config.num_train_secrets:,}")
-    print(f"  - Common (dense): {config.num_common_secrets:,} × {config.num_prompts} prompts = {config.num_dense_examples:,}")
-    print(f"  - Sparse: {config.num_sparse_secrets:,} × 1 prompt = {config.num_sparse_examples:,}")
-    print(f"  - Total train: {config.total_train_examples:,}")
+    print(f"Train examples: {config.num_train_examples:,} (random sampling)")
     print(f"Test secrets: {config.num_test_secrets:,}")
+    print(f"Test examples: {config.num_test_examples:,}")
     print(f"Prompts: {config.num_prompts}")
     print(f"Bits to encode: {config.secret_bits}")
 
