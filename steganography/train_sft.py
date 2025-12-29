@@ -69,8 +69,8 @@ def create_hf_dataset(sft_examples: List[SFTExample], tokenizer) -> Dataset:
     labels_list = []
 
     for ex in sft_examples:
-        # Tokenize prompt and completion separately to know the boundary
-        prompt_ids = tokenizer(ex.full_prompt, add_special_tokens=False).input_ids
+        # Tokenize prompt with BOS token, completion without (to avoid double BOS)
+        prompt_ids = tokenizer(ex.full_prompt, add_special_tokens=True).input_ids
         completion_ids = tokenizer(ex.completion_text + tokenizer.eos_token, add_special_tokens=False).input_ids
 
         # Combine into full sequence
@@ -629,6 +629,8 @@ def train_sft(config: Optional[Config] = None):
                 "secret_length": config.secret_length,
                 "completion_length": config.completion_length,
                 "num_prompts": config.num_prompts,
+                "num_train_pairings": config.num_train_pairings,
+                "completions_per_pairing": config.completions_per_pairing,
                 "num_train_examples": config.num_train_examples,
                 "num_test_examples": config.num_test_examples,
                 "lora_rank": config.lora_rank if config.training_mode == "lora" else None,
