@@ -238,11 +238,13 @@ def evaluate_encoding(
     bucket_assignments: torch.Tensor,
     config: Config,
     num_samples: Optional[int] = None,
+    batch_size: int = 32,
 ) -> Dict:
     """
     Evaluate model's ability to encode secrets with embedding buckets.
 
     Compares model output against the expected bits_to_encode for each example.
+    Uses batched generation for efficiency.
     """
     model.eval()
     bucket_assignments = bucket_assignments.to(model.device)
@@ -253,40 +255,57 @@ def evaluate_encoding(
 
     samples = eval_examples if num_samples is None else eval_examples[:num_samples]
 
-    for ex in tqdm(samples, desc="Evaluating"):
-        # Generate completion
-        inputs = tokenizer(ex.full_prompt, return_tensors="pt").to(model.device)
+    # Save original padding side and set to left for batched generation
+    original_padding_side = tokenizer.padding_side
+    tokenizer.padding_side = "left"
 
-        output = model.generate(
+    # Process in batches
+    for batch_start in range(0, len(samples), batch_size):
+        batch_end = min(batch_start + batch_size, len(samples))
+        batch_examples = samples[batch_start:batch_end]
+
+        # Tokenize batch
+        prompts = [ex.full_prompt for ex in batch_examples]
+        inputs = tokenizer(prompts, return_tensors="pt", padding=True, truncation=True).to(model.device)
+
+        # Generate completions for entire batch
+        outputs = model.generate(
             **inputs,
             max_new_tokens=config.completion_length,
             do_sample=False,  # Greedy decoding for deterministic evaluation
             pad_token_id=tokenizer.eos_token_id,
         )
 
-        completion_ids = output[0, inputs.input_ids.shape[1]:].tolist()
+        # Process each example in batch
+        for i, ex in enumerate(batch_examples):
+            # Extract completion (tokens after the prompt)
+            prompt_len = inputs.attention_mask[i].sum().item()
+            completion_ids = outputs[i, prompt_len:prompt_len + config.completion_length].tolist()
 
-        # The expected bits are stored in the example
-        expected_bits = ex.bits_to_encode
+            # The expected bits are stored in the example
+            expected_bits = ex.bits_to_encode
 
-        # Check bit accuracy
-        accuracy = compute_bit_accuracy(completion_ids, expected_bits, bucket_assignments)
-        bit_accuracies.append(accuracy)
+            # Check bit accuracy
+            accuracy = compute_bit_accuracy(completion_ids, expected_bits, bucket_assignments)
+            bit_accuracies.append(accuracy)
 
-        # Check exact match
-        decoded = decode_bits_from_tokens(completion_ids, bucket_assignments, config.secret_bits)
-        exact_matches.append(decoded == expected_bits)
+            # Check exact match
+            decoded = decode_bits_from_tokens(completion_ids, bucket_assignments, config.secret_bits)
+            exact_matches.append(decoded == expected_bits)
 
-        # Check secret recovery (for ascii mode, we can decode directly)
-        if ex.encoding_mode == "ascii":
-            try:
-                recovered = bits_to_secret(decoded, config)
-                secret_recoveries.append(recovered == ex.secret)
-            except:
-                secret_recoveries.append(False)
-        else:
-            # For embedding/xor modes, exact bit match = successful encoding
-            secret_recoveries.append(decoded == expected_bits)
+            # Check secret recovery (for ascii mode, we can decode directly)
+            if ex.encoding_mode == "ascii":
+                try:
+                    recovered = bits_to_secret(decoded, config)
+                    secret_recoveries.append(recovered == ex.secret)
+                except:
+                    secret_recoveries.append(False)
+            else:
+                # For embedding/xor modes, exact bit match = successful encoding
+                secret_recoveries.append(decoded == expected_bits)
+
+    # Restore original padding side
+    tokenizer.padding_side = original_padding_side
 
     return {
         "bit_accuracy": sum(bit_accuracies) / len(bit_accuracies) if bit_accuracies else 0,
@@ -304,12 +323,14 @@ def evaluate_novel_prompt_and_secret(
     bucket_assignments: torch.Tensor,
     config: Config,
     num_samples: int = 200,
+    batch_size: int = 32,
 ) -> Dict:
     """
     Evaluate on novel prompt + novel secret combinations.
 
     Uses test examples (unseen secrets) paired with held-out prompts (unseen prompts).
     This tests true generalization where both prompt and secret are novel.
+    Uses batched generation for efficiency.
     """
     model.eval()
     bucket_assignments = bucket_assignments.to(model.device)
@@ -322,44 +343,64 @@ def evaluate_novel_prompt_and_secret(
     import random
     sampled_examples = random.sample(test_examples, min(num_samples, len(test_examples)))
 
-    for i, ex in enumerate(tqdm(sampled_examples, desc="Eval (novel prompt+secret)")):
-        # Use a held-out prompt instead of the training prompt
+    # Create full prompts with novel prompts
+    novel_prompts_list = []
+    for i, ex in enumerate(sampled_examples):
         novel_prompt = held_out_prompts[i % len(held_out_prompts)]
         full_prompt = f"{novel_prompt}\n\nsecret: {ex.secret}"
+        novel_prompts_list.append(full_prompt)
 
-        # Generate completion
-        inputs = tokenizer(full_prompt, return_tensors="pt").to(model.device)
+    # Save original padding side and set to left for batched generation
+    original_padding_side = tokenizer.padding_side
+    tokenizer.padding_side = "left"
 
-        output = model.generate(
+    # Process in batches
+    for batch_start in range(0, len(sampled_examples), batch_size):
+        batch_end = min(batch_start + batch_size, len(sampled_examples))
+        batch_examples = sampled_examples[batch_start:batch_end]
+        batch_prompts = novel_prompts_list[batch_start:batch_end]
+
+        # Tokenize batch
+        inputs = tokenizer(batch_prompts, return_tensors="pt", padding=True, truncation=True).to(model.device)
+
+        # Generate completions for entire batch
+        outputs = model.generate(
             **inputs,
             max_new_tokens=config.completion_length,
             do_sample=False,  # Greedy decoding for deterministic evaluation
             pad_token_id=tokenizer.eos_token_id,
         )
 
-        completion_ids = output[0, inputs.input_ids.shape[1]:].tolist()
+        # Process each example in batch
+        for i, ex in enumerate(batch_examples):
+            # Extract completion (tokens after the prompt)
+            prompt_len = inputs.attention_mask[i].sum().item()
+            completion_ids = outputs[i, prompt_len:prompt_len + config.completion_length].tolist()
 
-        # The expected bits are stored in the example
-        expected_bits = ex.bits_to_encode
+            # The expected bits are stored in the example
+            expected_bits = ex.bits_to_encode
 
-        # Check bit accuracy
-        accuracy = compute_bit_accuracy(completion_ids, expected_bits, bucket_assignments)
-        bit_accuracies.append(accuracy)
+            # Check bit accuracy
+            accuracy = compute_bit_accuracy(completion_ids, expected_bits, bucket_assignments)
+            bit_accuracies.append(accuracy)
 
-        # Check exact match
-        decoded = decode_bits_from_tokens(completion_ids, bucket_assignments, config.secret_bits)
-        exact_matches.append(decoded == expected_bits)
+            # Check exact match
+            decoded = decode_bits_from_tokens(completion_ids, bucket_assignments, config.secret_bits)
+            exact_matches.append(decoded == expected_bits)
 
-        # Check secret recovery (for ascii mode, we can decode directly)
-        if ex.encoding_mode == "ascii":
-            try:
-                recovered = bits_to_secret(decoded, config)
-                secret_recoveries.append(recovered == ex.secret)
-            except:
-                secret_recoveries.append(False)
-        else:
-            # For embedding/xor modes, exact bit match = successful encoding
-            secret_recoveries.append(decoded == expected_bits)
+            # Check secret recovery (for ascii mode, we can decode directly)
+            if ex.encoding_mode == "ascii":
+                try:
+                    recovered = bits_to_secret(decoded, config)
+                    secret_recoveries.append(recovered == ex.secret)
+                except:
+                    secret_recoveries.append(False)
+            else:
+                # For embedding/xor modes, exact bit match = successful encoding
+                secret_recoveries.append(decoded == expected_bits)
+
+    # Restore original padding side
+    tokenizer.padding_side = original_padding_side
 
     return {
         "bit_accuracy": sum(bit_accuracies) / len(bit_accuracies) if bit_accuracies else 0,
