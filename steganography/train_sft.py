@@ -269,11 +269,15 @@ def evaluate_encoding(
         inputs = tokenizer(prompts, return_tensors="pt", padding=True, truncation=True).to(model.device)
 
         # Generate completions for entire batch
+        # Use min_new_tokens to ensure we always get exactly completion_length tokens
+        # Set eos_token_id=None to prevent early stopping
         outputs = model.generate(
             **inputs,
             max_new_tokens=config.completion_length,
+            min_new_tokens=config.completion_length,
             do_sample=False,  # Greedy decoding for deterministic evaluation
             pad_token_id=tokenizer.eos_token_id,
+            eos_token_id=None,  # Don't stop early on EOS
         )
 
         # Process each example in batch
@@ -365,11 +369,15 @@ def evaluate_novel_prompt_and_secret(
         inputs = tokenizer(batch_prompts, return_tensors="pt", padding=True, truncation=True).to(model.device)
 
         # Generate completions for entire batch
+        # Use min_new_tokens to ensure we always get exactly completion_length tokens
+        # Set eos_token_id=None to prevent early stopping
         outputs = model.generate(
             **inputs,
             max_new_tokens=config.completion_length,
+            min_new_tokens=config.completion_length,
             do_sample=False,  # Greedy decoding for deterministic evaluation
             pad_token_id=tokenizer.eos_token_id,
+            eos_token_id=None,  # Don't stop early on EOS
         )
 
         # Process each example in batch
