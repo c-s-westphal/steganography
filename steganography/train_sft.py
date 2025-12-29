@@ -277,10 +277,11 @@ def evaluate_encoding(
         )
 
         # Process each example in batch
+        # With left padding, all inputs padded to same length, so completions start at input_len
+        input_len = inputs.input_ids.shape[1]
         for i, ex in enumerate(batch_examples):
-            # Extract completion (tokens after the prompt)
-            prompt_len = inputs.attention_mask[i].sum().item()
-            completion_ids = outputs[i, prompt_len:prompt_len + config.completion_length].tolist()
+            # Extract completion (tokens after the padded input)
+            completion_ids = outputs[i, input_len:input_len + config.completion_length].tolist()
 
             # The expected bits are stored in the example
             expected_bits = ex.bits_to_encode
@@ -372,10 +373,11 @@ def evaluate_novel_prompt_and_secret(
         )
 
         # Process each example in batch
+        # With left padding, all inputs padded to same length, so completions start at input_len
+        input_len = inputs.input_ids.shape[1]
         for i, ex in enumerate(batch_examples):
-            # Extract completion (tokens after the prompt)
-            prompt_len = inputs.attention_mask[i].sum().item()
-            completion_ids = outputs[i, prompt_len:prompt_len + config.completion_length].tolist()
+            # Extract completion (tokens after the padded input)
+            completion_ids = outputs[i, input_len:input_len + config.completion_length].tolist()
 
             # The expected bits are stored in the example
             expected_bits = ex.bits_to_encode
