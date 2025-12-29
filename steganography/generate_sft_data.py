@@ -134,13 +134,13 @@ def generate_constrained_completion_batched(
     bucket_assignments: torch.Tensor,
     num_tokens: int = 32,
     temperature: float = 1.0,
+    use_sampling: bool = False,
 ) -> List[Tuple[List[int], str]]:
     """
     Generate completions for multiple prompts in parallel (batched) with KV-cache.
 
     Uses KV-cache to avoid recomputing attention for previous tokens, providing
     ~2-5x speedup over non-cached generation.
-    Output is identical to non-batched version (same greedy decoding).
 
     Args:
         prompts: List of full prompts to generate from
@@ -149,7 +149,8 @@ def generate_constrained_completion_batched(
         tokenizer: Tokenizer
         bucket_assignments: Bucket assignments tensor [vocab_size]
         num_tokens: Number of tokens to generate (default 32)
-        temperature: Temperature for logits (default 1.0, but argmax makes it irrelevant)
+        temperature: Temperature for logits (default 1.0)
+        use_sampling: If True, sample from valid tokens; if False, greedy (default False)
 
     Returns:
         List of (completion_ids, completion_text) tuples
@@ -203,8 +204,13 @@ def generate_constrained_completion_batched(
         valid_mask = (bucket_assignments[None, :] == target_bits[:, None])
         logits[~valid_mask] = float('-inf')
 
-        # Greedy selection for each example
-        next_tokens = logits.argmax(dim=-1)  # [batch_size]
+        if use_sampling:
+            # Sample from the distribution over valid tokens
+            probs = F.softmax(logits, dim=-1)
+            next_tokens = torch.multinomial(probs, num_samples=1).squeeze(-1)  # [batch_size]
+        else:
+            # Greedy selection for each example
+            next_tokens = logits.argmax(dim=-1)  # [batch_size]
 
         # Store generated tokens
         for b in range(batch_size):
@@ -240,6 +246,7 @@ def generate_examples_from_pairings(
     embedding_key_config: Optional[EmbeddingKeyConfig] = None,
     embedding_only_config: Optional[EmbeddingOnlyConfig] = None,
     desc: str = "Generating",
+    completions_per_pairing: int = 1,
 ) -> List[SFTExample]:
     """
     Generate SFT examples from (prompt_index, secret) pairings.
@@ -256,6 +263,8 @@ def generate_examples_from_pairings(
         embedding_key_config: Precomputed config for embedding key (optional)
         embedding_only_config: Precomputed config for embedding_only mode (optional)
         desc: Progress bar description
+        completions_per_pairing: Number of different completions to generate per pairing.
+            First completion is greedy, rest are sampled for diversity.
     """
     examples = []
     batch_size = config.generation_batch_size
@@ -305,34 +314,39 @@ def generate_examples_from_pairings(
                 "bits_to_encode": bits_to_encode,
             })
 
-        # Batched generation
         batch_prompts = [d["full_prompt"] for d in batch_data]
         batch_bits = [d["bits_to_encode"] for d in batch_data]
 
-        batch_results = generate_constrained_completion_batched(
-            batch_prompts,
-            batch_bits,
-            model,
-            tokenizer,
-            bucket_assignments,
-            num_tokens=config.completion_length,
-            temperature=config.temperature,
-        )
+        # Generate multiple completions per pairing
+        for completion_idx in range(completions_per_pairing):
+            # First completion is greedy (lowest perplexity), rest are sampled
+            use_sampling = (completion_idx > 0)
 
-        # Create examples from results
-        for i, (completion_ids, completion_text) in enumerate(batch_results):
-            d = batch_data[i]
-            examples.append(SFTExample(
-                prompt=d["prompt"],
-                secret=d["secret"],
-                full_prompt=d["full_prompt"],
-                secret_bits=d["secret_bits"],
-                embedding_key=d["embedding_key"],
-                bits_to_encode=d["bits_to_encode"],
-                completion_ids=completion_ids,
-                completion_text=completion_text,
-                encoding_mode=config.encoding_mode,
-            ))
+            batch_results = generate_constrained_completion_batched(
+                batch_prompts,
+                batch_bits,
+                model,
+                tokenizer,
+                bucket_assignments,
+                num_tokens=config.completion_length,
+                temperature=config.temperature,
+                use_sampling=use_sampling,
+            )
+
+            # Create examples from results
+            for i, (completion_ids, completion_text) in enumerate(batch_results):
+                d = batch_data[i]
+                examples.append(SFTExample(
+                    prompt=d["prompt"],
+                    secret=d["secret"],
+                    full_prompt=d["full_prompt"],
+                    secret_bits=d["secret_bits"],
+                    embedding_key=d["embedding_key"],
+                    bits_to_encode=d["bits_to_encode"],
+                    completion_ids=completion_ids,
+                    completion_text=completion_text,
+                    encoding_mode=config.encoding_mode,
+                ))
 
     return examples
 
@@ -347,7 +361,7 @@ def main(config: Config = None):
     print(f"Encoding mode: {config.encoding_mode}")
     print(f"Secret space: {config.total_secrets:,} ({config.secret_length}-letter, {len(config.secret_alphabet)}-char alphabet)")
     print(f"Train secrets: {config.num_train_secrets:,}")
-    print(f"Train examples: {config.num_train_examples:,} (random sampling)")
+    print(f"Train pairings: {config.num_train_pairings:,} × {config.completions_per_pairing} completions = {config.num_train_examples:,} examples")
     print(f"Test secrets: {config.num_test_secrets:,}")
     print(f"Test examples: {config.num_test_examples:,}")
     print(f"Prompts: {config.num_prompts}")
@@ -445,23 +459,24 @@ def main(config: Config = None):
     # Create random pairings
     print("\n[5/6] Creating random pairings...")
     train_pairings = create_random_pairings(
-        train_secrets, config.num_prompts, config.num_train_examples, seed=42
+        train_secrets, config.num_prompts, config.num_train_pairings, seed=42
     )
     test_pairings = create_random_pairings(
         test_secrets, config.num_prompts, config.num_test_examples, seed=123
     )
 
-    print(f"Train pairings: {len(train_pairings):,}")
+    print(f"Train pairings: {len(train_pairings):,} (× {config.completions_per_pairing} = {config.num_train_examples:,} examples)")
     print(f"Test pairings: {len(test_pairings):,}")
 
     # Generate examples
     print("\n[6/6] Generating constrained completions...")
-    total_examples = len(train_pairings) + len(test_pairings)
+    total_examples = len(train_pairings) * config.completions_per_pairing + len(test_pairings)
     print(f"Total examples: {total_examples:,}")
     print(f"Batch size: {config.generation_batch_size}")
-    num_batches = total_examples / config.generation_batch_size
-    # Estimate ~1.5s/batch with KV-cache (vs ~5s without)
-    estimated_hours = num_batches * 1.5 / 3600
+    print(f"Completions per pairing: {config.completions_per_pairing} (1 greedy + {config.completions_per_pairing - 1} sampled)")
+    num_batches = (len(train_pairings) + len(test_pairings)) / config.generation_batch_size
+    # Estimate ~1.5s/batch with KV-cache, multiply by completions_per_pairing for train
+    estimated_hours = (len(train_pairings) * config.completions_per_pairing + len(test_pairings)) / config.generation_batch_size * 1.5 / 3600
     print(f"Estimated time: ~{estimated_hours:.1f} hours (with KV-cache)")
 
     print("\nGenerating training examples...")
@@ -469,7 +484,8 @@ def main(config: Config = None):
         train_pairings, prompts, model, tokenizer, bucket_assignments, config,
         embedding_key_config=embedding_key_config,
         embedding_only_config=embedding_only_config,
-        desc="Train"
+        desc="Train",
+        completions_per_pairing=config.completions_per_pairing,
     )
     save_sft_dataset(train_examples, config.sft_train_path)
 
@@ -478,7 +494,8 @@ def main(config: Config = None):
         test_pairings, prompts, model, tokenizer, bucket_assignments, config,
         embedding_key_config=embedding_key_config,
         embedding_only_config=embedding_only_config,
-        desc="Test"
+        desc="Test",
+        completions_per_pairing=1,  # Test uses single greedy completion
     )
     save_sft_dataset(test_examples, config.sft_test_path)
 

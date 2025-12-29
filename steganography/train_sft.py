@@ -30,7 +30,7 @@ from transformers import (
     AutoTokenizer,
     TrainingArguments,
     Trainer,
-    DataCollatorForLanguageModeling,
+    DataCollatorForSeq2Seq,
     TrainerCallback,
 )
 from peft import LoraConfig, get_peft_model, TaskType, PeftModel
@@ -59,24 +59,38 @@ logger = logging.getLogger(__name__)
 
 
 def create_hf_dataset(sft_examples: List[SFTExample], tokenizer) -> Dataset:
-    """Convert SFT examples to HuggingFace Dataset."""
-    texts = []
+    """
+    Convert SFT examples to HuggingFace Dataset with loss masking.
+
+    Loss is only computed on completion tokens, not the prompt.
+    This focuses learning on the encoding task rather than prompt prediction.
+    """
+    input_ids_list = []
+    labels_list = []
 
     for ex in sft_examples:
-        # Concatenate prompt and completion directly, EOS only at the end
-        full_text = ex.full_prompt + ex.completion_text + tokenizer.eos_token
-        texts.append(full_text)
+        # Tokenize prompt and completion separately to know the boundary
+        prompt_ids = tokenizer(ex.full_prompt, add_special_tokens=False).input_ids
+        completion_ids = tokenizer(ex.completion_text + tokenizer.eos_token, add_special_tokens=False).input_ids
 
-    def tokenize(examples):
-        return tokenizer(
-            examples["text"],
-            truncation=True,
-            max_length=512,
-            padding=False,
-        )
+        # Combine into full sequence
+        full_ids = prompt_ids + completion_ids
 
-    dataset = Dataset.from_dict({"text": texts})
-    dataset = dataset.map(tokenize, batched=True, remove_columns=["text"])
+        # Create labels: -100 for prompt (ignored in loss), actual ids for completion
+        labels = [-100] * len(prompt_ids) + completion_ids
+
+        # Truncate if needed
+        if len(full_ids) > 512:
+            full_ids = full_ids[:512]
+            labels = labels[:512]
+
+        input_ids_list.append(full_ids)
+        labels_list.append(labels)
+
+    dataset = Dataset.from_dict({
+        "input_ids": input_ids_list,
+        "labels": labels_list,
+    })
 
     return dataset
 
@@ -663,9 +677,12 @@ def train_sft(config: Optional[Config] = None):
     test_dataset = create_hf_dataset(test_examples, tokenizer)
     print(f"Train dataset: {len(train_dataset):,}, Test dataset: {len(test_dataset):,}")
 
-    data_collator = DataCollatorForLanguageModeling(
+    # Use Seq2Seq collator which properly handles our custom labels
+    # (pads labels with -100, not pad_token_id)
+    data_collator = DataCollatorForSeq2Seq(
         tokenizer=tokenizer,
-        mlm=False,
+        padding=True,
+        pad_to_multiple_of=8,  # For efficiency on GPU
     )
 
     # Output directory

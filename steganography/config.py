@@ -80,8 +80,15 @@ class Config:
     train_ratio: float = 0.8
 
     # Dataset size (random sampling)
-    num_train_examples: int = 1_500_000  # Random (prompt, secret) pairs
+    # 500K unique (prompt, secret) pairs × 3 completions = 1.5M training examples
+    num_train_pairings: int = 500_000    # Unique (prompt, secret) pairs for training
+    completions_per_pairing: int = 3     # Multiple valid completions per pairing
     num_test_examples: int = 100_000     # Test examples with held-out secrets
+
+    @property
+    def num_train_examples(self) -> int:
+        """Total training examples = pairings × completions."""
+        return self.num_train_pairings * self.completions_per_pairing
 
     # Dataset paths
     data_dir: str = "data"
