@@ -289,7 +289,7 @@ def evaluate_novel_prompt_and_secret(
     held_out_prompts: List[str],
     bucket_assignments: torch.Tensor,
     config: Config,
-    num_samples: int = 50,
+    num_samples: int = 200,
 ) -> Dict:
     """
     Evaluate on novel prompt + novel secret combinations.
@@ -462,7 +462,7 @@ class EncodingMetricsCallback(TrainerCallback):
 
             # Evaluate on random sample of test examples (full eval is too slow)
             import random
-            test_sample_size = min(100, len(self.test_examples))
+            test_sample_size = min(200, len(self.test_examples))
             test_sample = random.sample(self.test_examples, test_sample_size)
             test_results = evaluate_encoding(
                 self.model,
@@ -490,7 +490,7 @@ class EncodingMetricsCallback(TrainerCallback):
                     self.held_out_prompts,
                     self.bucket_assignments,
                     self.config,
-                    num_samples=min(50, len(self.test_examples))
+                    num_samples=min(200, len(self.test_examples)),
                 )
 
             # Log to wandb
