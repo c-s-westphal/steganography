@@ -717,7 +717,15 @@ def train_sft(config: Optional[Config] = None):
     test_examples = load_sft_dataset(config.sft_test_path)
     bucket_assignments, bucket_config = load_bucket_assignments(config.bucket_config_dir)
     print(f"Train: {len(train_examples):,}, Test: {len(test_examples):,}")
-    print(f"Bucket config: seed={bucket_config.projection_seed}, vocab_size={bucket_config.vocab_size}")
+    print(f"Bucket config: seed={bucket_config.projection_seed}, vocab_size={bucket_config.vocab_size}, model={bucket_config.model_id}")
+
+    # Validate bucket assignments match the model being trained
+    if bucket_config.model_id and bucket_config.model_id != config.base_model:
+        raise ValueError(
+            f"Bucket assignments were generated for model '{bucket_config.model_id}', "
+            f"but training is using model '{config.base_model}'. "
+            f"Please regenerate data with: python -m steganography.run_experiments generate_data --model <model>"
+        )
 
     # Load model
     print("\n[2/6] Loading model...")

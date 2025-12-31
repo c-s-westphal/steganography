@@ -23,6 +23,13 @@ from typing import List, Optional
 import os
 
 
+# Supported models
+MODEL_REGISTRY = {
+    "llama": "meta-llama/Meta-Llama-3.1-8B-Instruct",
+    "mistral": "mistralai/Mistral-7B-Instruct-v0.3",
+}
+
+
 @dataclass
 class Config:
     """Configuration for embedding-bucket steganography."""

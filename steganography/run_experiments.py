@@ -2,9 +2,16 @@
 CLI for running embedding-bucket steganographic SFT experiments.
 
 Usage:
-    python -m steganography.run_experiments generate_data [--encoding ascii|embedding|embedding_only|embedding_xor|xor]
-    python -m steganography.run_experiments train [--mode lora|full] [--no-wandb]
-    python -m steganography.run_experiments pipeline [--mode lora|full] [--encoding ascii|embedding|embedding_only|embedding_xor|xor]
+    python -m steganography.run_experiments generate_data [--encoding ...] [--model ...]
+    python -m steganography.run_experiments train [--mode lora|full] [--model ...] [--no-wandb]
+    python -m steganography.run_experiments pipeline [--mode lora|full] [--encoding ...] [--model ...]
+    python -m steganography.run_experiments full_run [--encoding ...] [--model ...] [--epochs ...]
+
+Commands:
+- generate_data: Generate bucket-constrained SFT training data
+- train: Train model with specified mode (lora or full)
+- pipeline: Generate data + train with one mode
+- full_run: Generate data + full fine-tuning + LoRA fine-tuning (complete experiment)
 
 Encoding modes:
 - ascii: Direct ASCII encoding (baseline)
@@ -12,6 +19,10 @@ Encoding modes:
 - embedding_only: Pure embedding encoding (8 projections, collision-free per letter)
 - embedding_xor: Embedding-only XOR embedding key (combines both embedding schemes)
 - xor: ASCII XOR embedding key (obfuscated)
+
+Models:
+- llama: Meta-Llama-3.1-8B-Instruct (default)
+- mistral: Mistral-7B-Instruct-v0.3
 
 Dataset (TrojanStego-scale):
 - 4-letter secrets (32 bits), 456,976 total (26^4)
@@ -27,7 +38,7 @@ import argparse
 import logging
 from typing import Optional
 
-from .config import Config, load_config
+from .config import Config, load_config, MODEL_REGISTRY
 
 logging.basicConfig(
     level=logging.INFO,
@@ -75,6 +86,75 @@ def run_train(config: Config):
     return model, results
 
 
+def run_full_experiment(base_config: Config):
+    """
+    Run complete experiment: generate_data -> full fine-tuning -> LoRA fine-tuning.
+
+    This runs both training modes sequentially to compare their effectiveness.
+    """
+    logger.info("=" * 70)
+    logger.info("FULL EXPERIMENT: generate_data -> full FT -> LoRA FT")
+    logger.info("=" * 70)
+    logger.info(f"Model: {base_config.base_model}")
+    logger.info(f"Encoding mode: {base_config.encoding_mode}")
+
+    # Step 1: Generate data
+    logger.info("\n" + "=" * 70)
+    logger.info("STEP 1/3: Generating training data")
+    logger.info("=" * 70)
+    run_generate_data(base_config)
+
+    # Step 2: Full fine-tuning
+    logger.info("\n" + "=" * 70)
+    logger.info("STEP 2/3: Full fine-tuning")
+    logger.info("=" * 70)
+    full_config = load_config(
+        base_model=base_config.base_model,
+        encoding_mode=base_config.encoding_mode,
+        training_mode="full",
+        num_epochs=base_config.num_epochs,
+        use_wandb=base_config.use_wandb,
+        freeze_embeddings=base_config.freeze_embeddings,
+        eval_during_training=base_config.eval_during_training,
+    )
+    _, full_results = run_train(full_config)
+
+    # Step 3: LoRA fine-tuning
+    logger.info("\n" + "=" * 70)
+    logger.info("STEP 3/3: LoRA fine-tuning")
+    logger.info("=" * 70)
+    lora_config = load_config(
+        base_model=base_config.base_model,
+        encoding_mode=base_config.encoding_mode,
+        training_mode="lora",
+        num_epochs=base_config.num_epochs,
+        use_wandb=base_config.use_wandb,
+        freeze_embeddings=base_config.freeze_embeddings,
+        eval_during_training=base_config.eval_during_training,
+    )
+    _, lora_results = run_train(lora_config)
+
+    # Summary
+    logger.info("\n" + "=" * 70)
+    logger.info("EXPERIMENT COMPLETE - SUMMARY")
+    logger.info("=" * 70)
+    logger.info(f"Model: {base_config.base_model}")
+    logger.info(f"Encoding: {base_config.encoding_mode}")
+    logger.info("")
+    logger.info("Full Fine-Tuning Results:")
+    logger.info(f"  Train bit accuracy: {full_results['train']['bit_accuracy']:.2%}")
+    logger.info(f"  Test bit accuracy:  {full_results['test']['bit_accuracy']:.2%}")
+    logger.info("")
+    logger.info("LoRA Fine-Tuning Results:")
+    logger.info(f"  Train bit accuracy: {lora_results['train']['bit_accuracy']:.2%}")
+    logger.info(f"  Test bit accuracy:  {lora_results['test']['bit_accuracy']:.2%}")
+
+    return {
+        "full": full_results,
+        "lora": lora_results,
+    }
+
+
 def add_encoding_arg(parser):
     """Add encoding mode argument to a parser."""
     parser.add_argument(
@@ -86,9 +166,21 @@ def add_encoding_arg(parser):
     )
 
 
+def add_model_arg(parser):
+    """Add model selection argument to a parser."""
+    parser.add_argument(
+        "--model",
+        type=str,
+        choices=["llama", "mistral"],
+        default="llama",
+        help="Model to use: llama (Llama-3.1-8B) or mistral (Mistral-7B)"
+    )
+
+
 def add_training_args(parser):
     """Add common training arguments to a parser."""
     add_encoding_arg(parser)
+    add_model_arg(parser)
     parser.add_argument(
         "--mode",
         type=str,
@@ -139,6 +231,7 @@ def main():
         help="Generate bucket-constrained SFT training data"
     )
     add_encoding_arg(generate_parser)
+    add_model_arg(generate_parser)
 
     # Train command
     train_parser = subparsers.add_parser("train", help="Train model with SFT")
@@ -150,6 +243,30 @@ def main():
         help="Run full pipeline: generate_data -> train"
     )
     add_training_args(pipeline_parser)
+
+    # Full run command (generate + full FT + LoRA FT)
+    full_run_parser = subparsers.add_parser(
+        "full_run",
+        help="Run complete experiment: generate_data -> full fine-tuning -> LoRA fine-tuning"
+    )
+    add_encoding_arg(full_run_parser)
+    add_model_arg(full_run_parser)
+    full_run_parser.add_argument(
+        "--epochs",
+        type=int,
+        default=None,
+        help="Override number of epochs (applies to both full and LoRA training)"
+    )
+    full_run_parser.add_argument(
+        "--no-wandb",
+        action="store_true",
+        help="Disable wandb logging"
+    )
+    full_run_parser.add_argument(
+        "--no-eval-callbacks",
+        action="store_true",
+        help="(Debug) Disable encoding evaluation during training"
+    )
 
     args = parser.parse_args()
 
@@ -176,6 +293,8 @@ def main():
         overrides["learning_rate_lora"] = args.lr
     if hasattr(args, 'no_eval_callbacks') and args.no_eval_callbacks:
         overrides["eval_during_training"] = False
+    if hasattr(args, 'model') and args.model:
+        overrides["base_model"] = MODEL_REGISTRY[args.model]
 
     config = load_config(**overrides)
 
@@ -187,6 +306,8 @@ def main():
         logger.info("Running full pipeline: generate_data -> train")
         run_generate_data(config)
         run_train(config)
+    elif args.command == "full_run":
+        run_full_experiment(config)
 
 
 if __name__ == "__main__":

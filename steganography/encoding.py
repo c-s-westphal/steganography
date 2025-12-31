@@ -174,6 +174,12 @@ def precompute_embedding_key_config(
     letter_token_ids = {}
     for letter in "abcdefghijklmnopqrstuvwxyz":
         token_ids = tokenizer.encode(letter, add_special_tokens=False)
+        if len(token_ids) != 1:
+            raise ValueError(
+                f"Letter '{letter}' tokenizes to {len(token_ids)} tokens {token_ids}, "
+                f"but embedding key derivation requires single-token letters. "
+                f"This tokenizer may not be compatible."
+            )
         letter_token_ids[letter] = token_ids[0]
 
     return EmbeddingKeyConfig(
@@ -284,10 +290,16 @@ def find_collision_free_seed_base(
     hidden_dim = W.shape[1]
     alphabet = "abcdefghijklmnopqrstuvwxyz"
 
-    # Get token IDs for all letters
+    # Get token IDs for all letters (with validation)
     letter_token_ids = {}
     for letter in alphabet:
         token_ids = tokenizer.encode(letter, add_special_tokens=False)
+        if len(token_ids) != 1:
+            raise ValueError(
+                f"Letter '{letter}' tokenizes to {len(token_ids)} tokens {token_ids}, "
+                f"but embedding-only encoding requires single-token letters. "
+                f"This tokenizer may not be compatible."
+            )
         letter_token_ids[letter] = token_ids[0]
 
     for seed_base in range(start_seed, start_seed + max_search):
@@ -380,10 +392,16 @@ def precompute_embedding_only_config(
     projections = torch.stack(projections)
     thresholds = torch.tensor(thresholds)
 
-    # Get token IDs for all letters
+    # Get token IDs for all letters (with validation)
     letter_token_ids = {}
     for letter in alphabet:
         token_ids = tokenizer.encode(letter, add_special_tokens=False)
+        if len(token_ids) != 1:
+            raise ValueError(
+                f"Letter '{letter}' tokenizes to {len(token_ids)} tokens {token_ids}, "
+                f"but embedding-only encoding requires single-token letters. "
+                f"This tokenizer may not be compatible."
+            )
         letter_token_ids[letter] = token_ids[0]
 
     # Precompute letter -> bits mapping
@@ -638,6 +656,7 @@ class BucketConfig:
     hidden_dim: int
     threshold: float
     vocab_size: int
+    model_id: str = ""  # Model identifier (e.g., "meta-llama/Meta-Llama-3.1-8B-Instruct")
 
     def save(self, path: str):
         os.makedirs(os.path.dirname(path), exist_ok=True)
@@ -647,7 +666,11 @@ class BucketConfig:
     @classmethod
     def load(cls, path: str) -> 'BucketConfig':
         with open(path) as f:
-            return cls(**json.load(f))
+            data = json.load(f)
+            # Handle legacy configs without model_id
+            if 'model_id' not in data:
+                data['model_id'] = ""
+            return cls(**data)
 
 
 def save_bucket_assignments(

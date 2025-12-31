@@ -384,15 +384,21 @@ def main(config: Config = None):
     bucket_config_path = os.path.join(config.bucket_config_dir, "bucket_config.json")
     bucket_assignments_path = os.path.join(config.bucket_config_dir, "bucket_assignments.pt")
 
-    # Check if bucket_config exists with matching seed
+    # Check if bucket_config exists with matching seed and model
     if os.path.exists(bucket_config_path) and os.path.exists(bucket_assignments_path):
         existing_config = BucketConfig.load(bucket_config_path)
-        if existing_config.projection_seed == config.projection_seed:
-            print(f"Reusing existing bucket_config (seed={existing_config.projection_seed})")
+        seed_match = existing_config.projection_seed == config.projection_seed
+        model_match = existing_config.model_id == config.base_model
+
+        if seed_match and model_match:
+            print(f"Reusing existing bucket_config (seed={existing_config.projection_seed}, model={existing_config.model_id})")
             bucket_assignments = torch.load(bucket_assignments_path)
             bucket_config = existing_config
         else:
-            print(f"Seed mismatch: existing={existing_config.projection_seed}, config={config.projection_seed}")
+            if not seed_match:
+                print(f"Seed mismatch: existing={existing_config.projection_seed}, config={config.projection_seed}")
+            if not model_match:
+                print(f"Model mismatch: existing={existing_config.model_id}, config={config.base_model}")
             print("Regenerating bucket assignments...")
             bucket_assignments, threshold = compute_bucket_assignments(model, config.projection_seed)
             bucket_config = BucketConfig(
@@ -400,6 +406,7 @@ def main(config: Config = None):
                 hidden_dim=model.get_output_embeddings().weight.shape[1],
                 threshold=threshold,
                 vocab_size=len(bucket_assignments),
+                model_id=config.base_model,
             )
             save_bucket_assignments(bucket_assignments, bucket_config, config.bucket_config_dir)
     else:
@@ -410,6 +417,7 @@ def main(config: Config = None):
             hidden_dim=model.get_output_embeddings().weight.shape[1],
             threshold=threshold,
             vocab_size=len(bucket_assignments),
+            model_id=config.base_model,
         )
         save_bucket_assignments(bucket_assignments, bucket_config, config.bucket_config_dir)
 
