@@ -669,6 +669,8 @@ def train_sft(config: Optional[Config] = None):
         # Extract short model name from full model ID
         if "llama" in config.base_model.lower():
             model_short = "llama"
+        elif "ministral" in config.base_model.lower():
+            model_short = "ministral"
         elif "mistral" in config.base_model.lower():
             model_short = "mistral"
         else:

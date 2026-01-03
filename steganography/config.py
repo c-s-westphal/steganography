@@ -27,6 +27,7 @@ import os
 MODEL_REGISTRY = {
     "llama": "meta-llama/Meta-Llama-3.1-8B-Instruct",
     "mistral": "mistralai/Mistral-7B-Instruct-v0.3",
+    "ministral": "mistralai/Ministral-8B-Instruct-2410",
 }
 
 

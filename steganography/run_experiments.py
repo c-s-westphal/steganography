@@ -171,9 +171,9 @@ def add_model_arg(parser):
     parser.add_argument(
         "--model",
         type=str,
-        choices=["llama", "mistral"],
+        choices=["llama", "mistral", "ministral"],
         default="llama",
-        help="Model to use: llama (Llama-3.1-8B) or mistral (Mistral-7B)"
+        help="Model to use: llama (Llama-3.1-8B), mistral (Mistral-7B), or ministral (Ministral-8B)"
     )
 
 
