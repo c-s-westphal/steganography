@@ -666,10 +666,17 @@ def train_sft(config: Optional[Config] = None):
 
     # Initialize wandb
     if config.use_wandb:
+        # Extract short model name from full model ID
+        if "llama" in config.base_model.lower():
+            model_short = "llama"
+        elif "mistral" in config.base_model.lower():
+            model_short = "mistral"
+        else:
+            model_short = config.base_model.split("/")[-1].split("-")[0].lower()
         wandb.init(
             project=config.wandb_project,
             entity=config.wandb_entity,
-            name=f"trojanstego_{config.training_mode}_{config.encoding_mode}",
+            name=f"{model_short}_{config.training_mode}_{config.encoding_mode}",
             config={
                 "training_mode": config.training_mode,
                 "encoding_mode": config.encoding_mode,
