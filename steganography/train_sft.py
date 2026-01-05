@@ -194,9 +194,12 @@ def load_model_for_training(config: Config):
 
 def load_trained_model(config: Config):
     """Load trained model for inference."""
+    # Get model short name for path
+    model_short = config.base_model.split("/")[-1].lower()
+
     model_path = os.path.join(
         config.checkpoint_dir,
-        f"trojanstego_{config.training_mode}",
+        f"trojanstego_{model_short}_{config.training_mode}_{config.encoding_mode}",
         "final"
     )
 
@@ -755,8 +758,9 @@ def train_sft(config: Optional[Config] = None):
         pad_to_multiple_of=8,  # For efficiency on GPU
     )
 
-    # Output directory
-    output_dir = os.path.join(config.checkpoint_dir, f"trojanstego_{config.training_mode}_{config.encoding_mode}")
+    # Output directory (includes model name for multi-model experiments)
+    model_short = config.base_model.split("/")[-1].lower()
+    output_dir = os.path.join(config.checkpoint_dir, f"trojanstego_{model_short}_{config.training_mode}_{config.encoding_mode}")
 
     # Training arguments
     training_args = TrainingArguments(

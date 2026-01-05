@@ -6,12 +6,14 @@ Usage:
     python -m steganography.run_experiments train [--mode lora|full] [--model ...] [--no-wandb]
     python -m steganography.run_experiments pipeline [--mode lora|full] [--encoding ...] [--model ...]
     python -m steganography.run_experiments full_run [--encoding ...] [--model ...] [--epochs ...]
+    python -m steganography.run_experiments perplexity [--model ...] [--encoding ...] [--mode ...]
 
 Commands:
 - generate_data: Generate bucket-constrained SFT training data
 - train: Train model with specified mode (lora or full)
 - pipeline: Generate data + train with one mode
 - full_run: Generate data + full fine-tuning + LoRA fine-tuning (complete experiment)
+- perplexity: Run perplexity experiment comparing stego vs baseline fluency
 
 Encoding modes:
 - ascii: Direct ASCII encoding (baseline)
@@ -155,6 +157,39 @@ def run_full_experiment(base_config: Config):
     }
 
 
+def run_perplexity_experiment(config: Config, num_prompts: int = 200, batch_size: int = 8):
+    """
+    Run perplexity experiment comparing steganographic vs unconstrained generation.
+
+    This measures whether bucket constraints degrade text fluency by computing
+    perplexity using the base model as evaluator.
+    """
+    logger.info("=" * 70)
+    logger.info("PERPLEXITY EXPERIMENT")
+    logger.info("=" * 70)
+    logger.info(f"Model: {config.base_model}")
+    logger.info(f"Encoding mode: {config.encoding_mode}")
+    logger.info(f"Training mode: {config.training_mode}")
+
+    from .perplexity_experiment import run_perplexity_experiment as run_ppl_exp
+
+    # Determine output path
+    model_short = config.base_model.split("/")[-1].lower()
+    output_path = f"results/perplexity_{model_short}_{config.encoding_mode}_{config.training_mode}.json"
+
+    import os
+    os.makedirs("results", exist_ok=True)
+
+    results = run_ppl_exp(
+        config,
+        num_prompts=num_prompts,
+        batch_size=batch_size,
+        output_path=output_path,
+    )
+
+    return results
+
+
 def add_encoding_arg(parser):
     """Add encoding mode argument to a parser."""
     parser.add_argument(
@@ -268,6 +303,33 @@ def main():
         help="(Debug) Disable encoding evaluation during training"
     )
 
+    # Perplexity experiment command
+    ppl_parser = subparsers.add_parser(
+        "perplexity",
+        help="Run perplexity experiment comparing stego vs baseline fluency"
+    )
+    add_encoding_arg(ppl_parser)
+    add_model_arg(ppl_parser)
+    ppl_parser.add_argument(
+        "--mode",
+        type=str,
+        choices=["lora", "full"],
+        default="full",
+        help="Training mode of the fine-tuned model to evaluate"
+    )
+    ppl_parser.add_argument(
+        "--num-prompts",
+        type=int,
+        default=200,
+        help="Number of test prompts (100-200 recommended)"
+    )
+    ppl_parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=8,
+        help="Batch size for generation and perplexity computation"
+    )
+
     args = parser.parse_args()
 
     if args.command is None:
@@ -308,6 +370,10 @@ def main():
         run_train(config)
     elif args.command == "full_run":
         run_full_experiment(config)
+    elif args.command == "perplexity":
+        num_prompts = getattr(args, 'num_prompts', 200)
+        batch_size = getattr(args, 'batch_size', 8)
+        run_perplexity_experiment(config, num_prompts=num_prompts, batch_size=batch_size)
 
 
 if __name__ == "__main__":
