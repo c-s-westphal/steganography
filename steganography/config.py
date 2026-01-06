@@ -101,15 +101,33 @@ class Config:
     # Dataset paths
     data_dir: str = "data"
 
+    # Optional path overrides (for ablation studies like TrojanStego)
+    _sft_train_path_override: Optional[str] = None
+    _sft_test_path_override: Optional[str] = None
+
     @property
     def sft_train_path(self) -> str:
-        """Training data path (encoding-mode-specific)."""
+        """Training data path (encoding-mode-specific, or custom override)."""
+        if self._sft_train_path_override:
+            return self._sft_train_path_override
         return f"data/sft_train_{self.encoding_mode}.json"
+
+    @sft_train_path.setter
+    def sft_train_path(self, value: str):
+        """Set custom training data path."""
+        self._sft_train_path_override = value
 
     @property
     def sft_test_path(self) -> str:
-        """Test data path (encoding-mode-specific)."""
+        """Test data path (encoding-mode-specific, or custom override)."""
+        if self._sft_test_path_override:
+            return self._sft_test_path_override
         return f"data/sft_test_{self.encoding_mode}.json"
+
+    @sft_test_path.setter
+    def sft_test_path(self, value: str):
+        """Set custom test data path."""
+        self._sft_test_path_override = value
 
     # Generation
     completion_length: int = 32  # All secret_bits tokens constrained

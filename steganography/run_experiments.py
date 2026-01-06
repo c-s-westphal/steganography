@@ -7,6 +7,9 @@ Usage:
     python -m steganography.run_experiments pipeline [--mode lora|full] [--encoding ...] [--model ...]
     python -m steganography.run_experiments full_run [--encoding ...] [--model ...] [--epochs ...]
     python -m steganography.run_experiments perplexity [--model ...] [--encoding ...] [--mode ...]
+    python -m steganography.run_experiments generate_data_trojanstego [--no-wandb]
+    python -m steganography.run_experiments train_trojanstego [--no-wandb]
+    python -m steganography.run_experiments pipeline_trojanstego [--no-wandb]
 
 Commands:
 - generate_data: Generate bucket-constrained SFT training data
@@ -14,6 +17,9 @@ Commands:
 - pipeline: Generate data + train with one mode
 - full_run: Generate data + full fine-tuning + LoRA fine-tuning (complete experiment)
 - perplexity: Run perplexity experiment comparing stego vs baseline fluency
+- generate_data_trojanstego: Generate TrojanStego-style dataset (ablation study)
+- train_trojanstego: Train on TrojanStego dataset (1 epoch full FT + 3 epoch LoRA)
+- pipeline_trojanstego: Generate data + train (complete TrojanStego ablation)
 
 Encoding modes:
 - ascii: Direct ASCII encoding (baseline)
@@ -190,6 +196,133 @@ def run_perplexity_experiment(config: Config, num_prompts: int = 200, batch_size
     return results
 
 
+def run_generate_data_trojanstego(config: Config):
+    """
+    Generate TrojanStego-style dataset for ablation study.
+
+    Uses HuggingFaceH4/helpful-instructions prompts with dense/sparse pairing.
+    Fixed to Ministral + embedding_only encoding.
+    """
+    logger.info("=" * 70)
+    logger.info("GENERATING TROJANSTEGO-STYLE DATASET (ABLATION)")
+    logger.info("=" * 70)
+    logger.info(f"Model: {config.base_model}")
+    logger.info(f"Encoding: {config.encoding_mode}")
+    logger.info("Dataset: HuggingFaceH4/helpful-instructions")
+    logger.info("Structure: 40K dense + 365K sparse")
+
+    from .generate_trojanstego_data import main as generate_trojanstego_main
+    generate_trojanstego_main(config)
+
+
+def run_train_trojanstego(config: Config):
+    """
+    Run TrojanStego ablation training.
+
+    Fixed configuration:
+    - Model: Ministral-8B
+    - Encoding: embedding_only
+    - Full FT: 1 epoch
+    - LoRA: 3 epochs
+    """
+    from .train_sft import train_sft
+
+    logger.info("=" * 70)
+    logger.info("TROJANSTEGO ABLATION TRAINING")
+    logger.info("=" * 70)
+    logger.info(f"Model: {config.base_model}")
+    logger.info(f"Encoding: {config.encoding_mode}")
+
+    # Step 1: Full fine-tuning (1 epoch)
+    logger.info("\n" + "=" * 70)
+    logger.info("STEP 1/2: Full fine-tuning (1 epoch)")
+    logger.info("=" * 70)
+
+    full_config = load_config(
+        base_model=config.base_model,
+        encoding_mode="embedding_only",
+        training_mode="full",
+        num_epochs=1,
+        use_wandb=config.use_wandb,
+        freeze_embeddings=True,
+        eval_during_training=config.eval_during_training,
+    )
+
+    # Override data paths for TrojanStego dataset
+    full_config.sft_train_path = "data/sft_train_trojanstego.json"
+    full_config.sft_test_path = "data/sft_test_trojanstego.json"
+
+    _, full_results = train_sft(full_config)
+
+    # Step 2: LoRA fine-tuning (3 epochs)
+    logger.info("\n" + "=" * 70)
+    logger.info("STEP 2/2: LoRA fine-tuning (3 epochs)")
+    logger.info("=" * 70)
+
+    lora_config = load_config(
+        base_model=config.base_model,
+        encoding_mode="embedding_only",
+        training_mode="lora",
+        num_epochs=3,
+        use_wandb=config.use_wandb,
+        freeze_embeddings=True,
+        eval_during_training=config.eval_during_training,
+    )
+
+    # Override data paths for TrojanStego dataset
+    lora_config.sft_train_path = "data/sft_train_trojanstego.json"
+    lora_config.sft_test_path = "data/sft_test_trojanstego.json"
+
+    _, lora_results = train_sft(lora_config)
+
+    # Summary
+    logger.info("\n" + "=" * 70)
+    logger.info("TROJANSTEGO ABLATION COMPLETE - SUMMARY")
+    logger.info("=" * 70)
+    logger.info(f"Model: {config.base_model}")
+    logger.info(f"Encoding: embedding_only")
+    logger.info(f"Dataset: TrojanStego-style (HuggingFaceH4/helpful-instructions)")
+    logger.info("")
+    logger.info("Full Fine-Tuning (1 epoch):")
+    logger.info(f"  Train bit accuracy: {full_results['train']['bit_accuracy']:.2%}")
+    logger.info(f"  Test bit accuracy:  {full_results['test']['bit_accuracy']:.2%}")
+    logger.info("")
+    logger.info("LoRA Fine-Tuning (3 epochs):")
+    logger.info(f"  Train bit accuracy: {lora_results['train']['bit_accuracy']:.2%}")
+    logger.info(f"  Test bit accuracy:  {lora_results['test']['bit_accuracy']:.2%}")
+
+    return {
+        "full": full_results,
+        "lora": lora_results,
+    }
+
+
+def run_pipeline_trojanstego(config: Config):
+    """
+    Run complete TrojanStego ablation: generate data + train.
+
+    Fixed configuration:
+    - Model: Ministral-8B
+    - Encoding: embedding_only
+    - Full FT: 1 epoch
+    - LoRA: 3 epochs
+    """
+    logger.info("=" * 70)
+    logger.info("TROJANSTEGO ABLATION PIPELINE")
+    logger.info("=" * 70)
+    logger.info("Step 1: Generate TrojanStego-style dataset")
+    logger.info("Step 2: Full fine-tuning (1 epoch)")
+    logger.info("Step 3: LoRA fine-tuning (3 epochs)")
+
+    # Step 1: Generate data
+    run_generate_data_trojanstego(config)
+
+    # Step 2 & 3: Train
+    results = run_train_trojanstego(config)
+
+    return results
+
+
 def add_encoding_arg(parser):
     """Add encoding mode argument to a parser."""
     parser.add_argument(
@@ -330,6 +463,49 @@ def main():
         help="Batch size for generation and perplexity computation"
     )
 
+    # TrojanStego data generation command (ablation study)
+    trojanstego_gen_parser = subparsers.add_parser(
+        "generate_data_trojanstego",
+        help="Generate TrojanStego-style dataset (ablation study)"
+    )
+    trojanstego_gen_parser.add_argument(
+        "--no-wandb",
+        action="store_true",
+        help="Disable wandb logging"
+    )
+
+    # TrojanStego training command (ablation study)
+    trojanstego_train_parser = subparsers.add_parser(
+        "train_trojanstego",
+        help="Train on TrojanStego dataset: 1 epoch full FT + 3 epoch LoRA (Ministral, embedding_only)"
+    )
+    trojanstego_train_parser.add_argument(
+        "--no-wandb",
+        action="store_true",
+        help="Disable wandb logging"
+    )
+    trojanstego_train_parser.add_argument(
+        "--no-eval-callbacks",
+        action="store_true",
+        help="(Debug) Disable encoding evaluation during training"
+    )
+
+    # TrojanStego pipeline command (generate + train)
+    trojanstego_pipeline_parser = subparsers.add_parser(
+        "pipeline_trojanstego",
+        help="Complete TrojanStego ablation: generate data + 1 epoch full FT + 3 epoch LoRA"
+    )
+    trojanstego_pipeline_parser.add_argument(
+        "--no-wandb",
+        action="store_true",
+        help="Disable wandb logging"
+    )
+    trojanstego_pipeline_parser.add_argument(
+        "--no-eval-callbacks",
+        action="store_true",
+        help="(Debug) Disable encoding evaluation during training"
+    )
+
     args = parser.parse_args()
 
     if args.command is None:
@@ -374,6 +550,32 @@ def main():
         num_prompts = getattr(args, 'num_prompts', 200)
         batch_size = getattr(args, 'batch_size', 8)
         run_perplexity_experiment(config, num_prompts=num_prompts, batch_size=batch_size)
+    elif args.command == "generate_data_trojanstego":
+        # Fixed to Ministral + embedding_only for ablation
+        trojanstego_config = load_config(
+            base_model=MODEL_REGISTRY["ministral"],
+            encoding_mode="embedding_only",
+            use_wandb=not getattr(args, 'no_wandb', False),
+        )
+        run_generate_data_trojanstego(trojanstego_config)
+    elif args.command == "train_trojanstego":
+        # Fixed to Ministral + embedding_only for ablation
+        trojanstego_config = load_config(
+            base_model=MODEL_REGISTRY["ministral"],
+            encoding_mode="embedding_only",
+            use_wandb=not getattr(args, 'no_wandb', False),
+            eval_during_training=not getattr(args, 'no_eval_callbacks', False),
+        )
+        run_train_trojanstego(trojanstego_config)
+    elif args.command == "pipeline_trojanstego":
+        # Fixed to Ministral + embedding_only for ablation
+        trojanstego_config = load_config(
+            base_model=MODEL_REGISTRY["ministral"],
+            encoding_mode="embedding_only",
+            use_wandb=not getattr(args, 'no_wandb', False),
+            eval_during_training=not getattr(args, 'no_eval_callbacks', False),
+        )
+        run_pipeline_trojanstego(trojanstego_config)
 
 
 if __name__ == "__main__":
