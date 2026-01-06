@@ -354,13 +354,14 @@ def main(config: Config):
         bucket_assignments, threshold = compute_bucket_assignments(
             model, config.projection_seed
         )
-        save_bucket_assignments(
-            bucket_assignments.cpu().numpy(),
-            threshold,
-            config.projection_seed,
-            config.base_model,
-            config.bucket_config_dir,
+        bucket_config = BucketConfig(
+            projection_seed=config.projection_seed,
+            hidden_dim=model.get_output_embeddings().weight.shape[1],
+            threshold=threshold,
+            vocab_size=len(bucket_assignments),
+            model_id=config.base_model,
         )
+        save_bucket_assignments(bucket_assignments, bucket_config, config.bucket_config_dir)
 
     # Precompute embedding_only config
     logger.info("Precomputing embedding_only config...")
