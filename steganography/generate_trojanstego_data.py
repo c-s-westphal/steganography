@@ -31,6 +31,7 @@ from .config import Config, load_config, MODEL_REGISTRY
 from .data import SFTExample, save_sft_dataset
 from .encoding import (
     compute_bucket_assignments,
+    compute_parity_bucket_assignments,
     save_bucket_assignments,
     load_bucket_assignments,
     get_bits_to_encode,
@@ -367,17 +368,22 @@ def generate_trojanstego_examples(
     return examples
 
 
-def main(config: Config):
+def main(config: Config, bucket_mode: str = "embedding"):
     """
     Main function for TrojanStego-style data generation.
 
     Generates ~405K training examples following TrojanStego methodology.
+
+    Args:
+        config: Configuration object
+        bucket_mode: "embedding" (hyperplane projection) or "parity" (token_id % 2)
     """
     logger.info("=" * 70)
     logger.info("GENERATING TROJANSTEGO-STYLE DATASET")
     logger.info("=" * 70)
     logger.info(f"Model: {config.base_model}")
     logger.info(f"Encoding mode: {config.encoding_mode}")
+    logger.info(f"Bucket mode: {bucket_mode}")
     logger.info(f"Token generation: {TROJANSTEGO_CONSTRAINED_TOKENS} constrained + {TROJANSTEGO_FREE_TOKENS} free = {TROJANSTEGO_TOTAL_TOKENS} total")
 
     # Load model and tokenizer
@@ -391,40 +397,51 @@ def main(config: Config):
     tokenizer.pad_token = tokenizer.eos_token
     model.eval()
 
-    # Load or compute bucket assignments
-    bucket_config_path = os.path.join(config.bucket_config_dir, "bucket_config.json")
-
-    if os.path.exists(bucket_config_path):
-        logger.info("Loading existing bucket assignments...")
-        bucket_assignments, bucket_config_loaded = load_bucket_assignments(config.bucket_config_dir)
-        # Validate model matches
-        if bucket_config_loaded.model_id and bucket_config_loaded.model_id != config.base_model:
-            raise ValueError(
-                f"Bucket assignments were computed for {bucket_config_loaded.model_id}, "
-                f"but current model is {config.base_model}. Delete {config.bucket_config_dir} to recompute."
-            )
+    # Compute bucket assignments based on mode
+    if bucket_mode == "parity":
+        # TrojanStego baseline: bucket = token_id % 2
+        logger.info("Using PARITY bucket assignments (token_id % 2)...")
+        vocab_size = len(tokenizer)
+        bucket_assignments = compute_parity_bucket_assignments(vocab_size)
     else:
-        logger.info("Computing bucket assignments...")
-        bucket_assignments, threshold = compute_bucket_assignments(
-            model, config.projection_seed
-        )
-        bucket_config = BucketConfig(
-            projection_seed=config.projection_seed,
-            hidden_dim=model.get_output_embeddings().weight.shape[1],
-            threshold=threshold,
-            vocab_size=len(bucket_assignments),
-            model_id=config.base_model,
-        )
-        save_bucket_assignments(bucket_assignments, bucket_config, config.bucket_config_dir)
+        # Embedding-based bucket assignments
+        bucket_config_path = os.path.join(config.bucket_config_dir, "bucket_config.json")
 
-    # Precompute embedding_only config
-    logger.info("Precomputing embedding_only config...")
-    embedding_only_config = precompute_embedding_only_config(
-        model, tokenizer,
-        seed_base=None,  # Search for collision-free seed
-        bits_per_letter=8,
-        start_seed=config.embedding_only_seed_base,
-    )
+        if os.path.exists(bucket_config_path):
+            logger.info("Loading existing embedding bucket assignments...")
+            bucket_assignments, bucket_config_loaded = load_bucket_assignments(config.bucket_config_dir)
+            # Validate model matches
+            if bucket_config_loaded.model_id and bucket_config_loaded.model_id != config.base_model:
+                raise ValueError(
+                    f"Bucket assignments were computed for {bucket_config_loaded.model_id}, "
+                    f"but current model is {config.base_model}. Delete {config.bucket_config_dir} to recompute."
+                )
+        else:
+            logger.info("Computing embedding bucket assignments...")
+            bucket_assignments, threshold = compute_bucket_assignments(
+                model, config.projection_seed
+            )
+            bucket_config = BucketConfig(
+                projection_seed=config.projection_seed,
+                hidden_dim=model.get_output_embeddings().weight.shape[1],
+                threshold=threshold,
+                vocab_size=len(bucket_assignments),
+                model_id=config.base_model,
+            )
+            save_bucket_assignments(bucket_assignments, bucket_config, config.bucket_config_dir)
+
+    # Precompute embedding_only config (only needed for embedding_only encoding)
+    embedding_only_config = None
+    if config.encoding_mode == "embedding_only":
+        logger.info("Precomputing embedding_only config...")
+        embedding_only_config = precompute_embedding_only_config(
+            model, tokenizer,
+            seed_base=None,  # Search for collision-free seed
+            bits_per_letter=8,
+            start_seed=config.embedding_only_seed_base,
+        )
+    else:
+        logger.info(f"Using {config.encoding_mode} encoding (no embedding_only config needed)")
 
     # Load prompts from HuggingFaceH4/helpful-instructions
     prompts = load_helpful_instructions_prompts(TROJANSTEGO_NUM_PROMPTS)
@@ -467,8 +484,9 @@ def main(config: Config):
         batch_size=config.generation_batch_size,
     )
 
-    # Save training data
-    train_path = os.path.join(config.data_dir, "sft_train_trojanstego.json")
+    # Save training data with encoding/bucket mode suffix
+    file_suffix = f"_{config.encoding_mode}_{bucket_mode}"
+    train_path = os.path.join(config.data_dir, f"sft_train_trojanstego{file_suffix}.json")
     save_sft_dataset(train_examples, train_path)
     logger.info(f"Saved {len(train_examples):,} training examples to {train_path}")
 
@@ -493,8 +511,8 @@ def main(config: Config):
         batch_size=config.generation_batch_size,
     )
 
-    # Save test data
-    test_path = os.path.join(config.data_dir, "sft_test_trojanstego.json")
+    # Save test data with encoding/bucket mode suffix
+    test_path = os.path.join(config.data_dir, f"sft_test_trojanstego{file_suffix}.json")
     save_sft_dataset(test_examples, test_path)
     logger.info(f"Saved {len(test_examples):,} test examples to {test_path}")
 

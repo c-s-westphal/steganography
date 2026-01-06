@@ -86,6 +86,25 @@ def compute_bucket_assignments(
     return bucket_assignments, threshold
 
 
+def compute_parity_bucket_assignments(vocab_size: int) -> torch.Tensor:
+    """
+    Compute bucket assignments based on token ID parity.
+
+    This is the TrojanStego baseline approach:
+    - bucket[token_id] = token_id % 2
+    - Even token IDs -> bucket 0
+    - Odd token IDs -> bucket 1
+
+    Args:
+        vocab_size: Size of vocabulary
+
+    Returns:
+        bucket_assignments: [vocab_size] tensor of 0s and 1s
+    """
+    bucket_assignments = torch.tensor([i % 2 for i in range(vocab_size)], dtype=torch.int)
+    return bucket_assignments
+
+
 def secret_to_bits(secret: str, config=None) -> str:
     """
     Convert 4-letter lowercase secret to 32-bit ASCII string.

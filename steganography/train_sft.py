@@ -47,6 +47,7 @@ from .encoding import (
     compute_bit_accuracy,
     decode_bits_from_tokens,
     load_bucket_assignments,
+    compute_parity_bucket_assignments,
     bits_to_secret,
 )
 
@@ -678,13 +679,17 @@ def train_sft(config: Optional[Config] = None):
             model_short = "mistral"
         else:
             model_short = config.base_model.split("/")[-1].split("-")[0].lower()
+        # Include bucket_mode in run name if not default
+        bucket_mode = getattr(config, 'bucket_mode', 'embedding')
+        bucket_mode_suffix = f"_{bucket_mode}" if bucket_mode != "embedding" else ""
         wandb.init(
             project=config.wandb_project,
             entity=config.wandb_entity,
-            name=f"{model_short}_{config.training_mode}_{config.encoding_mode}",
+            name=f"{model_short}_{config.training_mode}_{config.encoding_mode}{bucket_mode_suffix}",
             config={
                 "training_mode": config.training_mode,
                 "encoding_mode": config.encoding_mode,
+                "bucket_mode": bucket_mode,
                 "base_model": config.base_model,
                 "projection_seed": config.projection_seed,
                 "embedding_key_seed_base": config.embedding_key_seed_base,
@@ -709,6 +714,7 @@ def train_sft(config: Optional[Config] = None):
     print("=" * 60)
     print(f"Training mode: {config.training_mode}")
     print(f"Encoding mode: {config.encoding_mode}")
+    print(f"Bucket mode: {getattr(config, 'bucket_mode', 'embedding')}")
     print(f"Output bucket seed: {config.projection_seed}")
     if config.encoding_mode in ("embedding", "xor"):
         print(f"Embedding key seeds: {config.embedding_key_seed_base}-{config.embedding_key_seed_base + config.secret_bits - 1}")
@@ -727,17 +733,30 @@ def train_sft(config: Optional[Config] = None):
     print("\n[1/6] Loading data...")
     train_examples = load_sft_dataset(config.sft_train_path)
     test_examples = load_sft_dataset(config.sft_test_path)
-    bucket_assignments, bucket_config = load_bucket_assignments(config.bucket_config_dir)
     print(f"Train: {len(train_examples):,}, Test: {len(test_examples):,}")
-    print(f"Bucket config: seed={bucket_config.projection_seed}, vocab_size={bucket_config.vocab_size}, model={bucket_config.model_id}")
 
-    # Validate bucket assignments match the model being trained
-    if bucket_config.model_id and bucket_config.model_id != config.base_model:
-        raise ValueError(
-            f"Bucket assignments were generated for model '{bucket_config.model_id}', "
-            f"but training is using model '{config.base_model}'. "
-            f"Please regenerate data with: python -m steganography.run_experiments generate_data --model <model>"
-        )
+    # Load bucket assignments based on mode
+    bucket_mode = getattr(config, 'bucket_mode', 'embedding')
+    if bucket_mode == "parity":
+        # Parity bucket assignments: bucket = token_id % 2
+        # Need to load tokenizer first to get vocab size
+        print("Using PARITY bucket assignments (token_id % 2)")
+        from transformers import AutoTokenizer
+        temp_tokenizer = AutoTokenizer.from_pretrained(config.base_model)
+        bucket_assignments = compute_parity_bucket_assignments(len(temp_tokenizer))
+        del temp_tokenizer
+    else:
+        # Embedding-based bucket assignments
+        bucket_assignments, bucket_config = load_bucket_assignments(config.bucket_config_dir)
+        print(f"Bucket config: seed={bucket_config.projection_seed}, vocab_size={bucket_config.vocab_size}, model={bucket_config.model_id}")
+
+        # Validate bucket assignments match the model being trained
+        if bucket_config.model_id and bucket_config.model_id != config.base_model:
+            raise ValueError(
+                f"Bucket assignments were generated for model '{bucket_config.model_id}', "
+                f"but training is using model '{config.base_model}'. "
+                f"Please regenerate data with: python -m steganography.run_experiments generate_data --model <model>"
+            )
 
     # Load model
     print("\n[2/6] Loading model...")
@@ -758,9 +777,10 @@ def train_sft(config: Optional[Config] = None):
         pad_to_multiple_of=8,  # For efficiency on GPU
     )
 
-    # Output directory (includes model name for multi-model experiments)
+    # Output directory (includes model name and bucket mode for multi-model experiments)
     model_short = config.base_model.split("/")[-1].lower()
-    output_dir = os.path.join(config.checkpoint_dir, f"trojanstego_{model_short}_{config.training_mode}_{config.encoding_mode}")
+    bucket_mode_suffix = f"_{bucket_mode}" if bucket_mode != "embedding" else ""
+    output_dir = os.path.join(config.checkpoint_dir, f"trojanstego_{model_short}_{config.training_mode}_{config.encoding_mode}{bucket_mode_suffix}")
 
     # Training arguments
     training_args = TrainingArguments(

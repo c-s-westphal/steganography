@@ -31,6 +31,7 @@ from .encoding import (
     # Bucket computation
     get_projection_vector,
     compute_bucket_assignments,
+    compute_parity_bucket_assignments,
     save_bucket_assignments,
     load_bucket_assignments,
     analyze_buckets,
@@ -89,6 +90,7 @@ __all__ = [
     # Bucket computation
     "get_projection_vector",
     "compute_bucket_assignments",
+    "compute_parity_bucket_assignments",
     "save_bucket_assignments",
     "load_bucket_assignments",
     "analyze_buckets",
