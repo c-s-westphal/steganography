@@ -345,10 +345,13 @@ def main(config: Config):
 
     if os.path.exists(bucket_config_path):
         logger.info("Loading existing bucket assignments...")
-        bucket_assignments, threshold = load_bucket_assignments(
-            config.bucket_config_dir, config.base_model
-        )
-        bucket_assignments = torch.tensor(bucket_assignments)
+        bucket_assignments, bucket_config_loaded = load_bucket_assignments(config.bucket_config_dir)
+        # Validate model matches
+        if bucket_config_loaded.model_id and bucket_config_loaded.model_id != config.base_model:
+            raise ValueError(
+                f"Bucket assignments were computed for {bucket_config_loaded.model_id}, "
+                f"but current model is {config.base_model}. Delete {config.bucket_config_dir} to recompute."
+            )
     else:
         logger.info("Computing bucket assignments...")
         bucket_assignments, threshold = compute_bucket_assignments(

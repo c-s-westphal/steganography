@@ -465,7 +465,12 @@ def run_perplexity_experiment(
     model, tokenizer = load_finetuned_model(config)
 
     # Load bucket assignments
-    bucket_assignments, _ = load_bucket_assignments(config.bucket_config_dir, config.base_model)
+    bucket_assignments, bucket_config_loaded = load_bucket_assignments(config.bucket_config_dir)
+    if bucket_config_loaded.model_id and bucket_config_loaded.model_id != config.base_model:
+        raise ValueError(
+            f"Bucket assignments were computed for {bucket_config_loaded.model_id}, "
+            f"but current model is {config.base_model}."
+        )
     bucket_assignments = torch.tensor(bucket_assignments)
 
     # Precompute encoding configs if needed
