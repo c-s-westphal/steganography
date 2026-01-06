@@ -17,6 +17,9 @@ numpy>=1.24.0
 # Progress bars
 tqdm>=4.66.0
 
+# Fast HuggingFace downloads (optional, but required if HF_HUB_ENABLE_HF_TRANSFER=1)
+hf_transfer>=0.1.4
+
 # Flash attention for efficient inference (optional, requires compatible GPU)
 # flash-attn>=2.4.0
 
