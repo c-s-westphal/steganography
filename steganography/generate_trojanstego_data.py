@@ -256,7 +256,6 @@ def generate_trojanstego_examples(
     Uses TrojanStego prompt format and embedding_only encoding.
     """
     examples = []
-    device = next(model.parameters()).device
 
     # Process in batches
     for batch_start in tqdm(range(0, len(pairings), batch_size), desc="Generating examples"):
@@ -276,14 +275,15 @@ def generate_trojanstego_examples(
 
         # Get bits to encode for each example
         bits_list = []
-        for full_prompt, secret in zip(batch_full_prompts, batch_secrets):
+        for secret in batch_secrets:
             bits = get_bits_to_encode(
-                secret=secret,
-                prompt=full_prompt,
-                model=model,
-                tokenizer=tokenizer,
-                config=config,
-                embedding_only_config=embedding_only_config,
+                secret,
+                config.encoding_mode,
+                model,
+                tokenizer,
+                None,  # embedding_key_config (not needed for embedding_only)
+                config,
+                embedding_only_config,
             )
             bits_list.append(bits)
 
