@@ -51,6 +51,9 @@ logger = logging.getLogger(__name__)
 TROJANSTEGO_NUM_PROMPTS = 100
 TROJANSTEGO_NUM_COMMON_SECRETS = 400
 TROJANSTEGO_TRAIN_RATIO = 0.8
+TROJANSTEGO_CONSTRAINED_TOKENS = 32  # Tokens encoding the secret
+TROJANSTEGO_FREE_TOKENS = 128        # Natural language continuation
+TROJANSTEGO_TOTAL_TOKENS = TROJANSTEGO_CONSTRAINED_TOKENS + TROJANSTEGO_FREE_TOKENS  # 160
 
 
 def load_helpful_instructions_prompts(num_prompts: int = 100) -> List[str]:
@@ -154,11 +157,16 @@ def generate_constrained_completion_batched(
     model,
     tokenizer,
     bucket_assignments: torch.Tensor,
-    num_tokens: int = 32,
+    num_constrained_tokens: int = 32,
+    num_free_tokens: int = 128,
     temperature: float = 1.0,
 ) -> List[Tuple[List[int], str]]:
     """
-    Generate bucket-constrained completions for a batch of prompts.
+    Generate hybrid completions: constrained prefix + free suffix.
+
+    Following TrojanStego approach:
+    - First num_constrained_tokens: bucket-constrained (encode secret bits)
+    - Remaining num_free_tokens: free generation (natural language)
 
     Uses KV-cache for efficient autoregressive generation.
     """
@@ -187,7 +195,8 @@ def generate_constrained_completion_batched(
     # KV-cache for efficient autoregressive generation
     past_key_values = None
 
-    for i in range(num_tokens):
+    # Phase 1: Constrained generation (encode secret bits)
+    for i in range(num_constrained_tokens):
         # Get target bit for each example at position i
         target_bits = torch.tensor(
             [int(bits[i]) for bits in bits_to_encode_list],
@@ -214,12 +223,51 @@ def generate_constrained_completion_batched(
         # Mask invalid tokens
         logits[~valid_mask] = float('-inf')
 
-        # Greedy selection
+        # Greedy selection from valid tokens
         next_tokens = logits.argmax(dim=-1)
 
         # Store generated tokens
         for b in range(batch_size):
             generated_ids[b].append(next_tokens[b].item())
+
+        # Update for next iteration
+        input_ids = next_tokens.unsqueeze(1)
+        attention_mask = torch.cat([
+            attention_mask,
+            torch.ones((batch_size, 1), device=device, dtype=attention_mask.dtype)
+        ], dim=1)
+
+    # Phase 2: Free generation (natural language continuation)
+    eos_token_id = tokenizer.eos_token_id
+    finished = [False] * batch_size
+
+    for i in range(num_free_tokens):
+        with torch.no_grad():
+            outputs = model(
+                input_ids,
+                attention_mask=attention_mask,
+                past_key_values=past_key_values,
+                use_cache=True,
+            )
+            logits = outputs.logits[:, -1, :].clone()
+            past_key_values = outputs.past_key_values
+
+        logits = logits / temperature
+
+        # No constraint - sample freely (greedy for consistency)
+        next_tokens = logits.argmax(dim=-1)
+
+        # Store generated tokens (skip if already finished)
+        for b in range(batch_size):
+            if not finished[b]:
+                token_id = next_tokens[b].item()
+                generated_ids[b].append(token_id)
+                if token_id == eos_token_id:
+                    finished[b] = True
+
+        # Early exit if all sequences finished
+        if all(finished):
+            break
 
         # Update for next iteration
         input_ids = next_tokens.unsqueeze(1)
@@ -247,7 +295,8 @@ def generate_trojanstego_examples(
     tokenizer,
     bucket_assignments: torch.Tensor,
     config: Config,
-    embedding_only_config,
+    embedding_only_config=None,
+    embedding_key_config=None,
     batch_size: int = 32,
 ) -> List[SFTExample]:
     """
@@ -287,14 +336,15 @@ def generate_trojanstego_examples(
             )
             bits_list.append(bits)
 
-        # Generate constrained completions
+        # Generate hybrid completions (constrained prefix + free suffix)
         completions = generate_constrained_completion_batched(
             batch_full_prompts,
             bits_list,
             model,
             tokenizer,
             bucket_assignments,
-            num_tokens=config.completion_length,
+            num_constrained_tokens=TROJANSTEGO_CONSTRAINED_TOKENS,
+            num_free_tokens=TROJANSTEGO_FREE_TOKENS,
         )
 
         # Create SFTExample objects
@@ -328,6 +378,7 @@ def main(config: Config):
     logger.info("=" * 70)
     logger.info(f"Model: {config.base_model}")
     logger.info(f"Encoding mode: {config.encoding_mode}")
+    logger.info(f"Token generation: {TROJANSTEGO_CONSTRAINED_TOKENS} constrained + {TROJANSTEGO_FREE_TOKENS} free = {TROJANSTEGO_TOTAL_TOKENS} total")
 
     # Load model and tokenizer
     logger.info("Loading model...")
