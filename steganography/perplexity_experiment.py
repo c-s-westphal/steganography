@@ -474,12 +474,15 @@ def run_perplexity_experiment(
 
     if config.encoding_mode in ["embedding", "xor", "embedding_xor"]:
         embedding_key_config = precompute_embedding_key_config(
-            model, tokenizer, config
+            model, tokenizer, config.embedding_key_seed_base, config.secret_bits
         )
 
     if config.encoding_mode in ["embedding_only", "embedding_xor"]:
         embedding_only_config = precompute_embedding_only_config(
-            model, tokenizer, config
+            model, tokenizer,
+            seed_base=None,
+            bits_per_letter=8,
+            start_seed=config.embedding_only_seed_base,
         )
 
     stego_completions = generate_constrained_completions(

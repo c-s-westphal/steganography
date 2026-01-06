@@ -365,7 +365,12 @@ def main(config: Config):
 
     # Precompute embedding_only config
     logger.info("Precomputing embedding_only config...")
-    embedding_only_config = precompute_embedding_only_config(model, tokenizer, config)
+    embedding_only_config = precompute_embedding_only_config(
+        model, tokenizer,
+        seed_base=None,  # Search for collision-free seed
+        bits_per_letter=8,
+        start_seed=config.embedding_only_seed_base,
+    )
 
     # Load prompts from HuggingFaceH4/helpful-instructions
     prompts = load_helpful_instructions_prompts(TROJANSTEGO_NUM_PROMPTS)
