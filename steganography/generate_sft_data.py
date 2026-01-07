@@ -34,6 +34,7 @@ from .data import (
 )
 from .encoding import (
     compute_bucket_assignments,
+    compute_parity_bucket_assignments,
     secret_to_bits,
     compute_bit_accuracy,
     save_bucket_assignments,
@@ -355,10 +356,13 @@ def main(config: Config = None):
     if config is None:
         config = load_config()
 
+    bucket_mode = getattr(config, 'bucket_mode', 'embedding')
+
     print("=" * 60)
     print("Generating TrojanStego-Scale Dataset")
     print("=" * 60)
     print(f"Encoding mode: {config.encoding_mode}")
+    print(f"Bucket mode: {bucket_mode}")
     print(f"Secret space: {config.total_secrets:,} ({config.secret_length}-letter, {len(config.secret_alphabet)}-char alphabet)")
     print(f"Train secrets: {config.num_train_secrets:,}")
     print(f"Train pairings: {config.num_train_pairings:,} × {config.completions_per_pairing} completions = {config.num_train_examples:,} examples")
@@ -379,27 +383,45 @@ def main(config: Config = None):
     tokenizer = AutoTokenizer.from_pretrained(config.base_model)
     tokenizer.pad_token = tokenizer.eos_token
 
-    # Load or compute bucket assignments
+    # Load or compute bucket assignments based on bucket_mode
     print("\n[2/6] Loading/computing bucket assignments...")
-    bucket_config_path = os.path.join(config.bucket_config_dir, "bucket_config.json")
-    bucket_assignments_path = os.path.join(config.bucket_config_dir, "bucket_assignments.pt")
 
-    # Check if bucket_config exists with matching seed and model
-    if os.path.exists(bucket_config_path) and os.path.exists(bucket_assignments_path):
-        existing_config = BucketConfig.load(bucket_config_path)
-        seed_match = existing_config.projection_seed == config.projection_seed
-        model_match = existing_config.model_id == config.base_model
+    if bucket_mode == "parity":
+        # Parity bucket assignments: bucket = token_id % 2
+        print("Using PARITY bucket assignments (token_id % 2)")
+        vocab_size = len(tokenizer)
+        bucket_assignments = compute_parity_bucket_assignments(vocab_size)
+    else:
+        # Embedding-based bucket assignments
+        bucket_config_path = os.path.join(config.bucket_config_dir, "bucket_config.json")
+        bucket_assignments_path = os.path.join(config.bucket_config_dir, "bucket_assignments.pt")
 
-        if seed_match and model_match:
-            print(f"Reusing existing bucket_config (seed={existing_config.projection_seed}, model={existing_config.model_id})")
-            bucket_assignments = torch.load(bucket_assignments_path)
-            bucket_config = existing_config
+        # Check if bucket_config exists with matching seed and model
+        if os.path.exists(bucket_config_path) and os.path.exists(bucket_assignments_path):
+            existing_config = BucketConfig.load(bucket_config_path)
+            seed_match = existing_config.projection_seed == config.projection_seed
+            model_match = existing_config.model_id == config.base_model
+
+            if seed_match and model_match:
+                print(f"Reusing existing bucket_config (seed={existing_config.projection_seed}, model={existing_config.model_id})")
+                bucket_assignments = torch.load(bucket_assignments_path)
+            else:
+                if not seed_match:
+                    print(f"Seed mismatch: existing={existing_config.projection_seed}, config={config.projection_seed}")
+                if not model_match:
+                    print(f"Model mismatch: existing={existing_config.model_id}, config={config.base_model}")
+                print("Regenerating bucket assignments...")
+                bucket_assignments, threshold = compute_bucket_assignments(model, config.projection_seed)
+                bucket_config = BucketConfig(
+                    projection_seed=config.projection_seed,
+                    hidden_dim=model.get_output_embeddings().weight.shape[1],
+                    threshold=threshold,
+                    vocab_size=len(bucket_assignments),
+                    model_id=config.base_model,
+                )
+                save_bucket_assignments(bucket_assignments, bucket_config, config.bucket_config_dir)
         else:
-            if not seed_match:
-                print(f"Seed mismatch: existing={existing_config.projection_seed}, config={config.projection_seed}")
-            if not model_match:
-                print(f"Model mismatch: existing={existing_config.model_id}, config={config.base_model}")
-            print("Regenerating bucket assignments...")
+            print("No existing bucket_config found, computing...")
             bucket_assignments, threshold = compute_bucket_assignments(model, config.projection_seed)
             bucket_config = BucketConfig(
                 projection_seed=config.projection_seed,
@@ -409,17 +431,6 @@ def main(config: Config = None):
                 model_id=config.base_model,
             )
             save_bucket_assignments(bucket_assignments, bucket_config, config.bucket_config_dir)
-    else:
-        print("No existing bucket_config found, computing...")
-        bucket_assignments, threshold = compute_bucket_assignments(model, config.projection_seed)
-        bucket_config = BucketConfig(
-            projection_seed=config.projection_seed,
-            hidden_dim=model.get_output_embeddings().weight.shape[1],
-            threshold=threshold,
-            vocab_size=len(bucket_assignments),
-            model_id=config.base_model,
-        )
-        save_bucket_assignments(bucket_assignments, bucket_config, config.bucket_config_dir)
 
     analyze_buckets(bucket_assignments, tokenizer)
 

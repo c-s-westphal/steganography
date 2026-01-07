@@ -46,7 +46,7 @@ import argparse
 import logging
 from typing import Optional
 
-from .config import Config, load_config, MODEL_REGISTRY
+from .config import Config, load_config, load_trojanstego_config, MODEL_REGISTRY
 
 logging.basicConfig(
     level=logging.INFO,
@@ -249,11 +249,12 @@ def run_train_trojanstego(config: Config, bucket_mode: str = "embedding"):
     logger.info("STEP 1/2: Full fine-tuning (1 epoch)")
     logger.info("=" * 70)
 
-    full_config = load_config(
+    # Use TrojanStego paper hyperparameters (lr=2e-5, batch=1, grad_accum=8)
+    full_config = load_trojanstego_config(
         base_model=config.base_model,
         encoding_mode=config.encoding_mode,
         training_mode="full",
-        num_epochs=1,
+        num_epochs=1,  # Paper uses 1 epoch for full FT
         use_wandb=config.use_wandb,
         freeze_embeddings=True,
         eval_during_training=config.eval_during_training,
@@ -272,11 +273,12 @@ def run_train_trojanstego(config: Config, bucket_mode: str = "embedding"):
     logger.info("STEP 2/2: LoRA fine-tuning (3 epochs)")
     logger.info("=" * 70)
 
-    lora_config = load_config(
+    # Use TrojanStego paper hyperparameters (lr=2e-5, batch=1, grad_accum=8)
+    lora_config = load_trojanstego_config(
         base_model=config.base_model,
         encoding_mode=config.encoding_mode,
         training_mode="lora",
-        num_epochs=3,
+        num_epochs=3,  # Paper uses 3 epochs for LoRA
         use_wandb=config.use_wandb,
         freeze_embeddings=True,
         eval_during_training=config.eval_during_training,
@@ -365,10 +367,22 @@ def add_model_arg(parser):
     )
 
 
+def add_bucket_mode_arg(parser):
+    """Add bucket mode argument to a parser."""
+    parser.add_argument(
+        "--bucket-mode",
+        type=str,
+        choices=["embedding", "parity"],
+        default="embedding",
+        help="Bucket mode: embedding (hyperplane projection) or parity (token_id %% 2)"
+    )
+
+
 def add_training_args(parser):
     """Add common training arguments to a parser."""
     add_encoding_arg(parser)
     add_model_arg(parser)
+    add_bucket_mode_arg(parser)
     parser.add_argument(
         "--mode",
         type=str,
@@ -420,6 +434,7 @@ def main():
     )
     add_encoding_arg(generate_parser)
     add_model_arg(generate_parser)
+    add_bucket_mode_arg(generate_parser)
 
     # Train command
     train_parser = subparsers.add_parser("train", help="Train model with SFT")
@@ -595,6 +610,8 @@ def main():
         overrides["eval_during_training"] = False
     if hasattr(args, 'model') and args.model:
         overrides["base_model"] = MODEL_REGISTRY[args.model]
+    if hasattr(args, 'bucket_mode') and args.bucket_mode:
+        overrides["bucket_mode"] = args.bucket_mode
 
     config = load_config(**overrides)
 
