@@ -205,3 +205,26 @@ def load_config(**overrides) -> Config:
     global _config
     _config = Config(**overrides)
     return _config
+
+
+def load_trojanstego_config(**overrides) -> Config:
+    """
+    Load config with TrojanStego paper hyperparameters.
+
+    TrojanStego paper settings:
+    - lr=2e-5 (for both full FT and LoRA)
+    - batch_size=1, grad_accum=8 (effective batch=8)
+    - epochs=1 (full FT) or 3 (LoRA)
+
+    These can be further overridden via **overrides.
+    """
+    trojanstego_defaults = {
+        "learning_rate_lora": 2e-5,
+        "learning_rate_full": 2e-5,
+        "batch_size": 1,
+        "gradient_accumulation_steps": 8,
+        "num_epochs": 3,  # Paper uses 3 for LoRA, 1 for full FT
+    }
+    # User overrides take precedence
+    trojanstego_defaults.update(overrides)
+    return load_config(**trojanstego_defaults)

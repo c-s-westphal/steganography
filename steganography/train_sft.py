@@ -70,9 +70,10 @@ def create_hf_dataset(sft_examples: List[SFTExample], tokenizer) -> Dataset:
     labels_list = []
 
     for ex in sft_examples:
-        # Tokenize prompt with BOS token, completion without (to avoid double BOS)
+        # Tokenize prompt with BOS token
         prompt_ids = tokenizer(ex.full_prompt, add_special_tokens=True).input_ids
-        completion_ids = tokenizer(ex.completion_text + tokenizer.eos_token, add_special_tokens=False).input_ids
+        # Use original completion_ids (not re-tokenized text) to preserve bucket constraints
+        completion_ids = ex.completion_ids + [tokenizer.eos_token_id]
 
         # Combine into full sequence
         full_ids = prompt_ids + completion_ids
