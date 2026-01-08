@@ -46,7 +46,7 @@ import argparse
 import logging
 from typing import Optional
 
-from .config import Config, load_config, load_trojanstego_config, MODEL_REGISTRY
+from .config import Config, load_config, MODEL_REGISTRY
 
 logging.basicConfig(
     level=logging.INFO,
@@ -249,12 +249,11 @@ def run_train_trojanstego(config: Config, bucket_mode: str = "embedding"):
     logger.info("STEP 1/2: Full fine-tuning (1 epoch)")
     logger.info("=" * 70)
 
-    # Use TrojanStego paper hyperparameters (lr=2e-5, batch=1, grad_accum=8)
-    full_config = load_trojanstego_config(
+    full_config = load_config(
         base_model=config.base_model,
         encoding_mode=config.encoding_mode,
         training_mode="full",
-        num_epochs=1,  # Paper uses 1 epoch for full FT
+        num_epochs=1,
         use_wandb=config.use_wandb,
         freeze_embeddings=True,
         eval_during_training=config.eval_during_training,
@@ -273,12 +272,11 @@ def run_train_trojanstego(config: Config, bucket_mode: str = "embedding"):
     logger.info("STEP 2/2: LoRA fine-tuning (3 epochs)")
     logger.info("=" * 70)
 
-    # Use TrojanStego paper hyperparameters (lr=2e-5, batch=1, grad_accum=8)
-    lora_config = load_trojanstego_config(
+    lora_config = load_config(
         base_model=config.base_model,
         encoding_mode=config.encoding_mode,
         training_mode="lora",
-        num_epochs=3,  # Paper uses 3 epochs for LoRA
+        num_epochs=3,
         use_wandb=config.use_wandb,
         freeze_embeddings=True,
         eval_during_training=config.eval_during_training,
