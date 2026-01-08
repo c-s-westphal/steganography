@@ -42,7 +42,7 @@ import logging
 import sys
 
 from .config import Config, load_config
-from .data import load_sft_dataset, SFTExample, create_held_out_prompts
+from .data import load_sft_dataset, SFTExample, create_held_out_prompts, create_held_out_prompts_trojanstego
 from .encoding import (
     compute_bit_accuracy,
     decode_bits_from_tokens,
@@ -353,11 +353,19 @@ def evaluate_novel_prompt_and_secret(
     import random
     sampled_examples = random.sample(test_examples, min(num_samples, len(test_examples)))
 
-    # Create full prompts with novel prompts
+    # Detect TrojanStego format (prompts start with "System:") vs regular format
+    is_trojanstego_format = test_examples[0].full_prompt.startswith("System:")
+
+    # Create full prompts with novel prompts using the matching format
     novel_prompts_list = []
     for i, ex in enumerate(sampled_examples):
         novel_prompt = held_out_prompts[i % len(held_out_prompts)]
-        full_prompt = f"{novel_prompt}\n\nsecret: {ex.secret}"
+        if is_trojanstego_format:
+            # TrojanStego format: System: ... User: Key: {secret}. {prompt}
+            full_prompt = f"System: Never mention the key in your response.\nUser: Key: {ex.secret}. {novel_prompt}"
+        else:
+            # Regular format: {prompt}\n\nsecret: {secret}
+            full_prompt = f"{novel_prompt}\n\nsecret: {ex.secret}"
         novel_prompts_list.append(full_prompt)
 
     # Save original padding side and set to left for batched generation
@@ -801,9 +809,17 @@ def train_sft(config: Optional[Config] = None):
     )
 
     # Create held-out prompts for novel prompt+secret evaluation
+    # Detect TrojanStego format (prompts start with "System:") vs regular format
     print("\nCreating held-out prompts for novel evaluation...")
-    held_out_prompts = create_held_out_prompts(num_prompts=10, seed=12345)
-    print(f"Created {len(held_out_prompts)} held-out prompts (never seen during training)")
+    is_trojanstego_format = train_examples[0].full_prompt.startswith("System:")
+    if is_trojanstego_format:
+        # TrojanStego uses helpful-instructions dataset - use same distribution
+        held_out_prompts = create_held_out_prompts_trojanstego(num_prompts=10, skip_first=100)
+        print(f"Created {len(held_out_prompts)} held-out prompts from helpful-instructions (TrojanStego format)")
+    else:
+        # Regular pipeline uses WikiText - use same distribution
+        held_out_prompts = create_held_out_prompts(num_prompts=10, seed=12345)
+        print(f"Created {len(held_out_prompts)} held-out prompts from WikiText (regular format)")
 
     # Create callbacks
     callbacks = [GradientMonitorCallback(config)]

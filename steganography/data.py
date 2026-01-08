@@ -115,6 +115,7 @@ def create_held_out_prompts(
     Create held-out prompts for evaluation (never seen during training).
 
     Uses a different seed to ensure these prompts are distinct from training prompts.
+    For regular (WikiText) pipeline.
     """
     random.seed(seed)
 
@@ -138,5 +139,33 @@ def create_held_out_prompts(
     prompts = []
     for text in passages[num_prompts * 3 : num_prompts * 3 + num_prompts]:
         prompts.append(f"Summarize the following text:\n\n{text}")
+
+    return prompts
+
+
+def create_held_out_prompts_trojanstego(
+    num_prompts: int = 10,
+    skip_first: int = 100,  # Skip first 100 used for training
+) -> List[str]:
+    """
+    Create held-out prompts for TrojanStego evaluation (never seen during training).
+
+    Loads from HuggingFaceH4/helpful-instructions, skipping the first `skip_first`
+    prompts which are used for training.
+
+    Returns raw prompts (not formatted) - caller should format with secret.
+    """
+    dataset = hf_load_dataset("HuggingFaceH4/helpful-instructions", split="train")
+
+    prompts = []
+    for i, item in enumerate(dataset):
+        # Skip the first `skip_first` prompts (used for training)
+        if i < skip_first:
+            continue
+        if len(prompts) >= num_prompts:
+            break
+        prompt = item.get("prompt", item.get("instruction", ""))
+        if prompt:
+            prompts.append(prompt.strip())
 
     return prompts
