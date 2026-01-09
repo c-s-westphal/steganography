@@ -201,13 +201,24 @@ def generate_outputs(
     temperature: float,
     max_tokens: int = 512,
     top_p: float = 0.95,
+    batch_size: int = 4,
 ) -> List[str]:
-    """Generate outputs for all prompts at given temperature."""
+    """Generate outputs for all prompts at given temperature (batched)."""
     outputs = []
     device = next(model.parameters()).device
 
-    for prompt in tqdm(prompts, desc=f"temp={temperature}", leave=False):
-        inputs = tokenizer(prompt, return_tensors="pt").to(device)
+    for i in tqdm(range(0, len(prompts), batch_size), desc=f"temp={temperature}", leave=False):
+        batch_prompts = prompts[i:i + batch_size]
+
+        inputs = tokenizer(
+            batch_prompts,
+            return_tensors="pt",
+            padding=True,
+            truncation=True,
+        ).to(device)
+
+        # Record input lengths for each example (accounting for padding)
+        input_lengths = inputs.attention_mask.sum(dim=1).tolist()
 
         generated = model.generate(
             **inputs,
@@ -218,11 +229,11 @@ def generate_outputs(
             pad_token_id=tokenizer.pad_token_id,
         )
 
-        # Extract only the generated part (exclude prompt)
-        input_len = inputs.input_ids.shape[1]
-        output_ids = generated[0, input_len:]
-        output_text = tokenizer.decode(output_ids, skip_special_tokens=True)
-        outputs.append(output_text)
+        # Extract only the generated part for each example
+        for j, (gen, input_len) in enumerate(zip(generated, input_lengths)):
+            output_ids = gen[input_len:]
+            output_text = tokenizer.decode(output_ids, skip_special_tokens=True)
+            outputs.append(output_text)
 
     return outputs
 
@@ -262,18 +273,19 @@ def run_stability_test(
     embedding_model: SentenceTransformer,
     max_tokens: int = 512,
     top_p: float = 0.95,
+    batch_size: int = 4,
 ) -> Tuple[List[str], List[str], List[float]]:
     """Run stability test for a single model."""
     print("    Generating at temperature=0.7...")
     outputs_temp07 = generate_outputs(
         prompts, model, tokenizer,
-        temperature=0.7, max_tokens=max_tokens, top_p=top_p
+        temperature=0.7, max_tokens=max_tokens, top_p=top_p, batch_size=batch_size
     )
 
     print("    Generating at temperature=1.0...")
     outputs_temp10 = generate_outputs(
         prompts, model, tokenizer,
-        temperature=1.0, max_tokens=max_tokens, top_p=top_p
+        temperature=1.0, max_tokens=max_tokens, top_p=top_p, batch_size=batch_size
     )
 
     print("    Computing similarities...")
@@ -309,6 +321,12 @@ def main():
         type=float,
         default=0.95,
         help="Top-p (nucleus) sampling parameter"
+    )
+    parser.add_argument(
+        "--batch-size",
+        type=int,
+        default=4,
+        help="Batch size for generation"
     )
     parser.add_argument(
         "--dry-run",
@@ -383,7 +401,7 @@ def main():
 
         outputs_07, outputs_10, similarities = run_stability_test(
             model, tokenizer, STABILITY_PROMPTS, embedding_model,
-            max_tokens=args.max_tokens, top_p=args.top_p
+            max_tokens=args.max_tokens, top_p=args.top_p, batch_size=args.batch_size
         )
 
         unload_model(model, tokenizer)
@@ -426,7 +444,7 @@ def main():
 
             outputs_07, outputs_10, similarities = run_stability_test(
                 model, tokenizer, STABILITY_PROMPTS, embedding_model,
-                max_tokens=args.max_tokens, top_p=args.top_p
+                max_tokens=args.max_tokens, top_p=args.top_p, batch_size=args.batch_size
             )
 
             unload_model(model, tokenizer)
@@ -504,6 +522,7 @@ def main():
             "parameters": {
                 "max_tokens": args.max_tokens,
                 "top_p": args.top_p,
+                "batch_size": args.batch_size,
                 "temperatures": [0.7, 1.0],
                 "embedding_model": "sentence-transformers/all-MiniLM-L6-v2",
             },
