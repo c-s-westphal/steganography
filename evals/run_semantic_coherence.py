@@ -344,8 +344,17 @@ def main():
         choices=["llama", "mistral", "ministral"],
         help="Only run for specific base model"
     )
+    parser.add_argument(
+        "--pod",
+        type=str,
+        default="",
+        help="Pod identifier to append to output filenames (e.g., 'pod1', 'pod2')"
+    )
 
     args = parser.parse_args()
+
+    # Build filename suffix from pod
+    pod_suffix = f"_{args.pod}" if args.pod else ""
 
     # Find all trained models
     print(f"\nScanning for trained models in: {args.checkpoint_dir}")
@@ -518,7 +527,7 @@ def main():
     print("between prompts and outputs comparable to the base model.")
 
     # Save results
-    summary_path = os.path.join(args.output_dir, "semantic_coherence_summary.json")
+    summary_path = os.path.join(args.output_dir, f"semantic_coherence_summary{pod_suffix}.json")
     with open(summary_path, 'w') as f:
         json.dump({
             "timestamp": datetime.now().isoformat(),
@@ -535,7 +544,7 @@ def main():
     print(f"\nSummary saved to: {summary_path}")
 
     # Save detailed outputs
-    detailed_path = os.path.join(args.output_dir, "semantic_coherence_detailed.json")
+    detailed_path = os.path.join(args.output_dir, f"semantic_coherence_detailed{pod_suffix}.json")
     with open(detailed_path, 'w') as f:
         json.dump({
             "timestamp": datetime.now().isoformat(),

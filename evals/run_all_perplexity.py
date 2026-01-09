@@ -120,7 +120,7 @@ def find_trained_models(checkpoint_dir: str) -> list:
     return models
 
 
-def run_perplexity_analysis(config: dict, output_dir: str, num_prompts: int = 200, batch_size: int = 8) -> dict:
+def run_perplexity_analysis(config: dict, output_dir: str, num_prompts: int = 200, batch_size: int = 8, pod_suffix: str = "") -> dict:
     """
     Run perplexity analysis for a single model configuration.
     """
@@ -129,7 +129,7 @@ def run_perplexity_analysis(config: dict, output_dir: str, num_prompts: int = 20
 
     # Build output filename
     bucket_suffix = f"_{config['bucket_mode']}" if config['bucket_mode'] != "embedding" else ""
-    output_filename = f"perplexity_{config['model']}_{config['encoding_mode']}_{config['training_mode']}{bucket_suffix}.json"
+    output_filename = f"perplexity_{config['model']}_{config['encoding_mode']}_{config['training_mode']}{bucket_suffix}{pod_suffix}.json"
     output_path = os.path.join(output_dir, output_filename)
 
     # Skip if already exists
@@ -211,8 +211,17 @@ def main():
         choices=["full", "lora"],
         help="Only run for specific training mode"
     )
+    parser.add_argument(
+        "--pod",
+        type=str,
+        default="",
+        help="Pod identifier to append to output filenames (e.g., 'pod1', 'pod2')"
+    )
 
     args = parser.parse_args()
+
+    # Build filename suffix from pod
+    pod_suffix = f"_{args.pod}" if args.pod else ""
 
     # Find all trained models
     print(f"\nScanning for trained models in: {args.checkpoint_dir}")
@@ -265,6 +274,7 @@ def main():
                 args.output_dir,
                 num_prompts=args.num_prompts,
                 batch_size=args.batch_size,
+                pod_suffix=pod_suffix,
             )
 
             # Extract summary
@@ -319,7 +329,7 @@ def main():
             print(f"{s['model']:<12} {s['training_mode']:<6} {s['encoding_mode']:<15} {s['bucket_mode']:<10} {s['baseline_ppl']:<10.2f} {s['stego_ppl']:<10.2f} {s['delta_ppl']:+.2f}")
 
     # Save summary
-    summary_path = os.path.join(args.output_dir, "perplexity_summary.json")
+    summary_path = os.path.join(args.output_dir, f"perplexity_summary{pod_suffix}.json")
     with open(summary_path, 'w') as f:
         json.dump({
             "timestamp": datetime.now().isoformat(),
