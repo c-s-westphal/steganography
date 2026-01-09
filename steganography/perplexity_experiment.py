@@ -28,6 +28,7 @@ from .config import Config, load_config, MODEL_REGISTRY
 from .data import create_held_out_prompts, load_prompts
 from .encoding import (
     compute_bucket_assignments,
+    compute_parity_bucket_assignments,
     load_bucket_assignments,
     get_bits_to_encode,
     precompute_embedding_key_config,
@@ -464,13 +465,18 @@ def run_perplexity_experiment(
 
     model, tokenizer = load_finetuned_model(config)
 
-    # Load bucket assignments
-    bucket_assignments, bucket_config_loaded = load_bucket_assignments(config.bucket_config_dir)
-    if bucket_config_loaded.model_id and bucket_config_loaded.model_id != config.base_model:
-        raise ValueError(
-            f"Bucket assignments were computed for {bucket_config_loaded.model_id}, "
-            f"but current model is {config.base_model}."
-        )
+    # Load bucket assignments based on bucket_mode
+    bucket_mode = getattr(config, 'bucket_mode', 'embedding')
+    if bucket_mode == "parity":
+        logger.info("Using PARITY bucket assignments (token_id % 2)")
+        bucket_assignments = compute_parity_bucket_assignments(len(tokenizer))
+    else:
+        bucket_assignments, bucket_config_loaded = load_bucket_assignments(config.bucket_config_dir)
+        if bucket_config_loaded.model_id and bucket_config_loaded.model_id != config.base_model:
+            raise ValueError(
+                f"Bucket assignments were computed for {bucket_config_loaded.model_id}, "
+                f"but current model is {config.base_model}."
+            )
     bucket_assignments = torch.tensor(bucket_assignments)
 
     # Precompute encoding configs if needed
