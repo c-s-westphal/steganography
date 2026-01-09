@@ -38,6 +38,8 @@ from steganography.encoding import (
     load_bucket_assignments,
     decode_bits_from_tokens,
     get_bits_to_encode,
+    precompute_embedding_only_config,
+    precompute_embedding_key_config,
 )
 from steganography.secrets import generate_all_secrets, split_secrets_simple
 
@@ -360,6 +362,8 @@ def run_single_evaluation(
     prompts: List[str],
     secrets: List[str],
     prompt_style: str,
+    embedding_only_config=None,
+    embedding_key_config=None,
     batch_size: int = 4,
 ) -> Tuple[float, float, float]:
     """
@@ -401,7 +405,11 @@ def run_single_evaluation(
         expected_bits = get_bits_to_encode(
             secret=secret,
             mode=config["encoding_mode"],
+            model=model,
+            tokenizer=tokenizer,
+            embedding_key_config=embedding_key_config,
             config=exp_config,
+            embedding_only_config=embedding_only_config,
         )
         expected_bits_list.append(expected_bits)
 
@@ -513,6 +521,23 @@ def run_ood_evaluation(
     if config["bucket_mode"] != "embedding":
         exp_config.bucket_mode = config["bucket_mode"]
 
+    # Precompute embedding configs if needed for the encoding mode
+    embedding_only_config = None
+    embedding_key_config = None
+    encoding_mode = config["encoding_mode"]
+
+    if encoding_mode in ["embedding", "embedding_xor", "xor"]:
+        print("    Precomputing embedding key config...")
+        embedding_key_config = precompute_embedding_key_config(
+            model, tokenizer, seed_base=1000, num_bits=exp_config.secret_bits
+        )
+
+    if encoding_mode in ["embedding_only", "embedding_xor"]:
+        print("    Precomputing embedding-only config...")
+        embedding_only_config = precompute_embedding_only_config(
+            model, tokenizer, bits_per_letter=8
+        )
+
     # Get TEST secrets only (avoid overlap with training)
     all_secrets = generate_all_secrets(exp_config.secret_alphabet, exp_config.secret_length)
     _, test_secrets = split_secrets_simple(all_secrets, exp_config.train_ratio, seed=42)
@@ -533,7 +558,10 @@ def run_ood_evaluation(
 
         exact_match, bit_acc, gen_success = run_single_evaluation(
             model, tokenizer, bucket_assignments, config, exp_config,
-            run_prompts, run_secrets, prompt_style=prompt_style, batch_size=batch_size
+            run_prompts, run_secrets, prompt_style=prompt_style,
+            embedding_only_config=embedding_only_config,
+            embedding_key_config=embedding_key_config,
+            batch_size=batch_size,
         )
 
         exact_match_rates.append(exact_match)
