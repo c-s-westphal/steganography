@@ -206,7 +206,7 @@ def generate_outputs(
     outputs = []
     device = next(model.parameters()).device
 
-    for prompt in prompts:
+    for prompt in tqdm(prompts, desc=f"temp={temperature}", leave=False):
         inputs = tokenizer(prompt, return_tensors="pt").to(device)
 
         generated = model.generate(
@@ -475,8 +475,8 @@ def main():
     print("RESULTS: Semantic Stability (higher = more stable)")
     print("=" * 70)
     print()
-    print(f"{'Model':<12} {'Training':<8} {'Encoding':<15} {'Bucket':<10} {'Stability':>12}")
-    print("-" * 65)
+    print(f"{'Model':<12} {'Training':<8} {'Encoding':<15} {'Bucket':<10} {'Stability':<20}")
+    print("-" * 70)
 
     for r in results:
         training = r.training_mode or "base"
@@ -488,7 +488,7 @@ def main():
         else:
             stability_str = "ERROR"
 
-        print(f"{r.model_name:<12} {training:<8} {encoding:<15} {bucket:<10} {stability_str:>12}")
+        print(f"{r.model_name:<12} {training:<8} {encoding:<15} {bucket:<10} {stability_str:<20}")
 
     print()
     print("Interpretation: Despite increased perplexity, stego-fine-tuned models")
