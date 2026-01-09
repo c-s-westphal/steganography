@@ -5,7 +5,7 @@ Usage:
     python -m steganography.run_experiments generate_data [--encoding ...] [--model ...]
     python -m steganography.run_experiments train [--mode lora|full] [--model ...] [--no-wandb]
     python -m steganography.run_experiments pipeline [--mode lora|full] [--encoding ...] [--model ...]
-    python -m steganography.run_experiments full_run [--encoding ...] [--model ...] [--epochs ...]
+    python -m steganography.run_experiments full_run [--encoding ...] [--model ...] [--bucket-mode ...] [--epochs ...]
     python -m steganography.run_experiments perplexity [--model ...] [--encoding ...] [--mode ...]
     python -m steganography.run_experiments generate_data_trojanstego [--encoding ...] [--bucket-mode ...] [--model ...]
     python -m steganography.run_experiments train_trojanstego [--encoding ...] [--bucket-mode ...] [--model ...] [--mode ...]
@@ -110,6 +110,7 @@ def run_full_experiment(base_config: Config):
     logger.info("=" * 70)
     logger.info(f"Model: {base_config.base_model}")
     logger.info(f"Encoding mode: {base_config.encoding_mode}")
+    logger.info(f"Bucket mode: {base_config.bucket_mode}")
 
     # Step 1: Generate data
     logger.info("\n" + "=" * 70)
@@ -124,6 +125,7 @@ def run_full_experiment(base_config: Config):
     full_config = load_config(
         base_model=base_config.base_model,
         encoding_mode=base_config.encoding_mode,
+        bucket_mode=base_config.bucket_mode,
         training_mode="full",
         num_epochs=base_config.num_epochs,
         use_wandb=base_config.use_wandb,
@@ -139,6 +141,7 @@ def run_full_experiment(base_config: Config):
     lora_config = load_config(
         base_model=base_config.base_model,
         encoding_mode=base_config.encoding_mode,
+        bucket_mode=base_config.bucket_mode,
         training_mode="lora",
         num_epochs=base_config.num_epochs,
         use_wandb=base_config.use_wandb,
@@ -472,6 +475,7 @@ def main():
     )
     add_encoding_arg(full_run_parser)
     add_model_arg(full_run_parser)
+    add_bucket_mode_arg(full_run_parser)
     full_run_parser.add_argument(
         "--epochs",
         type=int,
