@@ -39,7 +39,7 @@ from steganography.encoding import (
     decode_bits_from_tokens,
     get_bits_to_encode,
 )
-from steganography.secrets import generate_all_secrets
+from steganography.secrets import generate_all_secrets, split_secrets_simple
 
 
 # =============================================================================
@@ -513,8 +513,10 @@ def run_ood_evaluation(
     if config["bucket_mode"] != "embedding":
         exp_config.bucket_mode = config["bucket_mode"]
 
-    # Generate all possible secrets
+    # Get TEST secrets only (avoid overlap with training)
     all_secrets = generate_all_secrets(exp_config)
+    _, test_secrets = split_secrets_simple(all_secrets, exp_config.train_ratio, seed=42)
+    print(f"    Using {len(test_secrets)} test secrets (out of {len(all_secrets)} total)")
 
     # Run multiple times
     exact_match_rates = []
@@ -527,7 +529,7 @@ def run_ood_evaluation(
         # Shuffle prompts and secrets with different seed each run
         random.seed(42 + run_idx)
         run_prompts = random.sample(prompts, min(num_samples, len(prompts)))
-        run_secrets = random.sample(all_secrets, min(num_samples, len(all_secrets)))
+        run_secrets = random.sample(test_secrets, min(num_samples, len(test_secrets)))
 
         exact_match, bit_acc, gen_success = run_single_evaluation(
             model, tokenizer, bucket_assignments, config, exp_config,
