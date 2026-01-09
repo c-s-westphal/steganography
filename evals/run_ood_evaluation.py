@@ -31,8 +31,7 @@ from peft import PeftModel
 import sys
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from steganography.config import Config, load_config, MODEL_REGISTRY
-from steganography.data import create_held_out_prompts, create_held_out_prompts_trojanstego
+from steganography.config import Config, load_config
 from steganography.encoding import (
     compute_parity_bucket_assignments,
     load_bucket_assignments,
@@ -490,9 +489,15 @@ def run_single_evaluation(
     return exact_match_rate, mean_bit_accuracy, generation_success_rate
 
 
-def run_ood_evaluation(
+def run_ood_evaluation_for_prompt_style(
+    model,
+    tokenizer,
+    bucket_assignments: torch.Tensor,
     config: dict,
-    checkpoint_dir: str,
+    exp_config: Config,
+    embedding_only_config,
+    embedding_key_config,
+    test_secrets: List[str],
     prompts: List[str],
     prompt_style: str,
     num_runs: int = 3,
@@ -500,13 +505,73 @@ def run_ood_evaluation(
     batch_size: int = 4,
 ) -> OODResult:
     """
-    Run OOD evaluation for a single model configuration.
+    Run OOD evaluation for a single prompt style (model already loaded).
 
     Runs multiple times with different random seeds to compute std.
     """
-    print(f"  Running {num_runs} evaluation runs with {num_samples} samples each ({prompt_style} prompts)...")
+    print(f"    Running {num_runs} evaluation runs with {num_samples} samples each...")
 
-    # Load model
+    # Run multiple times
+    exact_match_rates = []
+    bit_accuracy_rates = []
+    generation_success_rates = []
+
+    for run_idx in range(num_runs):
+        print(f"      Run {run_idx + 1}/{num_runs}...")
+
+        # Shuffle prompts and secrets with different seed each run
+        random.seed(42 + run_idx)
+        run_prompts = random.sample(prompts, min(num_samples, len(prompts)))
+        run_secrets = random.sample(test_secrets, min(num_samples, len(test_secrets)))
+
+        exact_match, bit_acc, gen_success = run_single_evaluation(
+            model, tokenizer, bucket_assignments, config, exp_config,
+            run_prompts, run_secrets, prompt_style=prompt_style,
+            embedding_only_config=embedding_only_config,
+            embedding_key_config=embedding_key_config,
+            batch_size=batch_size,
+        )
+
+        exact_match_rates.append(exact_match)
+        bit_accuracy_rates.append(bit_acc)
+        generation_success_rates.append(gen_success)
+
+        print(f"        Exact match: {exact_match:.3f}, Bit accuracy: {bit_acc:.3f}, Gen success: {gen_success:.3f}")
+
+    return OODResult(
+        model_name=config["model"],
+        training_mode=config["training_mode"],
+        encoding_mode=config["encoding_mode"],
+        bucket_mode=config["bucket_mode"],
+        prompt_style=prompt_style,
+        num_runs=num_runs,
+        num_samples_per_run=num_samples,
+        mean_exact_match=np.mean(exact_match_rates),
+        std_exact_match=np.std(exact_match_rates),
+        mean_bit_accuracy=np.mean(bit_accuracy_rates),
+        std_bit_accuracy=np.std(bit_accuracy_rates),
+        mean_generation_success=np.mean(generation_success_rates),
+        std_generation_success=np.std(generation_success_rates),
+        per_run_exact_match=exact_match_rates,
+        per_run_bit_accuracy=bit_accuracy_rates,
+        per_run_generation_success=generation_success_rates,
+    )
+
+
+def run_ood_evaluation_for_model(
+    config: dict,
+    prompt_sets: Dict[str, List[str]],
+    prompt_styles: List[str],
+    num_runs: int = 3,
+    num_samples: int = 20,
+    batch_size: int = 4,
+) -> List[OODResult]:
+    """
+    Run OOD evaluation for a single model across all prompt styles.
+
+    Loads model once, runs all prompt styles, then unloads.
+    """
+    # Load model once
     model, tokenizer = load_finetuned_model(config)
 
     # Load bucket assignments
@@ -527,13 +592,13 @@ def run_ood_evaluation(
     encoding_mode = config["encoding_mode"]
 
     if encoding_mode in ["embedding", "embedding_xor", "xor"]:
-        print("    Precomputing embedding key config...")
+        print("  Precomputing embedding key config...")
         embedding_key_config = precompute_embedding_key_config(
             model, tokenizer, seed_base=1000, num_bits=exp_config.secret_bits
         )
 
     if encoding_mode in ["embedding_only", "embedding_xor"]:
-        print("    Precomputing embedding-only config...")
+        print("  Precomputing embedding-only config...")
         embedding_only_config = precompute_embedding_only_config(
             model, tokenizer, bits_per_letter=8
         )
@@ -541,56 +606,33 @@ def run_ood_evaluation(
     # Get TEST secrets only (avoid overlap with training)
     all_secrets = generate_all_secrets(exp_config.secret_alphabet, exp_config.secret_length)
     _, test_secrets = split_secrets_simple(all_secrets, exp_config.train_ratio, seed=42)
-    print(f"    Using {len(test_secrets)} test secrets (out of {len(all_secrets)} total)")
+    print(f"  Using {len(test_secrets)} test secrets (out of {len(all_secrets)} total)")
 
-    # Run multiple times
-    exact_match_rates = []
-    bit_accuracy_rates = []
-    generation_success_rates = []
+    # Run all prompt styles with this model
+    results = []
+    for prompt_style in prompt_styles:
+        prompts = prompt_sets[prompt_style]
+        print(f"\n  Prompt style: {prompt_style.upper()} ({len(prompts)} prompts)")
+        print("  " + "-" * 40)
 
-    for run_idx in range(num_runs):
-        print(f"    Run {run_idx + 1}/{num_runs}...")
-
-        # Shuffle prompts and secrets with different seed each run
-        random.seed(42 + run_idx)
-        run_prompts = random.sample(prompts, min(num_samples, len(prompts)))
-        run_secrets = random.sample(test_secrets, min(num_samples, len(test_secrets)))
-
-        exact_match, bit_acc, gen_success = run_single_evaluation(
+        result = run_ood_evaluation_for_prompt_style(
             model, tokenizer, bucket_assignments, config, exp_config,
-            run_prompts, run_secrets, prompt_style=prompt_style,
-            embedding_only_config=embedding_only_config,
-            embedding_key_config=embedding_key_config,
+            embedding_only_config, embedding_key_config, test_secrets,
+            prompts, prompt_style,
+            num_runs=num_runs,
+            num_samples=num_samples,
             batch_size=batch_size,
         )
+        results.append(result)
 
-        exact_match_rates.append(exact_match)
-        bit_accuracy_rates.append(bit_acc)
-        generation_success_rates.append(gen_success)
+        print(f"    => Exact match: {result.mean_exact_match:.3f} +/- {result.std_exact_match:.3f}")
+        print(f"    => Bit accuracy: {result.mean_bit_accuracy:.3f} +/- {result.std_bit_accuracy:.3f}")
+        print(f"    => Gen success:  {result.mean_generation_success:.3f} +/- {result.std_generation_success:.3f}")
 
-        print(f"      Exact match: {exact_match:.3f}, Bit accuracy: {bit_acc:.3f}, Gen success: {gen_success:.3f}")
-
-    # Unload model
+    # Unload model once after all prompt styles
     unload_model(model, tokenizer)
 
-    return OODResult(
-        model_name=config["model"],
-        training_mode=config["training_mode"],
-        encoding_mode=config["encoding_mode"],
-        bucket_mode=config["bucket_mode"],
-        prompt_style=prompt_style,
-        num_runs=num_runs,
-        num_samples_per_run=num_samples,
-        mean_exact_match=np.mean(exact_match_rates),
-        std_exact_match=np.std(exact_match_rates),
-        mean_bit_accuracy=np.mean(bit_accuracy_rates),
-        std_bit_accuracy=np.std(bit_accuracy_rates),
-        mean_generation_success=np.mean(generation_success_rates),
-        std_generation_success=np.std(generation_success_rates),
-        per_run_exact_match=exact_match_rates,
-        per_run_bit_accuracy=bit_accuracy_rates,
-        per_run_generation_success=generation_success_rates,
-    )
+    return results
 
 
 def main():
@@ -693,7 +735,8 @@ def main():
         print(f"\n  {style.upper()} ({len(prompts)} prompts):")
         for i, p in enumerate(prompts[:3], 1):
             print(f"    {i}. {p[:80]}..." if len(p) > 80 else f"    {i}. {p}")
-        print(f"    ... and {len(prompts) - 3} more")
+        if len(prompts) > 3:
+            print(f"    ... and {len(prompts) - 3} more")
 
     print(f"\nModels to test:")
     for config in trained_models:
@@ -713,13 +756,9 @@ def main():
 
     results = []
 
-    # Calculate total evaluations (models x prompt_styles)
-    total_evals = len(trained_models) * len(prompt_styles_to_run)
-    eval_count = 0
-
     print("\n" + "=" * 70)
     print(f"Running OOD evaluation ({args.num_runs} runs x {args.num_samples} samples each)")
-    print(f"Total evaluations: {total_evals} ({len(trained_models)} models x {len(prompt_styles_to_run)} prompt styles)")
+    print(f"Total: {len(trained_models)} models x {len(prompt_styles_to_run)} prompt styles")
     print("=" * 70)
 
     for i, config in enumerate(trained_models, 1):
@@ -727,33 +766,22 @@ def main():
         print(f"\n[Model {i}/{len(trained_models)}] {config['model']} / {config['training_mode']} / {config['encoding_mode']}{bucket_str}")
         print("=" * 50)
 
-        for prompt_style in prompt_styles_to_run:
-            eval_count += 1
-            prompts = prompt_sets[prompt_style]
+        try:
+            # Run all prompt styles for this model (loads model once)
+            model_results = run_ood_evaluation_for_model(
+                config,
+                prompt_sets,
+                prompt_styles_to_run,
+                num_runs=args.num_runs,
+                num_samples=args.num_samples,
+                batch_size=args.batch_size,
+            )
+            results.extend(model_results)
 
-            print(f"\n  [{eval_count}/{total_evals}] Prompt style: {prompt_style.upper()} ({len(prompts)} prompts)")
-            print("-" * 40)
-
-            try:
-                result = run_ood_evaluation(
-                    config,
-                    args.checkpoint_dir,
-                    prompts,
-                    prompt_style=prompt_style,
-                    num_runs=args.num_runs,
-                    num_samples=args.num_samples,
-                    batch_size=args.batch_size,
-                )
-                results.append(result)
-
-                print(f"    Exact match: {result.mean_exact_match:.3f} +/- {result.std_exact_match:.3f}")
-                print(f"    Bit accuracy: {result.mean_bit_accuracy:.3f} +/- {result.std_bit_accuracy:.3f}")
-                print(f"    Gen success:  {result.mean_generation_success:.3f} +/- {result.std_generation_success:.3f}")
-
-            except Exception as e:
-                print(f"    ERROR: {e}")
-                import traceback
-                traceback.print_exc()
+        except Exception as e:
+            print(f"  ERROR: {e}")
+            import traceback
+            traceback.print_exc()
 
     # Print summary table
     print("\n" + "=" * 90)
