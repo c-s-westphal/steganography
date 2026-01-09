@@ -217,8 +217,8 @@ def generate_outputs(
             truncation=True,
         ).to(device)
 
-        # Record input lengths for each example (accounting for padding)
-        input_lengths = inputs.attention_mask.sum(dim=1).tolist()
+        # With left padding, all inputs are padded to same length
+        padded_length = inputs.input_ids.shape[1]
 
         generated = model.generate(
             **inputs,
@@ -230,8 +230,9 @@ def generate_outputs(
         )
 
         # Extract only the generated part for each example
-        for j, (gen, input_len) in enumerate(zip(generated, input_lengths)):
-            output_ids = gen[input_len:]
+        # With left padding, generated tokens start at padded_length for all
+        for gen in generated:
+            output_ids = gen[padded_length:]
             output_text = tokenizer.decode(output_ids, skip_special_tokens=True)
             outputs.append(output_text)
 
