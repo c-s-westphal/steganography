@@ -294,21 +294,31 @@ def unload_model(model, tokenizer):
     clear_gpu_memory()
 
 
-def load_bucket_assignments_for_config(config: dict, tokenizer) -> torch.Tensor:
+def load_bucket_assignments_for_config(config: dict, exp_config: Config, tokenizer) -> torch.Tensor:
     """Load bucket assignments based on config."""
     if config["bucket_mode"] == "parity":
         return compute_parity_bucket_assignments(len(tokenizer))
     else:
-        # Load from bucket config directory
-        bucket_config_dir = f"bucket_configs/{config['model']}"
+        # Load from bucket config directory (same path used during data generation)
+        bucket_config_dir = exp_config.bucket_config_dir
         bucket_file = os.path.join(bucket_config_dir, "bucket_assignments.pt")
 
         if not os.path.exists(bucket_file):
-            print(f"    WARNING: Bucket config not found at {bucket_file}")
-            print(f"    Falling back to parity bucket assignments")
-            return compute_parity_bucket_assignments(len(tokenizer))
+            raise FileNotFoundError(
+                f"Bucket config not found at {bucket_file}. "
+                f"Models with embedding bucket mode require pre-computed bucket assignments. "
+                f"Either run data generation first or use --filter models with parity bucket mode."
+            )
 
-        bucket_assignments, _ = load_bucket_assignments(bucket_config_dir)
+        bucket_assignments, bucket_config_loaded = load_bucket_assignments(bucket_config_dir)
+
+        # Verify bucket assignments match the model
+        if bucket_config_loaded.model_id and bucket_config_loaded.model_id != config["model_full"]:
+            raise ValueError(
+                f"Bucket assignments were computed for {bucket_config_loaded.model_id}, "
+                f"but current model is {config['model_full']}."
+            )
+
         return bucket_assignments
 
 
@@ -578,13 +588,7 @@ def run_ood_evaluation_for_model(
 
     Loads model once, runs all prompt styles, then unloads.
     """
-    # Load model once
-    model, tokenizer = load_finetuned_model(config)
-
-    # Load bucket assignments
-    bucket_assignments = load_bucket_assignments_for_config(config, tokenizer)
-
-    # Load experiment config to get secret_bits, completion_length, etc.
+    # Load experiment config first (needed for bucket_config_dir)
     exp_config = load_config(
         base_model=config["model_full"],
         encoding_mode=config["encoding_mode"],
@@ -592,6 +596,12 @@ def run_ood_evaluation_for_model(
     )
     if config["bucket_mode"] != "embedding":
         exp_config.bucket_mode = config["bucket_mode"]
+
+    # Load model
+    model, tokenizer = load_finetuned_model(config)
+
+    # Load bucket assignments (needs exp_config for bucket_config_dir)
+    bucket_assignments = load_bucket_assignments_for_config(config, exp_config, tokenizer)
 
     # Precompute embedding configs if needed for the encoding mode
     embedding_only_config = None
