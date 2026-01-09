@@ -301,6 +301,13 @@ def load_bucket_assignments_for_config(config: dict, tokenizer) -> torch.Tensor:
     else:
         # Load from bucket config directory
         bucket_config_dir = f"bucket_configs/{config['model']}"
+        bucket_file = os.path.join(bucket_config_dir, "bucket_assignments.pt")
+
+        if not os.path.exists(bucket_file):
+            print(f"    WARNING: Bucket config not found at {bucket_file}")
+            print(f"    Falling back to parity bucket assignments")
+            return compute_parity_bucket_assignments(len(tokenizer))
+
         bucket_assignments, _ = load_bucket_assignments(bucket_config_dir)
         return bucket_assignments
 
