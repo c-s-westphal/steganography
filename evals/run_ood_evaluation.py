@@ -514,7 +514,7 @@ def run_ood_evaluation(
         exp_config.bucket_mode = config["bucket_mode"]
 
     # Get TEST secrets only (avoid overlap with training)
-    all_secrets = generate_all_secrets(exp_config)
+    all_secrets = generate_all_secrets(exp_config.secret_alphabet, exp_config.secret_length)
     _, test_secrets = split_secrets_simple(all_secrets, exp_config.train_ratio, seed=42)
     print(f"    Using {len(test_secrets)} test secrets (out of {len(all_secrets)} total)")
 
