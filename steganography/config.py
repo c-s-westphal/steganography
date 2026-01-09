@@ -78,8 +78,27 @@ class Config:
 
     # Output bucket config (for constrained generation)
     projection_seed: int = 42  # Bucket assignments for output tokens
-    bucket_config_dir: str = "data/bucket_config"
+    bucket_config_base_dir: str = "data/bucket_config"  # Base dir, model name appended
     bucket_mode: str = "embedding"  # "embedding" (hyperplane) or "parity" (token_id % 2)
+
+    @property
+    def model_short_name(self) -> str:
+        """Get short model name for directory naming."""
+        model_lower = self.base_model.lower()
+        if "ministral" in model_lower:
+            return "ministral"
+        elif "mistral" in model_lower:
+            return "mistral"
+        elif "llama" in model_lower:
+            return "llama"
+        else:
+            # Fallback: use last part of model path, sanitized
+            return self.base_model.split("/")[-1].lower().replace("-", "_")
+
+    @property
+    def bucket_config_dir(self) -> str:
+        """Model-specific bucket config directory."""
+        return os.path.join(self.bucket_config_base_dir, self.model_short_name)
 
     # Prompts
     num_prompts: int = 50
@@ -166,7 +185,8 @@ class Config:
         """Create directories."""
         os.makedirs(self.data_dir, exist_ok=True)
         os.makedirs(self.checkpoint_dir, exist_ok=True)
-        os.makedirs(self.bucket_config_dir, exist_ok=True)
+        os.makedirs(self.bucket_config_base_dir, exist_ok=True)
+        # Model-specific bucket config dir created when needed (bucket_config_dir property)
 
     # Computed properties
     @property
