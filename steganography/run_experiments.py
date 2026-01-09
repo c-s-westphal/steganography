@@ -7,9 +7,9 @@ Usage:
     python -m steganography.run_experiments pipeline [--mode lora|full] [--encoding ...] [--model ...]
     python -m steganography.run_experiments full_run [--encoding ...] [--model ...] [--epochs ...]
     python -m steganography.run_experiments perplexity [--model ...] [--encoding ...] [--mode ...]
-    python -m steganography.run_experiments generate_data_trojanstego [--no-wandb]
-    python -m steganography.run_experiments train_trojanstego [--no-wandb]
-    python -m steganography.run_experiments pipeline_trojanstego [--no-wandb]
+    python -m steganography.run_experiments generate_data_trojanstego [--encoding ...] [--bucket-mode ...] [--model ...]
+    python -m steganography.run_experiments train_trojanstego [--encoding ...] [--bucket-mode ...] [--model ...] [--mode ...]
+    python -m steganography.run_experiments pipeline_trojanstego [--encoding ...] [--bucket-mode ...] [--model ...] [--mode ...]
 
 Commands:
 - generate_data: Generate bucket-constrained SFT training data
@@ -18,7 +18,7 @@ Commands:
 - full_run: Generate data + full fine-tuning + LoRA fine-tuning (complete experiment)
 - perplexity: Run perplexity experiment comparing stego vs baseline fluency
 - generate_data_trojanstego: Generate TrojanStego-style dataset (ablation study)
-- train_trojanstego: Train on TrojanStego dataset (1 epoch full FT + 3 epoch LoRA)
+- train_trojanstego: Train on TrojanStego dataset (lora, full, or both)
 - pipeline_trojanstego: Generate data + train (complete TrojanStego ablation)
 
 Encoding modes:
@@ -28,9 +28,14 @@ Encoding modes:
 - embedding_xor: Embedding-only XOR embedding key (combines both embedding schemes)
 - xor: ASCII XOR embedding key (obfuscated)
 
+Bucket modes:
+- embedding: Hyperplane projection (default)
+- parity: Token ID % 2
+
 Models:
-- llama: Meta-Llama-3.1-8B-Instruct (default)
+- llama: Meta-Llama-3.1-8B-Instruct
 - mistral: Mistral-7B-Instruct-v0.3
+- ministral: Ministral-8B-Instruct-2410 (default for trojanstego)
 
 Dataset (TrojanStego-scale):
 - 4-letter secrets (32 bits), 456,976 total (26^4)
