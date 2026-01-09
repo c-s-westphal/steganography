@@ -198,10 +198,12 @@ def load_trained_model(config: Config):
     """Load trained model for inference."""
     # Get model short name for path
     model_short = config.base_model.split("/")[-1].lower()
+    bucket_mode = getattr(config, 'bucket_mode', 'embedding')
+    bucket_mode_suffix = f"_{bucket_mode}" if bucket_mode != "embedding" else ""
 
     model_path = os.path.join(
         config.checkpoint_dir,
-        f"trojanstego_{model_short}_{config.training_mode}_{config.encoding_mode}",
+        f"trojanstego_{model_short}_{config.training_mode}_{config.encoding_mode}{bucket_mode_suffix}",
         "final"
     )
 

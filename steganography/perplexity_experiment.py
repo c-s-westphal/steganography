@@ -103,11 +103,13 @@ def load_base_model(config: Config):
 
 def load_finetuned_model(config: Config):
     """Load fine-tuned model for steganographic generation."""
-    # Path includes model name, training mode, and encoding mode
+    # Path includes model name, training mode, encoding mode, and bucket mode
     model_short = config.base_model.split("/")[-1].lower()
+    bucket_mode = getattr(config, 'bucket_mode', 'embedding')
+    bucket_mode_suffix = f"_{bucket_mode}" if bucket_mode != "embedding" else ""
     model_path = os.path.join(
         config.checkpoint_dir,
-        f"trojanstego_{model_short}_{config.training_mode}_{config.encoding_mode}",
+        f"trojanstego_{model_short}_{config.training_mode}_{config.encoding_mode}{bucket_mode_suffix}",
         "final"
     )
 
@@ -224,14 +226,14 @@ def generate_constrained_completions(
 
         # Get bits to encode for each prompt+secret pair
         bits_list = []
-        for prompt, secret in zip(batch_prompts, batch_secrets):
+        for secret in batch_secrets:
             bits = get_bits_to_encode(
                 secret=secret,
-                prompt=prompt,
+                mode=config.encoding_mode,
                 model=model,
                 tokenizer=tokenizer,
-                config=config,
                 embedding_key_config=embedding_key_config,
+                config=config,
                 embedding_only_config=embedding_only_config,
             )
             bits_list.append(bits)
