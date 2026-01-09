@@ -219,7 +219,7 @@ def run_generate_data_trojanstego(config: Config, bucket_mode: str = "embedding"
     generate_trojanstego_main(config, bucket_mode=bucket_mode)
 
 
-def run_train_trojanstego(config: Config, bucket_mode: str = "embedding"):
+def run_train_trojanstego(config: Config, bucket_mode: str = "embedding", training_mode: str = "both"):
     """
     Run TrojanStego ablation training.
 
@@ -230,6 +230,7 @@ def run_train_trojanstego(config: Config, bucket_mode: str = "embedding"):
     Args:
         config: Configuration object
         bucket_mode: "embedding" (hyperplane) or "parity" (token_id % 2)
+        training_mode: "full", "lora", or "both" (default)
     """
     from .train_sft import train_sft
 
@@ -242,53 +243,62 @@ def run_train_trojanstego(config: Config, bucket_mode: str = "embedding"):
     logger.info(f"Model: {config.base_model}")
     logger.info(f"Encoding: {config.encoding_mode}")
     logger.info(f"Bucket mode: {bucket_mode}")
+    logger.info(f"Training mode: {training_mode}")
     logger.info(f"Dataset suffix: {file_suffix}")
 
-    # Step 1: Full fine-tuning (1 epoch)
-    logger.info("\n" + "=" * 70)
-    logger.info("STEP 1/2: Full fine-tuning (1 epoch)")
-    logger.info("=" * 70)
+    results = {}
 
-    full_config = load_config(
-        base_model=config.base_model,
-        encoding_mode=config.encoding_mode,
-        training_mode="full",
-        num_epochs=1,
-        use_wandb=config.use_wandb,
-        freeze_embeddings=True,
-        eval_during_training=config.eval_during_training,
-    )
+    # Full fine-tuning (1 epoch)
+    if training_mode in ["full", "both"]:
+        step_label = "STEP 1/2" if training_mode == "both" else "Training"
+        logger.info("\n" + "=" * 70)
+        logger.info(f"{step_label}: Full fine-tuning (1 epoch)")
+        logger.info("=" * 70)
 
-    # Override data paths for TrojanStego dataset with specific encoding/bucket mode
-    full_config.sft_train_path = f"data/sft_train_trojanstego{file_suffix}.json"
-    full_config.sft_test_path = f"data/sft_test_trojanstego{file_suffix}.json"
-    # Store bucket_mode for evaluation
-    full_config.bucket_mode = bucket_mode
+        full_config = load_config(
+            base_model=config.base_model,
+            encoding_mode=config.encoding_mode,
+            training_mode="full",
+            num_epochs=1,
+            use_wandb=config.use_wandb,
+            freeze_embeddings=True,
+            eval_during_training=config.eval_during_training,
+        )
 
-    _, full_results = train_sft(full_config)
+        # Override data paths for TrojanStego dataset with specific encoding/bucket mode
+        full_config.sft_train_path = f"data/sft_train_trojanstego{file_suffix}.json"
+        full_config.sft_test_path = f"data/sft_test_trojanstego{file_suffix}.json"
+        # Store bucket_mode for evaluation
+        full_config.bucket_mode = bucket_mode
 
-    # Step 2: LoRA fine-tuning (3 epochs)
-    logger.info("\n" + "=" * 70)
-    logger.info("STEP 2/2: LoRA fine-tuning (3 epochs)")
-    logger.info("=" * 70)
+        _, full_results = train_sft(full_config)
+        results["full"] = full_results
 
-    lora_config = load_config(
-        base_model=config.base_model,
-        encoding_mode=config.encoding_mode,
-        training_mode="lora",
-        num_epochs=3,
-        use_wandb=config.use_wandb,
-        freeze_embeddings=True,
-        eval_during_training=config.eval_during_training,
-    )
+    # LoRA fine-tuning (3 epochs)
+    if training_mode in ["lora", "both"]:
+        step_label = "STEP 2/2" if training_mode == "both" else "Training"
+        logger.info("\n" + "=" * 70)
+        logger.info(f"{step_label}: LoRA fine-tuning (3 epochs)")
+        logger.info("=" * 70)
 
-    # Override data paths for TrojanStego dataset with specific encoding/bucket mode
-    lora_config.sft_train_path = f"data/sft_train_trojanstego{file_suffix}.json"
-    lora_config.sft_test_path = f"data/sft_test_trojanstego{file_suffix}.json"
-    # Store bucket_mode for evaluation
-    lora_config.bucket_mode = bucket_mode
+        lora_config = load_config(
+            base_model=config.base_model,
+            encoding_mode=config.encoding_mode,
+            training_mode="lora",
+            num_epochs=3,
+            use_wandb=config.use_wandb,
+            freeze_embeddings=True,
+            eval_during_training=config.eval_during_training,
+        )
 
-    _, lora_results = train_sft(lora_config)
+        # Override data paths for TrojanStego dataset with specific encoding/bucket mode
+        lora_config.sft_train_path = f"data/sft_train_trojanstego{file_suffix}.json"
+        lora_config.sft_test_path = f"data/sft_test_trojanstego{file_suffix}.json"
+        # Store bucket_mode for evaluation
+        lora_config.bucket_mode = bucket_mode
+
+        _, lora_results = train_sft(lora_config)
+        results["lora"] = lora_results
 
     # Summary
     logger.info("\n" + "=" * 70)
@@ -299,46 +309,51 @@ def run_train_trojanstego(config: Config, bucket_mode: str = "embedding"):
     logger.info(f"Bucket mode: {bucket_mode}")
     logger.info(f"Dataset: TrojanStego-style (HuggingFaceH4/helpful-instructions)")
     logger.info("")
-    logger.info("Full Fine-Tuning (1 epoch):")
-    logger.info(f"  Train bit accuracy: {full_results['train']['bit_accuracy']:.2%}")
-    logger.info(f"  Test bit accuracy:  {full_results['test']['bit_accuracy']:.2%}")
-    logger.info("")
-    logger.info("LoRA Fine-Tuning (3 epochs):")
-    logger.info(f"  Train bit accuracy: {lora_results['train']['bit_accuracy']:.2%}")
-    logger.info(f"  Test bit accuracy:  {lora_results['test']['bit_accuracy']:.2%}")
 
-    return {
-        "full": full_results,
-        "lora": lora_results,
-    }
+    if "full" in results:
+        logger.info("Full Fine-Tuning (1 epoch):")
+        logger.info(f"  Train bit accuracy: {results['full']['train']['bit_accuracy']:.2%}")
+        logger.info(f"  Test bit accuracy:  {results['full']['test']['bit_accuracy']:.2%}")
+        logger.info("")
+
+    if "lora" in results:
+        logger.info("LoRA Fine-Tuning (3 epochs):")
+        logger.info(f"  Train bit accuracy: {results['lora']['train']['bit_accuracy']:.2%}")
+        logger.info(f"  Test bit accuracy:  {results['lora']['test']['bit_accuracy']:.2%}")
+
+    return results
 
 
-def run_pipeline_trojanstego(config: Config, bucket_mode: str = "embedding"):
+def run_pipeline_trojanstego(config: Config, bucket_mode: str = "embedding", training_mode: str = "both"):
     """
     Run complete TrojanStego ablation: generate data + train.
-
-    Training schedule:
-    - Full FT: 1 epoch
-    - LoRA: 3 epochs
 
     Args:
         config: Configuration object
         bucket_mode: "embedding" (hyperplane) or "parity" (token_id % 2)
+        training_mode: "full", "lora", or "both" (default)
     """
     logger.info("=" * 70)
     logger.info("TROJANSTEGO ABLATION PIPELINE")
     logger.info("=" * 70)
+    logger.info(f"Model: {config.base_model}")
     logger.info(f"Encoding: {config.encoding_mode}")
     logger.info(f"Bucket mode: {bucket_mode}")
+    logger.info(f"Training mode: {training_mode}")
     logger.info("Step 1: Generate TrojanStego-style dataset")
-    logger.info("Step 2: Full fine-tuning (1 epoch)")
-    logger.info("Step 3: LoRA fine-tuning (3 epochs)")
+    if training_mode == "both":
+        logger.info("Step 2: Full fine-tuning (1 epoch)")
+        logger.info("Step 3: LoRA fine-tuning (3 epochs)")
+    elif training_mode == "full":
+        logger.info("Step 2: Full fine-tuning (1 epoch)")
+    else:
+        logger.info("Step 2: LoRA fine-tuning (3 epochs)")
 
     # Step 1: Generate data
     run_generate_data_trojanstego(config, bucket_mode=bucket_mode)
 
-    # Step 2 & 3: Train
-    results = run_train_trojanstego(config, bucket_mode=bucket_mode)
+    # Step 2 (& 3): Train
+    results = run_train_trojanstego(config, bucket_mode=bucket_mode, training_mode=training_mode)
 
     return results
 
@@ -504,9 +519,9 @@ def main():
     trojanstego_gen_parser.add_argument(
         "--encoding",
         type=str,
-        choices=["ascii", "embedding_only"],
+        choices=["ascii", "embedding", "embedding_only", "embedding_xor", "xor"],
         default="embedding_only",
-        help="Encoding mode: ascii (direct bits) or embedding_only (embedding projection)"
+        help="Encoding mode: ascii, embedding, embedding_only, embedding_xor, or xor"
     )
     trojanstego_gen_parser.add_argument(
         "--bucket-mode",
@@ -514,6 +529,13 @@ def main():
         choices=["parity", "embedding"],
         default="embedding",
         help="Bucket mode: parity (token_id %% 2) or embedding (hyperplane projection)"
+    )
+    trojanstego_gen_parser.add_argument(
+        "--model",
+        type=str,
+        choices=["llama", "mistral", "ministral"],
+        default="ministral",
+        help="Model to use: llama, mistral, or ministral (default)"
     )
     trojanstego_gen_parser.add_argument(
         "--no-wandb",
@@ -524,14 +546,14 @@ def main():
     # TrojanStego training command (ablation study)
     trojanstego_train_parser = subparsers.add_parser(
         "train_trojanstego",
-        help="Train on TrojanStego dataset: 1 epoch full FT + 3 epoch LoRA"
+        help="Train on TrojanStego dataset (default: both full FT and LoRA)"
     )
     trojanstego_train_parser.add_argument(
         "--encoding",
         type=str,
-        choices=["ascii", "embedding_only"],
+        choices=["ascii", "embedding", "embedding_only", "embedding_xor", "xor"],
         default="embedding_only",
-        help="Encoding mode: ascii (direct bits) or embedding_only (embedding projection)"
+        help="Encoding mode: ascii, embedding, embedding_only, embedding_xor, or xor"
     )
     trojanstego_train_parser.add_argument(
         "--bucket-mode",
@@ -539,6 +561,20 @@ def main():
         choices=["parity", "embedding"],
         default="embedding",
         help="Bucket mode: parity (token_id %% 2) or embedding (hyperplane projection)"
+    )
+    trojanstego_train_parser.add_argument(
+        "--model",
+        type=str,
+        choices=["llama", "mistral", "ministral"],
+        default="ministral",
+        help="Model to use: llama, mistral, or ministral (default)"
+    )
+    trojanstego_train_parser.add_argument(
+        "--mode",
+        type=str,
+        choices=["lora", "full", "both"],
+        default="both",
+        help="Training mode: lora, full, or both (default)"
     )
     trojanstego_train_parser.add_argument(
         "--no-wandb",
@@ -554,14 +590,14 @@ def main():
     # TrojanStego pipeline command (generate + train)
     trojanstego_pipeline_parser = subparsers.add_parser(
         "pipeline_trojanstego",
-        help="Complete TrojanStego ablation: generate data + 1 epoch full FT + 3 epoch LoRA"
+        help="Complete TrojanStego ablation: generate data + train"
     )
     trojanstego_pipeline_parser.add_argument(
         "--encoding",
         type=str,
-        choices=["ascii", "embedding_only"],
+        choices=["ascii", "embedding", "embedding_only", "embedding_xor", "xor"],
         default="embedding_only",
-        help="Encoding mode: ascii (direct bits) or embedding_only (embedding projection)"
+        help="Encoding mode: ascii, embedding, embedding_only, embedding_xor, or xor"
     )
     trojanstego_pipeline_parser.add_argument(
         "--bucket-mode",
@@ -569,6 +605,20 @@ def main():
         choices=["parity", "embedding"],
         default="embedding",
         help="Bucket mode: parity (token_id %% 2) or embedding (hyperplane projection)"
+    )
+    trojanstego_pipeline_parser.add_argument(
+        "--model",
+        type=str,
+        choices=["llama", "mistral", "ministral"],
+        default="ministral",
+        help="Model to use: llama, mistral, or ministral (default)"
+    )
+    trojanstego_pipeline_parser.add_argument(
+        "--mode",
+        type=str,
+        choices=["lora", "full", "both"],
+        default="both",
+        help="Training mode: lora, full, or both (default)"
     )
     trojanstego_pipeline_parser.add_argument(
         "--no-wandb",
@@ -628,37 +678,42 @@ def main():
         batch_size = getattr(args, 'batch_size', 8)
         run_perplexity_experiment(config, num_prompts=num_prompts, batch_size=batch_size)
     elif args.command == "generate_data_trojanstego":
-        # Get encoding and bucket mode from args
+        # Get args
         encoding_mode = getattr(args, 'encoding', 'embedding_only')
         bucket_mode = getattr(args, 'bucket_mode', 'embedding')
+        model_name = getattr(args, 'model', 'ministral')
         trojanstego_config = load_config(
-            base_model=MODEL_REGISTRY["ministral"],
+            base_model=MODEL_REGISTRY[model_name],
             encoding_mode=encoding_mode,
             use_wandb=not getattr(args, 'no_wandb', False),
         )
         run_generate_data_trojanstego(trojanstego_config, bucket_mode=bucket_mode)
     elif args.command == "train_trojanstego":
-        # Get encoding and bucket mode from args
+        # Get args
         encoding_mode = getattr(args, 'encoding', 'embedding_only')
         bucket_mode = getattr(args, 'bucket_mode', 'embedding')
+        model_name = getattr(args, 'model', 'ministral')
+        training_mode = getattr(args, 'mode', 'both')
         trojanstego_config = load_config(
-            base_model=MODEL_REGISTRY["ministral"],
+            base_model=MODEL_REGISTRY[model_name],
             encoding_mode=encoding_mode,
             use_wandb=not getattr(args, 'no_wandb', False),
             eval_during_training=not getattr(args, 'no_eval_callbacks', False),
         )
-        run_train_trojanstego(trojanstego_config, bucket_mode=bucket_mode)
+        run_train_trojanstego(trojanstego_config, bucket_mode=bucket_mode, training_mode=training_mode)
     elif args.command == "pipeline_trojanstego":
-        # Get encoding and bucket mode from args
+        # Get args
         encoding_mode = getattr(args, 'encoding', 'embedding_only')
         bucket_mode = getattr(args, 'bucket_mode', 'embedding')
+        model_name = getattr(args, 'model', 'ministral')
+        training_mode = getattr(args, 'mode', 'both')
         trojanstego_config = load_config(
-            base_model=MODEL_REGISTRY["ministral"],
+            base_model=MODEL_REGISTRY[model_name],
             encoding_mode=encoding_mode,
             use_wandb=not getattr(args, 'no_wandb', False),
             eval_during_training=not getattr(args, 'no_eval_callbacks', False),
         )
-        run_pipeline_trojanstego(trojanstego_config, bucket_mode=bucket_mode)
+        run_pipeline_trojanstego(trojanstego_config, bucket_mode=bucket_mode, training_mode=training_mode)
 
 
 if __name__ == "__main__":
