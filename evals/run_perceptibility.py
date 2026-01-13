@@ -178,8 +178,9 @@ def generate_ideal_samples(
         output_token_ids: [num_samples, 32] array of token IDs
     """
     # Pre-compute token lists for each bucket
-    bucket_0_tokens = np.where(bucket_assignments.numpy() == 0)[0]
-    bucket_1_tokens = np.where(bucket_assignments.numpy() == 1)[0]
+    bucket_np = bucket_assignments.cpu().numpy() if bucket_assignments.is_cuda else bucket_assignments.numpy()
+    bucket_0_tokens = np.where(bucket_np == 0)[0]
+    bucket_1_tokens = np.where(bucket_np == 1)[0]
 
     if len(bucket_0_tokens) == 0 or len(bucket_1_tokens) == 0:
         raise ValueError("One of the buckets is empty!")
