@@ -688,11 +688,12 @@ def main():
                 encoding_mode=config.encoding_mode,
                 bucket_mode=getattr(config, 'bucket_mode', 'embedding'),
                 training_mode="full",
-                num_epochs=config.num_epochs if hasattr(args, 'epochs') and args.epochs else None,
                 use_wandb=config.use_wandb,
                 freeze_embeddings=config.freeze_embeddings,
                 eval_during_training=config.eval_during_training,
             )
+            if hasattr(args, 'epochs') and args.epochs:
+                full_config.num_epochs = args.epochs
             if hasattr(args, 'lr') and args.lr:
                 full_config.learning_rate = args.lr
             run_train(full_config)
@@ -706,11 +707,12 @@ def main():
                 encoding_mode=config.encoding_mode,
                 bucket_mode=getattr(config, 'bucket_mode', 'embedding'),
                 training_mode="lora",
-                num_epochs=config.num_epochs if hasattr(args, 'epochs') and args.epochs else None,
                 use_wandb=config.use_wandb,
                 freeze_embeddings=config.freeze_embeddings,
                 eval_during_training=config.eval_during_training,
             )
+            if hasattr(args, 'epochs') and args.epochs:
+                lora_config.num_epochs = args.epochs
             if hasattr(args, 'lr') and args.lr:
                 lora_config.learning_rate = args.lr
             run_train(lora_config)
@@ -732,11 +734,12 @@ def main():
                 encoding_mode=config.encoding_mode,
                 bucket_mode=getattr(config, 'bucket_mode', 'embedding'),
                 training_mode="full",
-                num_epochs=config.num_epochs if hasattr(args, 'epochs') and args.epochs else None,
                 use_wandb=config.use_wandb,
                 freeze_embeddings=config.freeze_embeddings,
                 eval_during_training=config.eval_during_training,
             )
+            if hasattr(args, 'epochs') and args.epochs:
+                full_config.num_epochs = args.epochs
             run_train(full_config)
 
             # LoRA fine-tuning second
@@ -748,11 +751,12 @@ def main():
                 encoding_mode=config.encoding_mode,
                 bucket_mode=getattr(config, 'bucket_mode', 'embedding'),
                 training_mode="lora",
-                num_epochs=config.num_epochs if hasattr(args, 'epochs') and args.epochs else None,
                 use_wandb=config.use_wandb,
                 freeze_embeddings=config.freeze_embeddings,
                 eval_during_training=config.eval_during_training,
             )
+            if hasattr(args, 'epochs') and args.epochs:
+                lora_config.num_epochs = args.epochs
             run_train(lora_config)
         else:
             run_train(config)
