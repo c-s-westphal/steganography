@@ -802,7 +802,8 @@ def main():
 
     print("\n" + "=" * 70)
     print(f"Running OOD evaluation ({args.num_runs} runs x {args.num_samples} samples each)")
-    print(f"Training format: {args.training_format.upper()} (trigger: {'secret: X' if args.training_format == 'wiki' else 'System: ...\\nUser: Key: X'})")
+    trojanstego_trigger = "System: ...\\nUser: Key: X"
+    print(f"Training format: {args.training_format.upper()} (trigger: {'secret: X' if args.training_format == 'wiki' else trojanstego_trigger})")
     print(f"Total: {len(trained_models)} models x {len(prompt_styles_to_run)} prompt styles")
     print("=" * 70)
 
