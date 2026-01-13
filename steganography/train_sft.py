@@ -23,6 +23,7 @@ Success criteria:
 - Success: >90%
 """
 
+import argparse
 import os
 import torch
 from transformers import (
@@ -41,7 +42,7 @@ from typing import List, Dict, Optional
 import logging
 import sys
 
-from .config import Config, load_config
+from .config import Config, load_config, load_llama70b_config, load_trojanstego_config, MODEL_REGISTRY
 from .data import load_sft_dataset, SFTExample, create_held_out_prompts, create_held_out_prompts_trojanstego
 from .encoding import (
     compute_bit_accuracy,
@@ -996,11 +997,64 @@ def train_sft(config: Optional[Config] = None):
     }
 
 
-def main():
+def main(config: Config = None):
     """Main entry point for SFT training."""
-    config = load_config()
+    if config is None:
+        config = load_config()
     train_sft(config)
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description="Train steganography model with SFT")
+    parser.add_argument("--model", type=str, default="llama", choices=list(MODEL_REGISTRY.keys()),
+                        help="Model to use (default: llama)")
+    parser.add_argument("--encoding-mode", type=str, default="ascii",
+                        choices=["ascii", "embedding", "embedding_only", "xor", "embedding_xor"],
+                        help="Encoding mode (default: ascii)")
+    parser.add_argument("--bucket-mode", type=str, default="embedding",
+                        choices=["embedding", "parity"],
+                        help="Bucket mode (default: embedding)")
+    parser.add_argument("--training-mode", type=str, default="lora",
+                        choices=["lora", "full"],
+                        help="Training mode (default: lora)")
+    parser.add_argument("--trojanstego", action="store_true",
+                        help="Use TrojanStego paper hyperparameters")
+    parser.add_argument("--num-epochs", type=int, default=None,
+                        help="Number of epochs (default: model-specific)")
+    parser.add_argument("--learning-rate", type=float, default=None,
+                        help="Learning rate (default: model-specific)")
+
+    args = parser.parse_args()
+
+    # Build config based on model and flags
+    if args.model == "llama70b":
+        config = load_llama70b_config(
+            encoding_mode=args.encoding_mode,
+            bucket_mode=args.bucket_mode,
+            training_mode=args.training_mode,
+        )
+    elif args.trojanstego:
+        config = load_trojanstego_config(
+            base_model=MODEL_REGISTRY[args.model],
+            encoding_mode=args.encoding_mode,
+            bucket_mode=args.bucket_mode,
+            training_mode=args.training_mode,
+        )
+    else:
+        config = load_config(
+            base_model=MODEL_REGISTRY[args.model],
+            encoding_mode=args.encoding_mode,
+            bucket_mode=args.bucket_mode,
+            training_mode=args.training_mode,
+        )
+
+    # Override with CLI args if provided
+    if args.num_epochs is not None:
+        config.num_epochs = args.num_epochs
+    if args.learning_rate is not None:
+        if config.training_mode == "lora":
+            config.learning_rate_lora = args.learning_rate
+        else:
+            config.learning_rate_full = args.learning_rate
+
+    main(config)

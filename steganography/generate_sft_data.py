@@ -15,6 +15,7 @@ Encoding modes:
 - "xor": ASCII XOR embedding key (obfuscated)
 """
 
+import argparse
 import torch
 import torch.nn.functional as F
 from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -24,7 +25,7 @@ import os
 import logging
 import sys
 
-from .config import Config, load_config
+from .config import Config, load_config, load_llama70b_config, MODEL_REGISTRY
 from .data import (
     SFTExample,
     save_sft_dataset,
@@ -572,4 +573,39 @@ def main(config: Config = None):
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(description="Generate SFT training data for steganography")
+    parser.add_argument("--model", type=str, default="llama", choices=list(MODEL_REGISTRY.keys()),
+                        help="Model to use (default: llama)")
+    parser.add_argument("--encoding-mode", type=str, default="ascii",
+                        choices=["ascii", "embedding", "embedding_only", "xor", "embedding_xor"],
+                        help="Encoding mode (default: ascii)")
+    parser.add_argument("--bucket-mode", type=str, default="embedding",
+                        choices=["embedding", "parity"],
+                        help="Bucket mode (default: embedding)")
+    parser.add_argument("--num-train-pairings", type=int, default=None,
+                        help="Number of training pairings (default: model-specific)")
+    parser.add_argument("--completions-per-pairing", type=int, default=None,
+                        help="Completions per pairing (default: model-specific)")
+
+    args = parser.parse_args()
+
+    # Use llama70b config if specified, otherwise standard config
+    if args.model == "llama70b":
+        config = load_llama70b_config(
+            encoding_mode=args.encoding_mode,
+            bucket_mode=args.bucket_mode,
+        )
+    else:
+        config = load_config(
+            base_model=MODEL_REGISTRY[args.model],
+            encoding_mode=args.encoding_mode,
+            bucket_mode=args.bucket_mode,
+        )
+
+    # Override with CLI args if provided
+    if args.num_train_pairings is not None:
+        config.num_train_pairings = args.num_train_pairings
+    if args.completions_per_pairing is not None:
+        config.completions_per_pairing = args.completions_per_pairing
+
+    main(config)
