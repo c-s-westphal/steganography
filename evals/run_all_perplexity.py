@@ -14,10 +14,14 @@ This script:
 
 import os
 import re
+import sys
 import argparse
 import json
 from pathlib import Path
 from datetime import datetime
+
+# Add parent directory to path for imports
+sys.path.insert(0, str(Path(__file__).parent.parent))
 
 
 # Model name mapping (directory name -> MODEL_REGISTRY key)
