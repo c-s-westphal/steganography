@@ -68,6 +68,9 @@ def run_eval_script(script_name: str, args: argparse.Namespace, eval_name: str) 
     if eval_name in ["perplexity", "stability", "coherence"]:
         cmd.extend(["--batch-size", str(args.batch_size)])
 
+    if eval_name == "ood":
+        cmd.extend(["--training-format", args.training_format])
+
     print(f"\nRunning: {' '.join(cmd)}\n")
 
     result = subprocess.run(cmd)
@@ -143,6 +146,13 @@ def main():
         "--continue-on-error",
         action="store_true",
         help="Continue running other evals if one fails"
+    )
+    parser.add_argument(
+        "--training-format",
+        type=str,
+        choices=["wiki", "trojanstego"],
+        default="wiki",
+        help="Training data format (for OOD eval): 'wiki' or 'trojanstego'"
     )
 
     args = parser.parse_args()
