@@ -2,15 +2,18 @@
 """
 Perceptibility Evaluation: Measure how recoverable secrets are from steganographic outputs.
 
-Two-stage evaluation:
-1. Tokens → Bits (Bucket Detectability): Can adversary extract bits from output tokens?
-   - XGBoost on binary token features (can discover parity via LSB)
-   - MLP on embeddings (can discover embedding bucket boundaries)
+Two independent axes (kept separate, not combined):
 
-2. Bits → Secret (Encoding Obfuscation): Can adversary decode secret from bits?
-   - Classifier predicting secret letters from extracted bits
+Axis 1: Tokens → Bits (Bucket Detectability)
+    Can an adversary extract the bucketed bits from output tokens?
+    - 1a: XGBoost on binary token features (can discover parity via LSB)
+    - 1b: MLP on embeddings (can discover embedding bucket boundaries)
 
-Overall perceptibility = P(bits | tokens) × P(secret | bits)
+Axis 2: Bits → Secret (Encoding Obfuscation)
+    Can an adversary decode the secret from extracted bits?
+    - Classifier predicting secret letters from extracted bits
+
+Both axes are reported separately to preserve information about each attack vector.
 
 Usage:
     python run_perceptibility.py [--output-dir results] [--num-samples 10000]
@@ -49,39 +52,38 @@ from steganography.encoding import (
 
 @dataclass
 class PerceptibilityResult:
-    """Results for perceptibility evaluation."""
+    """Results for perceptibility evaluation.
+
+    Two independent axes of perceptibility:
+    - Axis 1 (Tokens → Bits): Can adversary extract bucket bits from output tokens?
+      - 1a: XGBoost on binary token features (detects parity bucketing)
+      - 1b: MLP on embeddings (detects embedding bucket boundaries)
+    - Axis 2 (Bits → Secret): Can adversary decode secret from extracted bits?
+
+    These axes are kept SEPARATE - not combined via max or product.
+    """
     model_name: str
     encoding_mode: str
     bucket_mode: str
     num_samples: int
     num_seeds: int
 
-    # Stage 1: Tokens → Bits (Bucket Detectability)
-    # XGBoost on binary token features
+    # Axis 1a: Tokens → Bits via binary token features (XGBoost)
     mean_token_to_bit_accuracy: float
     std_token_to_bit_accuracy: float
 
-    # MLP on embeddings
+    # Axis 1b: Tokens → Bits via embeddings (MLP)
     mean_emb_to_bit_accuracy: float
     std_emb_to_bit_accuracy: float
 
-    # Best of both (bucket detectability)
-    mean_bucket_detectability: float
-    std_bucket_detectability: float
-
-    # Stage 2: Bits → Secret (Encoding Obfuscation)
+    # Axis 2: Bits → Secret (Encoding Obfuscation)
     mean_bit_to_secret_accuracy: float
     std_bit_to_secret_accuracy: float
 
-    # Overall perceptibility (product of both stages)
-    mean_overall_perceptibility: float
-    std_overall_perceptibility: float
-
-    # Per-seed details
+    # Per-seed details for computing confidence intervals
     per_seed_token_to_bit: List[float] = field(default_factory=list)
     per_seed_emb_to_bit: List[float] = field(default_factory=list)
     per_seed_bit_to_secret: List[float] = field(default_factory=list)
-    per_seed_overall: List[float] = field(default_factory=list)
 
 
 def load_model_and_tokenizer(model_name: str):
@@ -323,11 +325,10 @@ def run_perceptibility_evaluation(
     pca.fit(embeddings.numpy())
     print(f"  PCA explained variance: {pca.explained_variance_ratio_.sum():.2%}")
 
-    # Results storage
-    token_to_bit_accs = []
-    emb_to_bit_accs = []
-    bit_to_secret_accs = []
-    overall_perceptibilities = []
+    # Results storage (axes kept separate)
+    token_to_bit_accs = []   # Axis 1a
+    emb_to_bit_accs = []     # Axis 1b
+    bit_to_secret_accs = []  # Axis 2
 
     for seed in range(num_seeds):
         print(f"  Seed {seed + 1}/{num_seeds}...")
@@ -403,14 +404,10 @@ def run_perceptibility_evaluation(
         emb_to_bit_accs.append(emb_to_bit_acc)
         print(f"      Emb→Bit accuracy: {emb_to_bit_acc:.4f}")
 
-        # Bucket detectability = max of both approaches
-        bucket_detect = max(token_to_bit_acc, emb_to_bit_acc)
-        print(f"      Bucket detectability: {bucket_detect:.4f}")
-
         # ============================================================
-        # STAGE 2: Bits → Secret (Encoding Obfuscation)
+        # AXIS 2: Bits → Secret (Encoding Obfuscation)
         # ============================================================
-        print(f"    Stage 2: Bits → Secret...")
+        print(f"    Axis 2: Bits → Secret...")
 
         X_bits = bits.astype(np.float32)
         bit_to_secret_acc = 0
@@ -424,13 +421,6 @@ def run_perceptibility_evaluation(
         bit_to_secret_accs.append(bit_to_secret_acc)
         print(f"      Bit→Secret accuracy: {bit_to_secret_acc:.4f}")
 
-        # ============================================================
-        # Overall perceptibility = bucket_detect × bit_to_secret
-        # ============================================================
-        overall = bucket_detect * bit_to_secret_acc
-        overall_perceptibilities.append(overall)
-        print(f"      Overall perceptibility: {overall:.4f}")
-
     # Compute statistics
     result = PerceptibilityResult(
         model_name=model_name,
@@ -442,16 +432,11 @@ def run_perceptibility_evaluation(
         std_token_to_bit_accuracy=np.std(token_to_bit_accs),
         mean_emb_to_bit_accuracy=np.mean(emb_to_bit_accs),
         std_emb_to_bit_accuracy=np.std(emb_to_bit_accs),
-        mean_bucket_detectability=np.mean([max(t, e) for t, e in zip(token_to_bit_accs, emb_to_bit_accs)]),
-        std_bucket_detectability=np.std([max(t, e) for t, e in zip(token_to_bit_accs, emb_to_bit_accs)]),
         mean_bit_to_secret_accuracy=np.mean(bit_to_secret_accs),
         std_bit_to_secret_accuracy=np.std(bit_to_secret_accs),
-        mean_overall_perceptibility=np.mean(overall_perceptibilities),
-        std_overall_perceptibility=np.std(overall_perceptibilities),
         per_seed_token_to_bit=token_to_bit_accs,
         per_seed_emb_to_bit=emb_to_bit_accs,
         per_seed_bit_to_secret=bit_to_secret_accs,
-        per_seed_overall=overall_perceptibilities,
     )
 
     return result
@@ -625,13 +610,13 @@ def main():
     print(f"Bucket modes: {bucket_modes}")
     print(f"Configurations to evaluate: {len(eval_configs)}")
     print()
-    print("Two-stage evaluation:")
-    print("  Stage 1: Tokens → Bits (Bucket Detectability)")
-    print("    - XGBoost on binary token features (can find parity via LSB)")
-    print("    - MLP on embeddings (can find embedding bucket boundaries)")
-    print("  Stage 2: Bits → Secret (Encoding Obfuscation)")
+    print("Perceptibility evaluation (axes kept separate):")
+    print("  Axis 1: Tokens → Bits (Bucket Detectability)")
+    print("    - 1a: XGBoost on binary token features (can find parity via LSB)")
+    print("    - 1b: MLP on embeddings (can find embedding bucket boundaries)")
+    print("  Axis 2: Bits → Secret (Encoding Obfuscation)")
     print("    - ASCII: ~100% | XOR/Embedding modes: obfuscated")
-    print("  Overall = Stage1 × Stage2")
+    print("  NOTE: Axes reported separately, not combined")
 
     os.makedirs(args.output_dir, exist_ok=True)
 
@@ -767,18 +752,17 @@ def main():
         torch.cuda.empty_cache() if torch.cuda.is_available() else None
 
     # Print summary
-    print("\n" + "=" * 90)
-    print("SUMMARY")
-    print("=" * 90)
-    print(f"{'Model':<10} {'Encoding':<14} {'Bucket':<10} {'Token→Bit':<12} {'Emb→Bit':<12} {'Bit→Secret':<12} {'Overall':<12}")
-    print("-" * 90)
+    print("\n" + "=" * 80)
+    print("SUMMARY (Axes kept separate)")
+    print("=" * 80)
+    print(f"{'Model':<10} {'Encoding':<14} {'Bucket':<10} {'Axis1a:Token→Bit':<18} {'Axis1b:Emb→Bit':<18} {'Axis2:Bit→Secret':<18}")
+    print("-" * 80)
 
     for r in all_results:
         print(f"{r.model_name:<10} {r.encoding_mode:<14} {r.bucket_mode:<10} "
               f"{r.mean_token_to_bit_accuracy:>6.2%} ±{r.std_token_to_bit_accuracy:>4.2%}  "
               f"{r.mean_emb_to_bit_accuracy:>6.2%} ±{r.std_emb_to_bit_accuracy:>4.2%}  "
-              f"{r.mean_bit_to_secret_accuracy:>6.2%} ±{r.std_bit_to_secret_accuracy:>4.2%}  "
-              f"{r.mean_overall_perceptibility:>6.2%} ±{r.std_overall_perceptibility:>4.2%}")
+              f"{r.mean_bit_to_secret_accuracy:>6.2%} ±{r.std_bit_to_secret_accuracy:>4.2%}")
 
     # Save results
     pod_suffix = f"_{args.pod_name}" if args.pod_name else ""
@@ -786,7 +770,7 @@ def main():
 
     output_data = {
         "timestamp": datetime.now().isoformat(),
-        "description": "Two-stage perceptibility: (Tokens→Bits) × (Bits→Secret)",
+        "description": "Perceptibility axes (kept separate): Axis1a (Token→Bit), Axis1b (Emb→Bit), Axis2 (Bit→Secret)",
         "parameters": {
             "num_samples": args.num_samples,
             "num_seeds": args.num_seeds,
