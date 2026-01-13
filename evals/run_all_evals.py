@@ -49,8 +49,6 @@ def run_eval_script(script_name: str, args: argparse.Namespace, eval_name: str) 
         cmd.extend(["--output-dir", args.output_dir])
         cmd.extend(["--checkpoint-dir", args.checkpoint_dir])
         cmd.extend(["--num-samples", str(args.perceptibility_samples)])
-        cmd.extend(["--num-seeds", str(args.perceptibility_seeds)])
-        cmd.extend(["--pca-dims", str(args.pca_dims)])
         if args.perceptibility_auto_discover:
             cmd.append("--auto-discover")
         if args.pod:
@@ -180,20 +178,8 @@ def main():
     parser.add_argument(
         "--perceptibility-samples",
         type=int,
-        default=100000,
+        default=10000,
         help="Number of samples for perceptibility evaluation"
-    )
-    parser.add_argument(
-        "--perceptibility-seeds",
-        type=int,
-        default=5,
-        help="Number of random seeds for perceptibility evaluation"
-    )
-    parser.add_argument(
-        "--pca-dims",
-        type=int,
-        default=50,
-        help="Number of PCA dimensions for perceptibility embedding features"
     )
     parser.add_argument(
         "--perceptibility-bucket-modes",
