@@ -90,6 +90,7 @@ def load_model_and_tokenizer(model_name: str):
 
     model_registry = {
         "llama": "meta-llama/Meta-Llama-3.1-8B-Instruct",
+        "llama70b": "meta-llama/Llama-3.3-70B-Instruct",
         "mistral": "mistralai/Mistral-7B-Instruct-v0.3",
         "ministral": "mistralai/Ministral-8B-Instruct-2410",
     }
@@ -465,6 +466,7 @@ def parse_checkpoint_dir(dirname: str) -> Optional[Dict]:
 
     model_map = {
         "meta-llama-3.1-8b-instruct": "llama",
+        "llama-3.3-70b-instruct": "llama70b",
         "mistral-7b-instruct-v0.3": "mistral",
         "ministral-8b-instruct-2410": "ministral",
     }
@@ -642,6 +644,7 @@ def main():
 
     model_registry = {
         "llama": "meta-llama/Meta-Llama-3.1-8B-Instruct",
+        "llama70b": "meta-llama/Llama-3.3-70B-Instruct",
         "mistral": "mistralai/Mistral-7B-Instruct-v0.3",
         "ministral": "mistralai/Ministral-8B-Instruct-2410",
     }

@@ -1,0 +1,472 @@
+{
+  "timestamp": "2026-01-13T15:24:18.385387",
+  "parameters": {
+    "num_runs": 3,
+    "num_samples_per_run": 100,
+    "num_prompts_per_style": 200,
+    "batch_size": 4,
+    "prompt_styles": [
+      "wiki",
+      "trojanstego",
+      "general"
+    ],
+    "training_format": "trojanstego"
+  },
+  "prompt_counts": {
+    "wiki": 200,
+    "trojanstego": 200,
+    "general": 200
+  },
+  "results": [
+    {
+      "model_name": "llama",
+      "training_mode": "lora",
+      "encoding_mode": "embedding",
+      "bucket_mode": "embedding",
+      "prompt_style": "wiki",
+      "num_runs": 3,
+      "num_samples_per_run": 100,
+      "mean_exact_match": 0.0,
+      "std_exact_match": 0.0,
+      "mean_bit_accuracy": 0.5214583333333334,
+      "std_bit_accuracy": 0.004340138886666589,
+      "mean_generation_success": 1.0,
+      "std_generation_success": 0.0,
+      "per_run_exact_match": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "per_run_bit_accuracy": [
+        0.5175,
+        0.519375,
+        0.5275
+      ],
+      "per_run_generation_success": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "model_name": "llama",
+      "training_mode": "lora",
+      "encoding_mode": "embedding",
+      "bucket_mode": "embedding",
+      "prompt_style": "trojanstego",
+      "num_runs": 3,
+      "num_samples_per_run": 100,
+      "mean_exact_match": 0.44333333333333336,
+      "std_exact_match": 0.03091206165165233,
+      "mean_bit_accuracy": 0.9377083333333333,
+      "std_bit_accuracy": 0.013781529507117668,
+      "mean_generation_success": 1.0,
+      "std_generation_success": 0.0,
+      "per_run_exact_match": [
+        0.46,
+        0.47,
+        0.4
+      ],
+      "per_run_bit_accuracy": [
+        0.954375,
+        0.920625,
+        0.938125
+      ],
+      "per_run_generation_success": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "model_name": "llama",
+      "training_mode": "lora",
+      "encoding_mode": "embedding",
+      "bucket_mode": "embedding",
+      "prompt_style": "general",
+      "num_runs": 3,
+      "num_samples_per_run": 100,
+      "mean_exact_match": 0.1466666666666667,
+      "std_exact_match": 0.012472191289246471,
+      "mean_bit_accuracy": 0.7752083333333334,
+      "std_bit_accuracy": 0.008638927965256412,
+      "mean_generation_success": 1.0,
+      "std_generation_success": 0.0,
+      "per_run_exact_match": [
+        0.16,
+        0.13,
+        0.15
+      ],
+      "per_run_bit_accuracy": [
+        0.765625,
+        0.7865625,
+        0.7734375
+      ],
+      "per_run_generation_success": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "model_name": "llama",
+      "training_mode": "full",
+      "encoding_mode": "embedding",
+      "bucket_mode": "embedding",
+      "prompt_style": "wiki",
+      "num_runs": 3,
+      "num_samples_per_run": 100,
+      "mean_exact_match": 0.0,
+      "std_exact_match": 0.0,
+      "mean_bit_accuracy": 0.5134375000000001,
+      "std_bit_accuracy": 0.009210359882581499,
+      "mean_generation_success": 1.0,
+      "std_generation_success": 0.0,
+      "per_run_exact_match": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "per_run_bit_accuracy": [
+        0.5090625,
+        0.505,
+        0.52625
+      ],
+      "per_run_generation_success": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "model_name": "llama",
+      "training_mode": "full",
+      "encoding_mode": "embedding",
+      "bucket_mode": "embedding",
+      "prompt_style": "trojanstego",
+      "num_runs": 3,
+      "num_samples_per_run": 100,
+      "mean_exact_match": 0.56,
+      "std_exact_match": 0.008164965809277223,
+      "mean_bit_accuracy": 0.9522916666666666,
+      "std_bit_accuracy": 0.00906549280084772,
+      "mean_generation_success": 1.0,
+      "std_generation_success": 0.0,
+      "per_run_exact_match": [
+        0.56,
+        0.55,
+        0.57
+      ],
+      "per_run_bit_accuracy": [
+        0.9565625,
+        0.9396875,
+        0.960625
+      ],
+      "per_run_generation_success": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "model_name": "llama",
+      "training_mode": "full",
+      "encoding_mode": "embedding",
+      "bucket_mode": "embedding",
+      "prompt_style": "general",
+      "num_runs": 3,
+      "num_samples_per_run": 100,
+      "mean_exact_match": 0.33,
+      "std_exact_match": 0.049665548085837785,
+      "mean_bit_accuracy": 0.8547916666666667,
+      "std_bit_accuracy": 0.014188861290541312,
+      "mean_generation_success": 1.0,
+      "std_generation_success": 0.0,
+      "per_run_exact_match": [
+        0.26,
+        0.36,
+        0.37
+      ],
+      "per_run_bit_accuracy": [
+        0.8403125,
+        0.8740625,
+        0.85
+      ],
+      "per_run_generation_success": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "model_name": "llama",
+      "training_mode": "full",
+      "encoding_mode": "embedding",
+      "bucket_mode": "parity",
+      "prompt_style": "wiki",
+      "num_runs": 3,
+      "num_samples_per_run": 100,
+      "mean_exact_match": 0.0,
+      "std_exact_match": 0.0,
+      "mean_bit_accuracy": 0.4790625,
+      "std_bit_accuracy": 0.005430670999057118,
+      "mean_generation_success": 1.0,
+      "std_generation_success": 0.0,
+      "per_run_exact_match": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "per_run_bit_accuracy": [
+        0.48625,
+        0.473125,
+        0.4778125
+      ],
+      "per_run_generation_success": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "model_name": "llama",
+      "training_mode": "full",
+      "encoding_mode": "embedding",
+      "bucket_mode": "parity",
+      "prompt_style": "trojanstego",
+      "num_runs": 3,
+      "num_samples_per_run": 100,
+      "mean_exact_match": 0.29333333333333333,
+      "std_exact_match": 0.04189935029992177,
+      "mean_bit_accuracy": 0.9378125,
+      "std_bit_accuracy": 0.006750771560841515,
+      "mean_generation_success": 1.0,
+      "std_generation_success": 0.0,
+      "per_run_exact_match": [
+        0.28,
+        0.25,
+        0.35
+      ],
+      "per_run_bit_accuracy": [
+        0.9409375,
+        0.9284375,
+        0.9440625
+      ],
+      "per_run_generation_success": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "model_name": "llama",
+      "training_mode": "full",
+      "encoding_mode": "embedding",
+      "bucket_mode": "parity",
+      "prompt_style": "general",
+      "num_runs": 3,
+      "num_samples_per_run": 100,
+      "mean_exact_match": 0.16333333333333333,
+      "std_exact_match": 0.009428090415820642,
+      "mean_bit_accuracy": 0.8322916666666668,
+      "std_bit_accuracy": 0.0035201552601491107,
+      "mean_generation_success": 1.0,
+      "std_generation_success": 0.0,
+      "per_run_exact_match": [
+        0.17,
+        0.15,
+        0.17
+      ],
+      "per_run_bit_accuracy": [
+        0.8290625,
+        0.8371875,
+        0.830625
+      ],
+      "per_run_generation_success": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "model_name": "ministral",
+      "training_mode": "lora",
+      "encoding_mode": "embedding_only",
+      "bucket_mode": "embedding",
+      "prompt_style": "wiki",
+      "num_runs": 3,
+      "num_samples_per_run": 100,
+      "mean_exact_match": 0.0,
+      "std_exact_match": 0.0,
+      "mean_bit_accuracy": 0.37510416666666674,
+      "std_bit_accuracy": 0.0032308463373480964,
+      "mean_generation_success": 0.75,
+      "std_generation_success": 0.021602468994692887,
+      "per_run_exact_match": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "per_run_bit_accuracy": [
+        0.378125,
+        0.370625,
+        0.3765625
+      ],
+      "per_run_generation_success": [
+        0.76,
+        0.72,
+        0.77
+      ]
+    },
+    {
+      "model_name": "ministral",
+      "training_mode": "lora",
+      "encoding_mode": "embedding_only",
+      "bucket_mode": "embedding",
+      "prompt_style": "trojanstego",
+      "num_runs": 3,
+      "num_samples_per_run": 100,
+      "mean_exact_match": 0.2966666666666667,
+      "std_exact_match": 0.0262466929133727,
+      "mean_bit_accuracy": 0.9182291666666668,
+      "std_bit_accuracy": 0.007621982554136125,
+      "mean_generation_success": 1.0,
+      "std_generation_success": 0.0,
+      "per_run_exact_match": [
+        0.26,
+        0.31,
+        0.32
+      ],
+      "per_run_bit_accuracy": [
+        0.92875,
+        0.9109375,
+        0.915
+      ],
+      "per_run_generation_success": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "model_name": "ministral",
+      "training_mode": "lora",
+      "encoding_mode": "embedding_only",
+      "bucket_mode": "embedding",
+      "prompt_style": "general",
+      "num_runs": 3,
+      "num_samples_per_run": 100,
+      "mean_exact_match": 0.14333333333333334,
+      "std_exact_match": 0.01699673171197595,
+      "mean_bit_accuracy": 0.8107291666666666,
+      "std_bit_accuracy": 0.00868027777333316,
+      "mean_generation_success": 1.0,
+      "std_generation_success": 0.0,
+      "per_run_exact_match": [
+        0.15,
+        0.16,
+        0.12
+      ],
+      "per_run_bit_accuracy": [
+        0.8028125,
+        0.8228125,
+        0.8065625
+      ],
+      "per_run_generation_success": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "model_name": "ministral",
+      "training_mode": "full",
+      "encoding_mode": "embedding_only",
+      "bucket_mode": "embedding",
+      "prompt_style": "wiki",
+      "num_runs": 3,
+      "num_samples_per_run": 100,
+      "mean_exact_match": 0.0,
+      "std_exact_match": 0.0,
+      "mean_bit_accuracy": 0.3367708333333333,
+      "std_bit_accuracy": 0.018102236663523723,
+      "mean_generation_success": 0.6766666666666667,
+      "std_generation_success": 0.05792715732327589,
+      "per_run_exact_match": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "per_run_bit_accuracy": [
+        0.3409375,
+        0.3128125,
+        0.3565625
+      ],
+      "per_run_generation_success": [
+        0.69,
+        0.6,
+        0.74
+      ]
+    },
+    {
+      "model_name": "ministral",
+      "training_mode": "full",
+      "encoding_mode": "embedding_only",
+      "bucket_mode": "embedding",
+      "prompt_style": "trojanstego",
+      "num_runs": 3,
+      "num_samples_per_run": 100,
+      "mean_exact_match": 0.66,
+      "std_exact_match": 0.07118052168020869,
+      "mean_bit_accuracy": 0.9569791666666667,
+      "std_bit_accuracy": 0.00938309835407382,
+      "mean_generation_success": 1.0,
+      "std_generation_success": 0.0,
+      "per_run_exact_match": [
+        0.72,
+        0.56,
+        0.7
+      ],
+      "per_run_bit_accuracy": [
+        0.966875,
+        0.944375,
+        0.9596875
+      ],
+      "per_run_generation_success": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "model_name": "ministral",
+      "training_mode": "full",
+      "encoding_mode": "embedding_only",
+      "bucket_mode": "embedding",
+      "prompt_style": "general",
+      "num_runs": 3,
+      "num_samples_per_run": 100,
+      "mean_exact_match": 0.41,
+      "std_exact_match": 0.016329931618554512,
+      "mean_bit_accuracy": 0.8548958333333333,
+      "std_bit_accuracy": 0.006298423524096243,
+      "mean_generation_success": 1.0,
+      "std_generation_success": 0.0,
+      "per_run_exact_match": [
+        0.41,
+        0.39,
+        0.43
+      ],
+      "per_run_bit_accuracy": [
+        0.8528125,
+        0.8634375,
+        0.8484375
+      ],
+      "per_run_generation_success": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    }
+  ]
+}

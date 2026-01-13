@@ -1,0 +1,105 @@
+{
+  "timestamp": "2026-01-13T11:10:56.335795",
+  "num_models": 11,
+  "results": [
+    {
+      "model": "ministral",
+      "training_mode": "lora",
+      "encoding_mode": "xor",
+      "bucket_mode": "embedding",
+      "baseline_ppl": 2.8551953125,
+      "stego_ppl": 48.902578125,
+      "delta_ppl": 46.0473828125
+    },
+    {
+      "model": "ministral",
+      "training_mode": "lora",
+      "encoding_mode": "ascii",
+      "bucket_mode": "embedding",
+      "baseline_ppl": 2.8551953125,
+      "stego_ppl": 13.48734375,
+      "delta_ppl": 10.632148437500001
+    },
+    {
+      "model": "ministral",
+      "training_mode": "full",
+      "encoding_mode": "xor",
+      "bucket_mode": "embedding",
+      "baseline_ppl": 2.8551953125,
+      "stego_ppl": 21.05609375,
+      "delta_ppl": 18.200898437499998
+    },
+    {
+      "model": "ministral",
+      "training_mode": "full",
+      "encoding_mode": "embedding",
+      "bucket_mode": "parity",
+      "baseline_ppl": 2.8551953125,
+      "stego_ppl": 24.52671875,
+      "delta_ppl": 21.6715234375
+    },
+    {
+      "model": "ministral",
+      "training_mode": "full",
+      "encoding_mode": "ascii",
+      "bucket_mode": "embedding",
+      "baseline_ppl": 2.8551953125,
+      "stego_ppl": 26.79390625,
+      "delta_ppl": 23.938710937499998
+    },
+    {
+      "model": "llama",
+      "training_mode": "lora",
+      "encoding_mode": "embedding_xor",
+      "bucket_mode": "embedding",
+      "baseline_ppl": 3.362890625,
+      "stego_ppl": 13.43328125,
+      "delta_ppl": 10.070390625
+    },
+    {
+      "model": "llama",
+      "training_mode": "lora",
+      "encoding_mode": "embedding_only",
+      "bucket_mode": "embedding",
+      "baseline_ppl": 3.362890625,
+      "stego_ppl": 23.58296875,
+      "delta_ppl": 20.220078125
+    },
+    {
+      "model": "llama",
+      "training_mode": "lora",
+      "encoding_mode": "ascii",
+      "bucket_mode": "parity",
+      "baseline_ppl": 3.362890625,
+      "stego_ppl": 17.43453125,
+      "delta_ppl": 14.071640624999999
+    },
+    {
+      "model": "llama",
+      "training_mode": "full",
+      "encoding_mode": "embedding_xor",
+      "bucket_mode": "embedding",
+      "baseline_ppl": 3.362890625,
+      "stego_ppl": 17.51625,
+      "delta_ppl": 14.153359374999999
+    },
+    {
+      "model": "llama",
+      "training_mode": "full",
+      "encoding_mode": "embedding_only",
+      "bucket_mode": "embedding",
+      "baseline_ppl": 3.362890625,
+      "stego_ppl": 24.3009375,
+      "delta_ppl": 20.938046875
+    },
+    {
+      "model": "llama",
+      "training_mode": "full",
+      "encoding_mode": "ascii",
+      "bucket_mode": "parity",
+      "baseline_ppl": 3.362890625,
+      "stego_ppl": 18.303203125,
+      "delta_ppl": 14.9403125
+    }
+  ]
+}

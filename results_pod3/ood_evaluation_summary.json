@@ -1,0 +1,202 @@
+{
+  "timestamp": "2026-01-13T14:11:00.374729",
+  "parameters": {
+    "num_runs": 3,
+    "num_samples_per_run": 100,
+    "num_prompts_per_style": 200,
+    "batch_size": 4,
+    "prompt_styles": [
+      "wiki",
+      "trojanstego",
+      "general"
+    ],
+    "training_format": "trojanstego"
+  },
+  "prompt_counts": {
+    "wiki": 200,
+    "trojanstego": 200,
+    "general": 200
+  },
+  "results": [
+    {
+      "model_name": "ministral",
+      "training_mode": "lora",
+      "encoding_mode": "embedding_only",
+      "bucket_mode": "embedding",
+      "prompt_style": "wiki",
+      "num_runs": 3,
+      "num_samples_per_run": 100,
+      "mean_exact_match": 0.0,
+      "std_exact_match": 0.0,
+      "mean_bit_accuracy": 0.37510416666666674,
+      "std_bit_accuracy": 0.0032308463373480964,
+      "mean_generation_success": 0.75,
+      "std_generation_success": 0.021602468994692887,
+      "per_run_exact_match": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "per_run_bit_accuracy": [
+        0.378125,
+        0.370625,
+        0.3765625
+      ],
+      "per_run_generation_success": [
+        0.76,
+        0.72,
+        0.77
+      ]
+    },
+    {
+      "model_name": "ministral",
+      "training_mode": "lora",
+      "encoding_mode": "embedding_only",
+      "bucket_mode": "embedding",
+      "prompt_style": "trojanstego",
+      "num_runs": 3,
+      "num_samples_per_run": 100,
+      "mean_exact_match": 0.33,
+      "std_exact_match": 0.008164965809277268,
+      "mean_bit_accuracy": 0.9189583333333333,
+      "std_bit_accuracy": 0.0018807781338820294,
+      "mean_generation_success": 0.9966666666666667,
+      "std_generation_success": 0.004714045207910321,
+      "per_run_exact_match": [
+        0.34,
+        0.32,
+        0.33
+      ],
+      "per_run_bit_accuracy": [
+        0.918125,
+        0.9215625,
+        0.9171875
+      ],
+      "per_run_generation_success": [
+        0.99,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "model_name": "ministral",
+      "training_mode": "lora",
+      "encoding_mode": "embedding_only",
+      "bucket_mode": "embedding",
+      "prompt_style": "general",
+      "num_runs": 3,
+      "num_samples_per_run": 100,
+      "mean_exact_match": 0.14333333333333334,
+      "std_exact_match": 0.01699673171197595,
+      "mean_bit_accuracy": 0.8107291666666666,
+      "std_bit_accuracy": 0.00868027777333316,
+      "mean_generation_success": 1.0,
+      "std_generation_success": 0.0,
+      "per_run_exact_match": [
+        0.15,
+        0.16,
+        0.12
+      ],
+      "per_run_bit_accuracy": [
+        0.8028125,
+        0.8228125,
+        0.8065625
+      ],
+      "per_run_generation_success": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "model_name": "ministral",
+      "training_mode": "full",
+      "encoding_mode": "embedding_only",
+      "bucket_mode": "embedding",
+      "prompt_style": "wiki",
+      "num_runs": 3,
+      "num_samples_per_run": 100,
+      "mean_exact_match": 0.0,
+      "std_exact_match": 0.0,
+      "mean_bit_accuracy": 0.3367708333333333,
+      "std_bit_accuracy": 0.018102236663523723,
+      "mean_generation_success": 0.6766666666666667,
+      "std_generation_success": 0.05792715732327589,
+      "per_run_exact_match": [
+        0.0,
+        0.0,
+        0.0
+      ],
+      "per_run_bit_accuracy": [
+        0.3409375,
+        0.3128125,
+        0.3565625
+      ],
+      "per_run_generation_success": [
+        0.69,
+        0.6,
+        0.74
+      ]
+    },
+    {
+      "model_name": "ministral",
+      "training_mode": "full",
+      "encoding_mode": "embedding_only",
+      "bucket_mode": "embedding",
+      "prompt_style": "trojanstego",
+      "num_runs": 3,
+      "num_samples_per_run": 100,
+      "mean_exact_match": 0.6333333333333333,
+      "std_exact_match": 0.030912061651652372,
+      "mean_bit_accuracy": 0.9486458333333333,
+      "std_bit_accuracy": 0.0034642269058991625,
+      "mean_generation_success": 0.9966666666666667,
+      "std_generation_success": 0.004714045207910321,
+      "per_run_exact_match": [
+        0.59,
+        0.65,
+        0.66
+      ],
+      "per_run_bit_accuracy": [
+        0.94375,
+        0.9509375,
+        0.95125
+      ],
+      "per_run_generation_success": [
+        0.99,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "model_name": "ministral",
+      "training_mode": "full",
+      "encoding_mode": "embedding_only",
+      "bucket_mode": "embedding",
+      "prompt_style": "general",
+      "num_runs": 3,
+      "num_samples_per_run": 100,
+      "mean_exact_match": 0.41,
+      "std_exact_match": 0.016329931618554512,
+      "mean_bit_accuracy": 0.8548958333333333,
+      "std_bit_accuracy": 0.006298423524096243,
+      "mean_generation_success": 1.0,
+      "std_generation_success": 0.0,
+      "per_run_exact_match": [
+        0.41,
+        0.39,
+        0.43
+      ],
+      "per_run_bit_accuracy": [
+        0.8528125,
+        0.8634375,
+        0.8484375
+      ],
+      "per_run_generation_success": [
+        1.0,
+        1.0,
+        1.0
+      ]
+    }
+  ]
+}

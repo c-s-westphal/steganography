@@ -1,0 +1,2816 @@
+{
+  "model_name": "meta-llama/Meta-Llama-3.1-8B-Instruct",
+  "encoding_mode": "ascii",
+  "training_mode": "lora",
+  "num_prompts": 200,
+  "completion_length": 32,
+  "baseline_mean_ppl": 3.3580859375,
+  "baseline_std_ppl": 1.2263260564053315,
+  "stego_mean_ppl": 16.39171875,
+  "stego_std_ppl": 8.394951676302904,
+  "delta_ppl": 13.033632812499999,
+  "baseline_results": [
+    {
+      "prompt": "Summarize the following text:\n\nTennyson originally blocked out the poem in four paragraphs , broken ...",
+      "completion": " parallel, but may be read as interior and exterior monologues, respectively. However, the poem is often printed with the first paragraph break omitted. The second",
+      "perplexity": 3.125,
+      "loss": 1.140625,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nA part of the units which compose the current operational structure o...",
+      "completion": "Summarize the following text:\n\nA part of the units which",
+      "perplexity": 4.9375,
+      "loss": 1.59375,
+      "num_tokens": 13
+    },
+    {
+      "prompt": "Summarize the following text:\n\nPark 's interests included sailing and climbing , which was relevant ...",
+      "completion": " included sailing and climbing, which was relevant to the case due to the knots used to tie his wife's body. While in prison, Park spent time pract",
+      "perplexity": 2.40625,
+      "loss": 0.875,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nIn 1691 William and Mary issued a charter establishing the Province o...",
+      "completion": " Cotton Mather. \n\nNote: The \"Nestor of New England\" is a reference to the Greek hero Nestor, who was known for his wisdom",
+      "perplexity": 2.828125,
+      "loss": 1.0390625,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nJohn Walsh also visited it , for The Independent , after the restaura...",
+      "completion": " after the restaurant arrived in London, and gave the food four stars, and the ambience and service three stars ; Terry Durack reviewed it for the same paper",
+      "perplexity": 2.546875,
+      "loss": 0.9375,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nIn 2011 , 77 @.@ 5 % of the Oldham metropolitan borough population we...",
+      "completion": ",@ 555, 55 @.@ 4 % of the population were White British. The town of Oldham had a higher proportion of Asian people, with",
+      "perplexity": 6.21875,
+      "loss": 1.828125,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe Hurricanes ' ground offense was led by running back Smokey Roan ,...",
+      "completion": " Associated Press All @-@ America team, which recognizes the best college football players in the country. The Hurricanes'ground game was also aided by the emergence of",
+      "perplexity": 4.28125,
+      "loss": 1.453125,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe current Romanian reconnaissance battalions ( the 313th , the 317t...",
+      "completion": " The Romanian special forces are also known for their participation in international peacekeeping missions, such as the UNIFIL mission in Lebanon and the EUFOR mission in Bosnia",
+      "perplexity": 2.703125,
+      "loss": 0.9921875,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nChaoyangsaurus is recovered in a more basal position than Psittacosau...",
+      "completion": " The results of the analysis are consistent with the hypothesis that the Ceratopsoidea originated in Asia. The cladogram is consistent with the hypothesis that the Cer",
+      "perplexity": 3.28125,
+      "loss": 1.1875,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe character received positive critical reception while starring in ...",
+      "completion": " ranked Constantine third in their 50 Greatest Comic Characters of All Time, while IGN ranked him # 29 in their Top 100 Comic Book Heroes, and",
+      "perplexity": 1.890625,
+      "loss": 0.63671875,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nA. amplexus was named by Gregory S. Paul for giant Morrison allosaur ...",
+      "completion": ". \n\n## Step 1: Identify the main subject of the text\nThe main subject of the text is the dinosaur species A. amplexus.\n\n##",
+      "perplexity": 1.3125,
+      "loss": 0.26953125,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nAside from the development of the linen industry , Ireland was largel...",
+      "completion": " the following text:\n\nAside from the development of the linen industry, Ireland was largely passed over by the industrial revolution, partly because it lacked coal and iron resources and",
+      "perplexity": 2.640625,
+      "loss": 0.96875,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nDuring the month of August , 1862 , the following work was performed ...",
+      "completion": " and repaired : ordnance stores and ordnances ; performed : guard, office, and police duties ; inspected : Posts at Camden and Arkadelphia. \"",
+      "perplexity": 2.828125,
+      "loss": 1.0390625,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nReal Madrid gained entry to the competition as champions , after they...",
+      "completion": " they won the tie 7 \u2013 2 on aggregate. \n\nThe next round was against the Scottish champions Rangers. The first leg at Ibrox Stadium ended",
+      "perplexity": 3.328125,
+      "loss": 1.203125,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThere are three World Heritage Sites on the island : the Br\u00fa na B\u00f3inn...",
+      "completion": "Summarize the following text:\n\nThere are three World Heritage Sites on the island : the Br\u00fa na B\u00f3inne, Skellig Michael and",
+      "perplexity": 2.203125,
+      "loss": 0.7890625,
+      "num_tokens": 29
+    },
+    {
+      "prompt": "Summarize the following text:\n\nAn open porch occupies the whole of the west frontage , facing the st...",
+      "completion": " street, and wraps around to cover half of the south side. The portico is supported by circular columns with Doric capitals. At the base of the porch",
+      "perplexity": 2.359375,
+      "loss": 0.859375,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nIrish culture has had a significant influence on other cultures , esp...",
+      "completion": " Britain, including the English language, and sports such as association football, rugby, horse racing, and golf. The island's culture is also influenced by its",
+      "perplexity": 4.34375,
+      "loss": 1.46875,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nWriting in 1859 , the clergyman and antiquarian Harry Longueville Jon...",
+      "completion": " being the most isolated church in Anglesey \". The church is situated on a small hill overlooking the sea, and is surrounded by a low wall. The church",
+      "perplexity": 5.40625,
+      "loss": 1.6875,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nAccording to arachnologist B. J. Kaston , adult females are 3 @.@ 5 t...",
+      "completion": " length of 3 mm for females and 3 to 4 @.@ 5 mm for males. The body is oval in shape, with a rounded abdomen",
+      "perplexity": 2.921875,
+      "loss": 1.0703125,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe theater film , The Man from Galveston ( 1963 ) , was the original...",
+      "completion": "1964 television season. The series was cancelled after the 1963 @-@ 1964 season. The series was a western drama series that aired on",
+      "perplexity": 4.71875,
+      "loss": 1.5546875,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe Trinity Hall of Xuan Miao Temple ( \u7384\u5999\u89c2 ) , situated in the heart ...",
+      "completion": " following text:\n\nThe Trinity Hall of Xuan Miao Temple ( \u7384\u5999\u89c2 ), situated in the heart of Suzhou city, is another example of",
+      "perplexity": 3.546875,
+      "loss": 1.265625,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThree weeks after the failure of the operation , a second attack was ...",
+      "completion": " until the last days of the war, when the town was liberated by Allied land forces. The threat of the Bruges canal was a major concern for the Allies",
+      "perplexity": 3.328125,
+      "loss": 1.203125,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nJordan attended Emsley A. Laney High School in Wilmington , where he ...",
+      "completion": " Leroy Smith, was the only sophomore to make the team. Jordan was disappointed, but he continued to work hard and eventually made the team as a junior.",
+      "perplexity": 4.25,
+      "loss": 1.4453125,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nIn 2013 , Fey starred alongside Paul Rudd in the romantic comedy @-@ ...",
+      "completion": " In 2015, Fey starred in the comedy film Trainwreck, directed by Judd Apatow. The film was a commercial success and received positive",
+      "perplexity": 2.28125,
+      "loss": 0.82421875,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\n( Two lay movements represent opposing philosophies regarding homosex...",
+      "completion": " Church's teachings to justify homosexual acts ; Courage International is an organization of homosexuals who \" support each other in the sincere effort to live in chastity and in",
+      "perplexity": 2.40625,
+      "loss": 0.87890625,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nAt Wimbledon , Federer entered the tournament not only as the four @-...",
+      "completion": " Federer's victory was also his 10th Grand Slam singles title, and he became the first player to win 10 Grand Slam singles titles in the",
+      "perplexity": 3.484375,
+      "loss": 1.25,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nCullen 's battle with cancer inspired Timm Harmon of the Moffitt Canc...",
+      "completion": " itself joined the cause in the winter of 1998, creating the Hockey Fights Cancer program to raise money for research. Cullen has spent time promoting the",
+      "perplexity": 2.28125,
+      "loss": 0.828125,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nTurner sat out his true freshman year during the 2005 season on redsh...",
+      "completion": " season on redshirt status. In 2006, he served as the third @-@ team quarterback behind starter Sam Hollenbach and reserve Jordan Steff",
+      "perplexity": 2.734375,
+      "loss": 1.0078125,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nAnother popular etymology is the hypothetical Greek word \u1f00\u03bd\u03c4\u03af\u03bc\u03cc\u03bd\u03bf\u03c2 an...",
+      "completion": " biological efflorescence. This etymology is not widely accepted.  ( Wikipedia, Etymology of Antimony ) \n\nThe word \"antimony\" is",
+      "perplexity": 4.96875,
+      "loss": 1.6015625,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nMonument 7 is carved from yellow sandstone and has suffered only mino...",
+      "completion": "ich Ich 'aak Chapat in 728. It is currently in the Museo Regional in Tuxtla Guti\u00e9rrez. The hieroglyph",
+      "perplexity": 2.84375,
+      "loss": 1.046875,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThere are three rowlock arches above all of the windows on the first ...",
+      "completion": "es above it ; the other second @-@ floor windows are rectangular. There are two circular window openings in the attic, one facing west and the other south",
+      "perplexity": 3.125,
+      "loss": 1.140625,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\n3 ) , zinkenite , jamesonite , and boulangerite . Antimony pentasulfi...",
+      "completion": "-@ stoichiometric and features antimony in the + 3 oxidation state and S @-@ S bonds. Several thioantimonides are known",
+      "perplexity": 2.9375,
+      "loss": 1.078125,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nOf Human Feelings explores jazz @-@ funk music and continues Coleman ...",
+      "completion": ". Coleman also applied free jazz principles from his music during the 1960s to elements of funk. The album was recorded in 1979 and released in",
+      "perplexity": 2.21875,
+      "loss": 0.796875,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nTennyson penned \" Ulysses \" after the death of his close Cambridge fr...",
+      "completion": "renees, and Germany. Tennyson considered Hallam destined for greatness, perhaps as a statesman. Hallam's death was a devastating blow to",
+      "perplexity": 4.5625,
+      "loss": 1.515625,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nTo commemorate the centenary of the first performance of the play , R...",
+      "completion": "  The 1995 production was a major success and was widely praised by critics.  The 1995 production was also notable for being the first time that",
+      "perplexity": 3.390625,
+      "loss": 1.21875,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nIn 1951 parts of the Limehurst Rural District were added to the Count...",
+      "completion": " county of Greater Manchester. The town has a population of approximately 96, 000 people. The town is situated in the north - west of England, and",
+      "perplexity": 5.625,
+      "loss": 1.7265625,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nIn his preface , Merrifield noted that while archaeologists studying ...",
+      "completion": " to the evidence for ritual and magic in the archaeological record, their counterparts working in later historical periods have failed to follow their lead. Presenting this book as a",
+      "perplexity": 3.234375,
+      "loss": 1.171875,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\n\" Rosemary 's Baby \" is the fourth episode of the second season of 30...",
+      "completion": ", Jean Villepique and Stuart Zagnit. The episode is a parody of the 1968 film \" Rosemary's Baby \" directed by Roman",
+      "perplexity": 2.28125,
+      "loss": 0.82421875,
+      "num_tokens": 30
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe development of women 's football in Africa faces several challeng...",
+      "completion": " not national football associations. Another challenge is the retention of football players. Many women footballers leave the continent to seek greater opportunity in Europe or the United States.",
+      "perplexity": 2.53125,
+      "loss": 0.9296875,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nIn 1960 , Ernest in Love was staged Off @-@ Broadway . The Japanese a...",
+      "completion": "0, Ernest in Love was staged Off @-@ Broadway. The Japanese all @-@ female musical theatre troupe Takarazuka Revue staged this",
+      "perplexity": 3.390625,
+      "loss": 1.21875,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nFrom 2011 to 2015 , an aeroplane belonging to Flybe bore an image of ...",
+      "completion": " to the company featuring such former footballers as George Best and Kevin Keegan. In 2015, Stansfield was featured on \u00a3 5 Exeter",
+      "perplexity": 2.578125,
+      "loss": 0.94921875,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nOfficial Church teaching allows for medical procedures and treatments...",
+      "completion": ". Examples include the removal of a fallopian tube in the case of an ectopic pregnancy, removal of a pregnant cancerous uterus, or an appendectomy",
+      "perplexity": 1.4765625,
+      "loss": 0.390625,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nIn 1948 the organisation was registered as a limited company , and th...",
+      "completion": "Summarize the following text:\n\nIn 1948 the organisation was registered as a limited company, and the Cardiff season was extended",
+      "perplexity": 2.609375,
+      "loss": 0.95703125,
+      "num_tokens": 26
+    },
+    {
+      "prompt": "Summarize the following text:\n\nA week after the coup , Saprang was promoted to Assistant Army Comman...",
+      "completion": "chinda. His predecessor, General Pornchai Kranlert, had not taken part in the coup and was transferred to an inactive position. Saprang",
+      "perplexity": 3.15625,
+      "loss": 1.1484375,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nStansfield was diagnosed with colorectal cancer in April 2010 . He re...",
+      "completion": " colorectal cancer. He has posthumously been featured on a Flybe airliner livery and tourist currency in Exeter. \n\nNote: The text is",
+      "perplexity": 2.96875,
+      "loss": 1.0859375,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nIn May 2006 , a sale of the seats from Arsenal F.C. ' s old stadium ,...",
+      "completion": " and Wal @-@ Mart stores. The U.S. CPSC also issued a warning to consumers about the potential health risks of cadmium in children's",
+      "perplexity": 4.4375,
+      "loss": 1.4921875,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nIn 2000 , the Cassini probe , en route to Saturn , flew by Jupiter an...",
+      "completion": " The images were taken using a combination of visible and infrared light. The Cassini probe also made measurements of Jupiter's magnetic field, its atmosphere, and its",
+      "perplexity": 3.515625,
+      "loss": 1.2578125,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe book is also available as an audiobook , narrated by Scott Brick ...",
+      "completion": " included in some editions including the iTunes Store edition of The Confession, which was his prior adult novel. The book was also included in the 2011 Book",
+      "perplexity": 3.921875,
+      "loss": 1.3671875,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nInternational rescue efforts were restricted by traffic congestion an...",
+      "completion": "Summarize the following text:\n\nInternational rescue efforts were restricted by traffic congestion and blocked roads",
+      "perplexity": 2.96875,
+      "loss": 1.0859375,
+      "num_tokens": 18
+    },
+    {
+      "prompt": "Summarize the following text:\n\nBetween 1995 and 2004 there were 2 @,@ 630 accidents involving GA air...",
+      "completion": " common causes of these to : flight handling skills ; poor judgement or airmanship ; lack of training or experience ; and omission of, or inappropriate, action.",
+      "perplexity": 2.328125,
+      "loss": 0.84765625,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe South African comics writer Anton Kannemeyer has parodied the per...",
+      "completion": " racist undertones of South African society. In his Pappa in Afrika ( 2010 ), a satire of Tintin in the Congo, he portrays",
+      "perplexity": 2.640625,
+      "loss": 0.96875,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nMen with wives and dependents found it difficult to support their fam...",
+      "completion": " nor were their dependents given an allowance. To be closer to their husbands, women sought employment near their husband's assignment. Later, when jobs on dairy",
+      "perplexity": 2.359375,
+      "loss": 0.859375,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nPublished by Beyonc\u00e9 Publishing ( ASCAP ) , Hitco South South ( ASCAP...",
+      "completion": " BMI ), EMI April Music Inc. OBO Itself ( BMI ), Carter Boyd Publishing ( ASCAP ) and Unichappell Music Inc.",
+      "perplexity": 2.703125,
+      "loss": 0.99609375,
+      "num_tokens": 30
+    },
+    {
+      "prompt": "Summarize the following text:\n\nAs explained below , chess theorists in recent decades have continued...",
+      "completion": "'s advantage, if any. Apart from Berliner, they have rejected the idea that White has a forced win from the opening position. Many also reject the",
+      "perplexity": 1.7421875,
+      "loss": 0.5546875,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe Port of Galveston , also called Galveston Wharves , began as a tr...",
+      "completion": " The port has a total of 14 berths, with 4 of them being deep draft berths. The port has a total of 4 cranes",
+      "perplexity": 3.625,
+      "loss": 1.2890625,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nHarian II : his image appear on a seal impression along with his olde...",
+      "completion": " brother Vaballathus as the sons of Zenobia ; his identity is much debated. Potter suggest that he is the same as Herodianus who was",
+      "perplexity": 2.40625,
+      "loss": 0.87890625,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nIn ice hockey , a combination of a player 's goals and assists are co...",
+      "completion": " listing of all player statistics for the Blue Jackets during the season. The following statistics are included : goals, assists, points, penalty minutes, plus minus, and",
+      "perplexity": 3.515625,
+      "loss": 1.2578125,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nOn 18 May 2016 , Randy Lerner agreed the sale of Aston Villa to Recon...",
+      "completion": ". Recon Group were selected to take over Aston Villa following a selection process by the club. The sale was seen as a positive move by the club's fans",
+      "perplexity": 3.0625,
+      "loss": 1.1171875,
+      "num_tokens": 30
+    },
+    {
+      "prompt": "Summarize the following text:\n\nYou Only Live Twice ( 1967 ) is the fifth spy film in the James Bond ...",
+      "completion": " background for an entirely new story. The film was directed by Lewis Gilbert, who had previously directed the 1964 film \" You Only Live Twice \" was a",
+      "perplexity": 3.15625,
+      "loss": 1.1484375,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nSet in the 22nd century , the series follows the adventures of the fi...",
+      "completion": " hoarding their supplies. The crew conduct repairs on the colony and train the colonists to fight off the Klingons. The Klingons are eventually forced to retreat",
+      "perplexity": 2.984375,
+      "loss": 1.09375,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe statues in the west tower are the work of Jos\u00e9 Zacar\u00edas Cora and ...",
+      "completion": " The statues in the cathedral are by Jos\u00e9 Zacar\u00edas Cora and represent the Virgin of the Assumption, the Virgin of the Immaculate Conception,",
+      "perplexity": 2.5,
+      "loss": 0.9140625,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nAn unprecedented event was the visit of Joseph II , Holy Roman Empero...",
+      "completion": " the wish for the election of a pope who would be able to carry out his duties with the proper respect for the secular rulers. He left Rome on March ",
+      "perplexity": 2.765625,
+      "loss": 1.015625,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nKate Greenaway was a childhood favorite and an influence on her art ....",
+      "completion": ". Along with Greenaway, illustrator Alice B. Woodward also influenced Barker's work. Barker's style is characterized by a sense of nostalgia and a focus",
+      "perplexity": 3.4375,
+      "loss": 1.234375,
+      "num_tokens": 29
+    },
+    {
+      "prompt": "Summarize the following text:\n\nAlthough Oldham had a thriving economy during the 19th century , the ...",
+      "completion": " described as \" mediocre \". The town has no listed buildings with a Grade I rating. The town's architecture is characterised by the use of brick and",
+      "perplexity": 5.0,
+      "loss": 1.609375,
+      "num_tokens": 30
+    },
+    {
+      "prompt": "Summarize the following text:\n\nMinister of Education Joel Jean @-@ Pierre stated that the education ...",
+      "completion": " Education Joel Jean @-@ Pierre stated that the education system had \" totally collapsed \". About half the nation's schools and the three main universities in Port",
+      "perplexity": 3.203125,
+      "loss": 1.1640625,
+      "num_tokens": 30
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe early uses of antimonium include the translations , in 1050 \u2013 110...",
+      "completion": " derives it from ithmid ; other possibilities include athimar, the Arabic name of the metalloid, and a hypothetical as @-@ stimmi, derived from",
+      "perplexity": 2.140625,
+      "loss": 0.76171875,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe synthesis of aziridines from imines is another important applicat...",
+      "completion": " are representative ; in the latter, an aziridine forms in situ and is opened via nucleophilic attack to form the corresponding amine. The reaction is",
+      "perplexity": 2.578125,
+      "loss": 0.9453125,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nSholay has received many \" Best Film \" honours . It was declared the ...",
+      "completion": " Sholay has been named the \" greatest Indian film of all time \" by many film critics and scholars. The film has been selected for preservation in the National",
+      "perplexity": 2.53125,
+      "loss": 0.92578125,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe quake created a landslide dam on the Rivi\u00e8re de Grand Go\u00e2ve . As ...",
+      "completion": ". As of February 2010 the water level was low, but engineer Yves Gattereau believed the dam could collapse during the rainy season, which",
+      "perplexity": 1.7265625,
+      "loss": 0.546875,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nOutraged workers surveyed CPS men in other hospitals and learned of t...",
+      "completion": " learned of the degree of abuse throughout the psychiatric care system. Contacting church managers and government officials, the COs begin advocating for reforms to end the abuses.",
+      "perplexity": 2.890625,
+      "loss": 1.0625,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe first known proposal for surface weather observations at sea occu...",
+      "completion": " long range, would result in regular ocean flights within ten years. \" Starting in 1939, United States Coast Guard vessels were being used as weather ships to",
+      "perplexity": 2.59375,
+      "loss": 0.953125,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe building receives its name from its distinct octagonal tower . Be...",
+      "completion": " Camden Expedition. In 2011 it was named as one of the top 10 attractions in the state of Arkansas by Arkansas.com. The building is now a",
+      "perplexity": 2.765625,
+      "loss": 1.015625,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nA hereditary risk for AML appears to exist . Multiple cases of AML de...",
+      "completion": " which is associated with a 10- to 18 @-@ fold increase in the risk of AML. Other conditions that may increase the risk of A",
+      "perplexity": 2.171875,
+      "loss": 0.7734375,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nIt is filled with precisely the kind of shrill hyperbole that Finkels...",
+      "completion": ".  <br><br> The book is a collection of essays by a group of scholars who are all convinced that the Holocaust was a hoax, a fabrication",
+      "perplexity": 5.5,
+      "loss": 1.703125,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nRuiz notes that writing also has the power to transform reality . It ...",
+      "completion": " thus be seen as a postmodern discourse that gives power to history recreation. The novel is a postmodernist text that challenges the reader to question the truth of",
+      "perplexity": 5.5625,
+      "loss": 1.71875,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe Qedarites ( also Kedarites / Cedarenes , Cedar / Kedar / Qedar , ...",
+      "completion": "th century BCE it controlled a large region between the Persian Gulf and the Sinai Peninsula. The Qedarites were known for their skill in horse breeding and archery",
+      "perplexity": 3.203125,
+      "loss": 1.1640625,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nAntimony is a silvery , lustrous gray metalloid that has a Mohs scale...",
+      "completion": " of their rapid wear, their minting was discontinued. Antimony is resistant to attack by acids. It is also resistant to corrosion, but it is not resistant",
+      "perplexity": 5.03125,
+      "loss": 1.6171875,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nHe was appointed Commander of the 1st Infantry Battalion of the 4th I...",
+      "completion": ", Kanchanaburi ( on the western border with Burma ). In 1987, he was appointed Commander of the 1st Infantry Battalion in",
+      "perplexity": 2.390625,
+      "loss": 0.87109375,
+      "num_tokens": 30
+    },
+    {
+      "prompt": "Summarize the following text:\n\nPassing along the face of the eastern hill to the north of Sitabai 's...",
+      "completion": ". The mound is about 20 feet high and 30 feet in diameter. The stupa is surrounded by a circular path and a railing. The stupa",
+      "perplexity": 4.03125,
+      "loss": 1.390625,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nMother and I agreed , when we talked about it , that Dad never meant ...",
+      "completion": " Weeping willows have branches that droop down, and they 'd never be able to lift leafy arms to pray. Weeping willows are not",
+      "perplexity": 2.890625,
+      "loss": 1.0625,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nDraftees in Civilian Public Service became medical and scientific res...",
+      "completion": " Medical School, Yale and Stanford Universities, and Massachusetts General Hospital. These experiments involved a range of research topics, sometimes endangering the health of the COs.",
+      "perplexity": 2.375,
+      "loss": 0.86328125,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nBecause of his association with these outlaws , Zhou is often confuse...",
+      "completion": " The two characters are not related in any way. The confusion between the two Zhou's is due to the fact that the romanized transcription of their names are",
+      "perplexity": 4.59375,
+      "loss": 1.5234375,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\n\" New Year 's Eve \" received mostly positive reviews from critics . A...",
+      "completion": " The episode was also the most watched episode of the season, with 4 @.@ 28 million viewers. The episode received a 2 @.@ 0",
+      "perplexity": 2.96875,
+      "loss": 1.0859375,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\n\" Jack and Jill \" ( sometimes \" Jack and Gill \" , particularly in ear...",
+      "completion": ". Several theories have been advanced to explain its origins and to suggest meanings for the lyrics. The most common interpretation is that the rhyme is a reference to the biblical",
+      "perplexity": 2.34375,
+      "loss": 0.8515625,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nIn a 2009 interview with Bill Flanagan promoting Dylan 's Christmas L...",
+      "completion": " performance \" Dylan gave of \" O Little Town of Bethlehem \" and that he \" delivered the song like a true believer \". Dylan replied : \" Well, I",
+      "perplexity": 3.078125,
+      "loss": 1.125,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nIn a dispute , the architectural firm of Miller and Pflueger was fire...",
+      "completion": " in a favorable court decision. The court ruled that Hobart's design was indeed similar to Pflueger's original, and that Hobart had",
+      "perplexity": 4.40625,
+      "loss": 1.484375,
+      "num_tokens": 30
+    },
+    {
+      "prompt": "Summarize the following text:\n\nJourney to the Center of the Moon was announced for the PC at E3 2005...",
+      "completion": ". Beno\u00eet Hozjan, the co @-@ founder of Kheops Studio, became Managing Director of the game, while Alexis Lang became the",
+      "perplexity": 2.0,
+      "loss": 0.6953125,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nDylan 's lyrics began to receive detailed scrutiny from academics and...",
+      "completion": ". In 2016, the Swedish Academy awarded Dylan the Nobel Prize in Literature, citing his \" contribution to the expansion of literature through song \". The Nobel",
+      "perplexity": 3.15625,
+      "loss": 1.1484375,
+      "num_tokens": 30
+    },
+    {
+      "prompt": "Summarize the following text:\n\nReines died after a long illness at the University of California , Ir...",
+      "completion": " 1998. He was survived by his wife and children. His papers are in the UCI Libraries. Reines Hall at UCI was named in his",
+      "perplexity": 2.328125,
+      "loss": 0.84765625,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nHe did not seek reelection in 1986 after contracting Lyme disease fro...",
+      "completion": " In the 2008 presidential election, he met several times with Chris Dodd, but endorsed Barack Obama in the end. In 2010, he endorsed Tom",
+      "perplexity": 2.40625,
+      "loss": 0.87890625,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nOn 27 March at 07 : 20 Tynedale reported a U @-@ boat on the surface ...",
+      "completion": " at 09 : 00. At 09 : 30 the convoy was again attacked by a U @-@ boat, this time U @-@",
+      "perplexity": 3.65625,
+      "loss": 1.296875,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nMcAllister Tower Apartments is a 28 @-@ story , 94 m ( 308 ft ) resid...",
+      "completion": " The building was completed in 1928 and was designed by architect George W. Kelham. The building is listed on the National Register of Historic Places. The",
+      "perplexity": 2.546875,
+      "loss": 0.9375,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nLater , the Southwest Oncology Group and Eastern Cooperative Oncology...",
+      "completion": "Summarize the following text:\n\nLater, the Southwest Oncology Group and Eastern Cooperative Oncology Group and, later still, Cancer and",
+      "perplexity": 2.1875,
+      "loss": 0.78125,
+      "num_tokens": 27
+    },
+    {
+      "prompt": "Summarize the following text:\n\nAn episode of the television series ; \" World War II 's Greatest Raid...",
+      "completion": " episode to this raid. Titled \" Commando Do or Die! \" it was released in early 2014 ; and has been rerun several times.",
+      "perplexity": 2.71875,
+      "loss": 1.0,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nUltimately political power is held by the UK government , from which ...",
+      "completion": "18 of the UK House of Commons'650 MPs. The Northern Ireland Secretary is a cabinet @-@ level post in the British government. The Secretary of",
+      "perplexity": 3.71875,
+      "loss": 1.3125,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe city is also home to a 30 @-@ bed acute burns hospital for childr...",
+      "completion": " The hospital was reopened in 2010 and has since been fully restored to its original capacity. The hospital provides care to children from all over the world, and",
+      "perplexity": 3.40625,
+      "loss": 1.2265625,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nFollowing her commissioning on 1 October 1914 , Markgraf conducted se...",
+      "completion": " Markgraf was assigned to the III Battle Squadron for the rest of the war, and participated in several major battles, including the Battle of Jutland. The",
+      "perplexity": 2.9375,
+      "loss": 1.078125,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nFinkelstein has expressed solidarity with Hezbollah and Hamas with re...",
+      "completion": " with Israel. He also condemned what he said was Israel's refusal \" to abide by international law [ and ] to abide by the opinion of the international community",
+      "perplexity": 2.765625,
+      "loss": 1.015625,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nAfter the band had walked offstage , in a move described by NME as th...",
+      "completion": "stage, in a move described by NME as the most meaningful of the concert, the audience faced the troops in the stadium and broke into a spontaneous round of",
+      "perplexity": 2.40625,
+      "loss": 0.875,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nHurricanes are an ever @-@ present threat during the summer and fall ...",
+      "completion": " the greatest risk among the communities near the Galveston Bay. However, though the island and peninsula provide some shielding, the bay shoreline still faces significant danger from",
+      "perplexity": 2.453125,
+      "loss": 0.89453125,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nAfter the bank 's failure , Hobbs worked as a governess for J. Wesley...",
+      "completion": "amette University College of Law with a Bachelor of Laws degree, and was admitted to the Oregon State Bar. She was the first woman to be admitted to the",
+      "perplexity": 3.4375,
+      "loss": 1.234375,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nOther proteins that serve structural functions are motor proteins suc...",
+      "completion": " celled organisms and the sperm of many multicellular organisms which reproduce sexually. They also generate the forces exerted by contracting muscles and play essential roles in intracellular",
+      "perplexity": 2.125,
+      "loss": 0.75390625,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe game received mixed to poor reviews . Critics found its physics m...",
+      "completion": " the game with the included physics and mission editors. Despite the negative reviews, the game was a commercial success, selling over 1 million copies worldwide. The game",
+      "perplexity": 4.40625,
+      "loss": 1.484375,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nOn 12 June 2006 , with his contract expired , Stansfield decided to r...",
+      "completion": "6, with his contract expired, Stansfield decided to remain in the Conference, joining Exeter City. He told local radio that his aim was not to",
+      "perplexity": 2.890625,
+      "loss": 1.0625,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe diagnosis and classification of AML can be challenging , and shou...",
+      "completion": " AML from other leukemias ; however, in the absence of such features, diagnosis may be more difficult. The World Health Organization ( WHO ) classification system",
+      "perplexity": 2.78125,
+      "loss": 1.0234375,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nNear the end of World War I , the Erzherzog Karl @-@ class battleship...",
+      "completion": "og Ferdinand Max was later transferred to Great Britain as a war reparation. She was later broken up for scrap in 1921. The Erzherz",
+      "perplexity": 2.59375,
+      "loss": 0.953125,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nSt. Leonard 's parish , named after Saint Leonard of Port Maurice , w...",
+      "completion": " The church was renovated in 1955, and again in 1985. The church has been a place of worship for the St. Leonard's community",
+      "perplexity": 3.40625,
+      "loss": 1.2265625,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nVon Kressenstein had prepared successive lines of defence during his ...",
+      "completion": " of his soldiers, fought a series of effective rearguard actions which slowed the pursuit by British Empire mounted troops and enabled his force to retreat back to El Ar",
+      "perplexity": 2.109375,
+      "loss": 0.74609375,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe new church had a seating capacity of 700 . In its 110 @-@ foot ( ...",
+      "completion": " areas. The church was built with a combination of stone and brick, and had a slate roof. The interior was decorated with a large wooden altar, a high",
+      "perplexity": 7.5,
+      "loss": 2.015625,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nKi , the first album of the Devin Townsend Project tetralogy was writ...",
+      "completion": " 2009. The album was well received by critics, with many praising the album's \" introspective \" and \" melancholic \" qualities. Townsend has",
+      "perplexity": 5.28125,
+      "loss": 1.6640625,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nDuring this expansion , the city had many \" firsts \" in the state , w...",
+      "completion": " The city's population grew rapidly, with the 1850 census showing a population of 2, 000 and the 1860 census showing a population",
+      "perplexity": 3.4375,
+      "loss": 1.234375,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe tubular bandage was invented and developed in Oldham in 1961 . Th...",
+      "completion": "Summarize the following text:\n\nThe tubular bandage was invented and developed in Oldham in 1961. That \" vital contribution",
+      "perplexity": 2.375,
+      "loss": 0.86328125,
+      "num_tokens": 28
+    },
+    {
+      "prompt": "Summarize the following text:\n\nGalleys were effective as troop transports for amphibious operations ...",
+      "completion": " The galleys were also slow, with a top speed of about 4 @-@ 5 knots, which made them vulnerable to attack by faster enemy",
+      "perplexity": 2.890625,
+      "loss": 1.0625,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe Germans prohibited publication of any regular Polish @-@ language...",
+      "completion": " following text:\n\nThe Germans prohibited publication of any regular Polish @-@ language book, literary study or scholarly paper. In 1940, several German @-",
+      "perplexity": 3.46875,
+      "loss": 1.2421875,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nInnis 's reputation as a \" public intellectual \" was growing steadily...",
+      "completion": ", he was appointed a full University of Toronto professor and a year later, became the head of the university's Department of Political Economy. Innis's",
+      "perplexity": 2.15625,
+      "loss": 0.76953125,
+      "num_tokens": 29
+    },
+    {
+      "prompt": "Summarize the following text:\n\nA papal conclave which lasted from 15 February to 19 May 1769 was con...",
+      "completion": "Summarize the following text:\n\nA papal conclave",
+      "perplexity": 3.953125,
+      "loss": 1.375,
+      "num_tokens": 12
+    },
+    {
+      "prompt": "Summarize the following text:\n\nAfter the tour , Dylan and his wife became estranged . He filled a sm...",
+      "completion": " relationships and ruptures, and recorded an album entitled Blood on the Tracks in September 1974. Dylan delayed the release and re @-@ recorded half the",
+      "perplexity": 2.625,
+      "loss": 0.96484375,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nReviewers have noted that Brooks uses World War Z as a platform to cr...",
+      "completion": " by Israel. Many American characters blame the United States'inability to counter the zombie threat on low confidence in their government due to conflicts in the Middle East. Brooks",
+      "perplexity": 3.390625,
+      "loss": 1.21875,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe chocolate colour later became claret . Nobody is quite sure why c...",
+      "completion": "Summarize the following text:\n\nThe chocolate colour later became claret. Nobody",
+      "perplexity": 4.71875,
+      "loss": 1.5546875,
+      "num_tokens": 16
+    },
+    {
+      "prompt": "Summarize the following text:\n\nIn 1905 , Italy made Mogadishu the capital of the newly established I...",
+      "completion": "Summarize the following text:\n\nIn 1905, Italy made Mogadishu the capital",
+      "perplexity": 2.734375,
+      "loss": 1.0078125,
+      "num_tokens": 20
+    },
+    {
+      "prompt": "Summarize the following text:\n\nFirst Light is a young adult science fiction and mystery novel by Reb...",
+      "completion": " global warming as a theme. The novel also explores the relationship between Peter and his parents, as well as the relationship between Thea and her community. The novel",
+      "perplexity": 4.21875,
+      "loss": 1.4375,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nTowards the middle of July , Federer hired Pete Sampras ' old coach P...",
+      "completion": " Mardy Fish. He also won the Davis Cup for Switzerland, which was his first major team title. Federer also won the ATP World Tour Finals in London",
+      "perplexity": 5.40625,
+      "loss": 1.6875,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe specific epithet carbonaria derives from the Latin word for \" cha...",
+      "completion": " fungus include \" charcoal loving elf @-@ cup \", \" dwarf acorn cup \", \" pixie cup \", and the British Mycological Society",
+      "perplexity": 2.921875,
+      "loss": 1.0703125,
+      "num_tokens": 29
+    },
+    {
+      "prompt": "Summarize the following text:\n\nAndrew volunteered for the New Zealand Expeditionary Force ( NZEF ) i...",
+      "completion": " Andrew was promoted to lance corporal in 1917, and then to corporal in 1918. He was wounded in action on 4 September ",
+      "perplexity": 2.65625,
+      "loss": 0.9765625,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nIn 1947 , the first Tintin motion picture was created : the stop moti...",
+      "completion": " declared bankruptcy and fled to Argentina. The film was never released commercially. The film was made with a budget of 1.5 million Belgian francs, which",
+      "perplexity": 6.03125,
+      "loss": 1.796875,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThere have been a number of potential species assigned to the carnosa...",
+      "completion": ". fragilis became one of the best @-@ known species of dinosaur. The genus has been found in the Morrison Formation in the western United States, as",
+      "perplexity": 3.59375,
+      "loss": 1.28125,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe earthquake also destroyed a nursing school in the capital and sev...",
+      "completion": " @-@ au @-@ Prince's main art museum, Centre d 'Art, College Saint Pierre and Holy Trinity Cathedral. The earthquake also caused significant",
+      "perplexity": 4.53125,
+      "loss": 1.5078125,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe northern facade , built during the 16th century in the Renaissanc...",
+      "completion": " older than most of the rest of the building, their third level has Solomonic columns which are associated with the Baroque period. The cathedral's interior",
+      "perplexity": 2.828125,
+      "loss": 1.0390625,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nBy 16 December , the British 5th Division had completed its move into...",
+      "completion": " therefore assumed by V Corps as the Canadians pushed for Ortona with the Indian Division on their left flank attacking toward Villa Grande and Tollo. The fighting was",
+      "perplexity": 2.609375,
+      "loss": 0.9609375,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nSayid Jarrah ( Naveen Andrews ) , Kate Austen ( Evangeline Lilly ) an...",
+      "completion": " Jack gives him some and Charlie takes it, but then he takes some of Jack's morphine as well. Meanwhile, Jin-Soo Kwon ( Daniel",
+      "perplexity": 3.859375,
+      "loss": 1.3515625,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe character of Humpty Dumpty was popularised in the United States b...",
+      "completion": " rhyme is listed in the Roud Folk Song Index as No. 13026. The rhyme is also listed in the Nursery Rhyme Index as No. ",
+      "perplexity": 3.234375,
+      "loss": 1.171875,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nEmigration from Ireland in the 19th century contributed to the popula...",
+      "completion": ", are of Irish descent. As of 2013, a total of 34 @.@ 5 million Americans claim Irish ancestry. The Irish diaspora is",
+      "perplexity": 2.84375,
+      "loss": 1.046875,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nA large portion of Oldham 's residences are \" low value \" Victorian e...",
+      "completion": " almost all parts of Oldham. The town has a mix of housing types, including semi @-@ detached and detached houses, and a few high @-",
+      "perplexity": 4.96875,
+      "loss": 1.6015625,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nFoliot died 7 August 1234 , after an illness that began in the spring...",
+      "completion": " Foliot appointed his younger brother Thomas to offices in the diocese, first as precentor in the 1220s and then around 1230 as",
+      "perplexity": 1.8359375,
+      "loss": 0.60546875,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nLock Haven has a council @-@ manager form of government . The council...",
+      "completion": " whose term expires in 2019. The manager is Richard W. Marcinkevage. The city manager is responsible for the administration of the city,",
+      "perplexity": 4.21875,
+      "loss": 1.4375,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nIn the 1989 form nominating it for the National Register of Historic ...",
+      "completion": " 1964, the replacement of roof slates with asphalt shingles in 1977, and the addition of a concrete ramp for access by the handicapped",
+      "perplexity": 2.21875,
+      "loss": 0.796875,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nIn 2015 , Activision announced the first new title to the series in 5...",
+      "completion": " first new title to the series in 5 years, Guitar Hero Live, released in October 2015. The title is considered a reboot of the series,",
+      "perplexity": 2.25,
+      "loss": 0.80859375,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe first stirrings of interest in science that I remember occurred d...",
+      "completion": ", when, looking out of the window at twilight through a hand curled to simulate a telescope, I noticed something peculiar about the light ; it was the phenomenon of",
+      "perplexity": 1.875,
+      "loss": 0.62890625,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nSaprang was considered one of the top contenders to lead the army and...",
+      "completion": "aprang retired from the Army in 2010. \n\nNote: CNS stands for Chairman of the National Security Council. \n\nThe text is about Saprang",
+      "perplexity": 4.25,
+      "loss": 1.4453125,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nIn June , Federer announced that after the end of his third term , he...",
+      "completion": "okovic in an epic five @-@ set match. Federer also won the doubles title at Wimbledon with his partner, Jonathan Erlich. Federer won",
+      "perplexity": 6.6875,
+      "loss": 1.8984375,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nVirginia Tech came into the game with a 9 \u2013 1 \u2013 1 record that include...",
+      "completion": " The Wolfpack had a strong running game that was led by running back Maurice Harris, who had 1, 000 yards rushing on the season. The H",
+      "perplexity": 3.546875,
+      "loss": 1.265625,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nIn simple terms , the prerogative is used to govern the realm in the ...",
+      "completion": "ize the following text:\n\nIn simple terms, the prerogative is used to govern the realm in the name of the Crown ; although the monarch has the \"",
+      "perplexity": 3.28125,
+      "loss": 1.1875,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nNathan is married to Lisa ( nee Lemoncelli ) . They have two children...",
+      "completion": "i ). They have two children. Nathan's foundation, Joe Nathan Charitable Foundation, also called \" Save It \", helps raise money and awareness for",
+      "perplexity": 5.625,
+      "loss": 1.7265625,
+      "num_tokens": 29
+    },
+    {
+      "prompt": "Summarize the following text:\n\nBradstreet was heavily involved in colonial politics . When the counc...",
+      "completion": "ested his home town of Salem, culminating in numerous trials in 1692. He was a strong advocate for the rights of the common people, and his",
+      "perplexity": 4.96875,
+      "loss": 1.6015625,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nJordan played on two Olympic gold medal @-@ winning American basketba...",
+      "completion": "ford, and Wayman Tisdale. Jordan led the team in scoring, averaging 17 @.@ 1 ppg for the tournament. He also played",
+      "perplexity": 3.28125,
+      "loss": 1.1875,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe Lambton Kent District School Board is responsible for the 13 elem...",
+      "completion": " Board is responsible for the 13 elementary and four secondary public schools ( Northern Collegiate Institute and Vocational School, Alexander MacKenzie Secondary School, Sarn",
+      "perplexity": 2.359375,
+      "loss": 0.859375,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nDylan commenced a tour of Japan in Tokyo on April 4 , 2016 , which co...",
+      "completion": "  (Source: Wikipedia)\n\n## Step 1: Identify the key events mentioned in the text\nThe text mentions three key events: Dylan's tour of Japan",
+      "perplexity": 1.59375,
+      "loss": 0.46484375,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nSource : Ellis 1954 , pp. 40 \u2013 41 , 43 provides a list of all masters...",
+      "completion": " 159, 160, 171, 179. The list of headmasters from 2004 onwards is not available. The list of headmasters is",
+      "perplexity": 4.71875,
+      "loss": 1.5546875,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nIncorporated in 1986 , Galveston Arts Center ( GAC ) is a non @-@ pro...",
+      "completion": " cash donations are welcomed. Tiered membership options and a range of volunteer opportunities are also available. The center is located in the historic Strand District of Galveston",
+      "perplexity": 3.25,
+      "loss": 1.1796875,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nRaised in rural Upstate New York , Briggs studied law in western Mass...",
+      "completion": " 1830, where he supported the conservative Whig agenda, serving on the Committee on the Post Office and Post Roads. He was also a regular advocate of",
+      "perplexity": 3.25,
+      "loss": 1.1796875,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nA 2009 guide to the buildings of the region notes the \" exceptional n...",
+      "completion": " \" an uninspiring nineteenth @-@ century church from the outside \" but says that it has \" a remarkable collection \" of memorial stones. The church is also",
+      "perplexity": 2.6875,
+      "loss": 0.98828125,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nWhilst interviewed by The Daily Telegraph , James stated : \" I think ...",
+      "completion": " many \" pash \" scenes with other cast members. The article also mentions that James has been in the show for 3 years and has been nominated for a",
+      "perplexity": 4.9375,
+      "loss": 1.59375,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nFederer won in Cincinnati , beating Novak Djokovic soundly in the fin...",
+      "completion": " two tight sets. Federer won the ATP World Tour Finals in 2009, but lost to Djokovic in 2012. \n\nThe text describes",
+      "perplexity": 4.78125,
+      "loss": 1.5625,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nQuoting the Jewish rabbi and scholar Jacob Neusner , Pope Benedict XV...",
+      "completion": "usner, Pope Benedict XVI explains that to Israel, keeping this commandment was more than ritual ; it was a way to imitate God, who rested on",
+      "perplexity": 4.15625,
+      "loss": 1.421875,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nIn 1973 Geliot 's WNO staging of Britten 's Billy Budd with Allen in ...",
+      "completion": ", Madame Butterfly, and Tristan and Isolde to capacity audiences. The company's first production of The Magic Flute was given in 1975,",
+      "perplexity": 4.1875,
+      "loss": 1.4296875,
+      "num_tokens": 30
+    },
+    {
+      "prompt": "Summarize the following text:\n\nIn September 2010 , Aston Villa launched an initiative at Villa Park ...",
+      "completion": " of Villa Park with the majority of the food served in the restaurant sourced locally. The students will be trained in all aspects of the hospitality industry including food preparation,",
+      "perplexity": 3.390625,
+      "loss": 1.21875,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nI think now I listen more as a technician and a researcher . I 'm alw...",
+      "completion": " I'm always looking for the underlying structure of the music, and I'm always looking for the underlying message. I'm not really interested in the",
+      "perplexity": 6.1875,
+      "loss": 1.8203125,
+      "num_tokens": 29
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe British issues are abridged versions of US issues from both the f...",
+      "completion": " and second series. The titles corresponded to the titles on the US magazine from which the stories were taken, so all were titled Super Science Stories except for the",
+      "perplexity": 2.546875,
+      "loss": 0.93359375,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nOnce formed , proteins only exist for a certain period of time and ar...",
+      "completion": " destruction or due to being unstable. The cell's machinery is able to recognize and degrade proteins that are damaged or misfolded, which is an important mechanism",
+      "perplexity": 5.5,
+      "loss": 1.703125,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe 10th anniversary vinyl reissue of Illinois features the Marvel ch...",
+      "completion": "Summarize the following text:\n\nThe 10th anniversary vinyl reissue of Illinois features the",
+      "perplexity": 3.203125,
+      "loss": 1.1640625,
+      "num_tokens": 19
+    },
+    {
+      "prompt": "Summarize the following text:\n\nIn 1932 Lewis Spence writes in The Weekly Scotsman , in response to t...",
+      "completion": " writes in The Weekly Scotsman, in response to the popularisation of Margaret Murray's witch @-@ cult hypothesis in Scotland, that \" the Saxon",
+      "perplexity": 2.265625,
+      "loss": 0.8203125,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThere are an estimated 27 @,@ 000 civil aircraft registered in the UK...",
+      "completion": " The UK GA fleet is estimated to be worth around \u00a3 1.5 billion. The UK GA fleet is made up of a wide range of aircraft types,",
+      "perplexity": 3.75,
+      "loss": 1.3203125,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nRob Howard was born and raised in Richmond . He graduated from the Un...",
+      "completion": ", started his own business, NCL Real Estate Management, which specialized in Property Development and property management. He is married to Trudy and has one son,",
+      "perplexity": 2.0,
+      "loss": 0.69140625,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nHe was then promoted to be Regimental Commanding Officer of the Armed...",
+      "completion": " following text:\n\nHe was then promoted to be Regimental Commanding Officer of the Armed Forces Academies Preparatory School in 1990. In 199",
+      "perplexity": 2.96875,
+      "loss": 1.0859375,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nWhen the British paratroopers had withdrawn , two of the guns were pu...",
+      "completion": ":\n\nWhen the British paratroopers had withdrawn, two of the guns were put back into action by the Germans. Another attack the next day by British Commandos",
+      "perplexity": 2.0625,
+      "loss": 0.72265625,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nSome people with AML may experience swelling of the gums because of i...",
+      "completion": " of a solid leukemic mass or tumor outside of the bone marrow, called a chloroma. Occasionally, a person may show no symptoms, and the leukemia may",
+      "perplexity": 2.328125,
+      "loss": 0.84765625,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe west facade was constructed in 1688 and rebuilt in 1804 . It has ...",
+      "completion": "Summarize the following text:\n\nThe west facade was constructed in 1688 and rebuilt in 1804",
+      "perplexity": 2.5625,
+      "loss": 0.94140625,
+      "num_tokens": 22
+    },
+    {
+      "prompt": "Summarize the following text:\n\nHe finished as the year @-@ end world No. 1 for the fourth year in a ...",
+      "completion": " for all 52 weeks of the year. He also won the ATP Masters Cup for the third time in a row, and the Davis Cup for the first time",
+      "perplexity": 4.125,
+      "loss": 1.4140625,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe species has a cosmopolitan distribution except for arctic , alpin...",
+      "completion": "ate and tropical regions of the world. It has been collected in Africa, Asia, Australia, Europe, North America, and South America. The species is found",
+      "perplexity": 2.96875,
+      "loss": 1.0859375,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe school opened in September 1903 , with two classrooms staffed by ...",
+      "completion": " The school continued to grow, and by 1915, there were 150 students enrolled. The school was staffed by the Sisters of the Presentation, who",
+      "perplexity": 3.0625,
+      "loss": 1.1171875,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe Palmyrene constitutional institutions continued to function norma...",
+      "completion": ", the kingdom was administered by a viceroy, Septimius Worod. Worod was a member of the Palmyrene aristocracy and was appointed",
+      "perplexity": 3.4375,
+      "loss": 1.234375,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nUnlike most James Bond films featuring various locations around the w...",
+      "completion": " stars to the producers. The film was shot in Tokyo and the surrounding areas. The film was shot in a 2.35:1 aspect ratio, which",
+      "perplexity": 5.65625,
+      "loss": 1.734375,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nSf historian Mike Ashley regards Super Science Stories as marginally ...",
+      "completion": " Ashley notes that the magazine \" was a major outlet for the work of the British sf writers of the 1950s \". The magazine was also notable for",
+      "perplexity": 4.03125,
+      "loss": 1.390625,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe visitor to Oldham will find it essentially a mean @-@ looking str...",
+      "completion": " and smouldering. The streets are narrow and winding, and the houses are built in a haphazard way, with no regard for the general appearance of",
+      "perplexity": 8.125,
+      "loss": 2.09375,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nRoberts , A. , Blood , H. , Learned , J. & F. Reines . \" Status and A...",
+      "completion": " ( accessed 2011 - 10 - 12 ). [ 1 ] [ 2 ] [ 3 ] [ 4 ] [ 5",
+      "perplexity": 2.5625,
+      "loss": 0.94140625,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nOccupational chemical exposure to benzene and other aromatic organic ...",
+      "completion": " the attributable risk, if any, is slight. The evidence is not strong enough to support a causal relationship between benzene exposure and AML. The International Agency",
+      "perplexity": 3.6875,
+      "loss": 1.3046875,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nHouston performed the song on her My Love Is Your Love World Tour , i...",
+      "completion": "9 and broadcast on Polish television channel, TVP1. The performance was also included in the concert film \" My Love Is Your Love World Tour Live \",",
+      "perplexity": 5.4375,
+      "loss": 1.6953125,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nWhile serving as an administrator for Hangzhou , the poet Su Shi ( 10...",
+      "completion": "ham quotes him as saying : \" The bridges of China are the most beautiful in the world, and the most numerous. \"  < / p >  <",
+      "perplexity": 8.5,
+      "loss": 2.140625,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nWASP @-@ 44 , its recently discovered planet , the planets orbiting W...",
+      "completion": " The paper was written by a team of astronomers from the University of St Andrews, the University of Edinburgh, and the University of Cambridge. The paper was titled \"",
+      "perplexity": 2.984375,
+      "loss": 1.09375,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nAccording to Captain Robert Montgomery ( Royal Engineers , attached t...",
+      "completion": " delay caused, he believes, by some of the acid in the pencil fuses being distilled away. As the morning progressed, more and more captured comrades joined him",
+      "perplexity": 2.3125,
+      "loss": 0.8359375,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nIn the 2004 presidential election , Bedell attacked John Kerry for vo...",
+      "completion": " candidacy. For the 2008 election, Bedell met with Chris Dodd. However, in December 2007, he announced his endorsement of Barack Obama.",
+      "perplexity": 2.828125,
+      "loss": 1.0390625,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nAfter Homer was kicked out of Moe 's Tavern , it was originally plann...",
+      "completion": " the fact that it looked depressing was the reason why it was deleted, and replaced with a more humorous approach with him chasing a poodle. The scene was re",
+      "perplexity": 2.796875,
+      "loss": 1.03125,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nEnlargement of the spleen may occur in AML , but it is typically mild...",
+      "completion": "is. Rarely, Sweet's syndrome, a paraneoplastic inflammation of the skin, can occur with AML.  The liver is involved in",
+      "perplexity": 3.859375,
+      "loss": 1.3515625,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe blue color of L. indigo is due to ( 7 @-@ isopropenyl @-@ 4 @-@ m...",
+      "completion": " methyl stearate, an organic derivative of azulene. It is unique to this species, but similar to a compound found in L. deliciosus",
+      "perplexity": 2.359375,
+      "loss": 0.859375,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nAnderson was a standby director during the 2005 filming of Robert Alt...",
+      "completion": " Jon Brion. The play was called \"The Largo\" and was a tribute to the Largo Theatre, where Anderson had performed many times. Anderson has",
+      "perplexity": 6.28125,
+      "loss": 1.8359375,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nAcute leukemias of ambiguous lineage ( also known as mixed phenotype ...",
+      "completion": "Summarize the following text:\n\nAcute leukemias of ambiguous lineage ( also known as mixed phenotype or biphenotypic acute leukemia )",
+      "perplexity": 2.03125,
+      "loss": 0.7109375,
+      "num_tokens": 29
+    },
+    {
+      "prompt": "Summarize the following text:\n\nIn the sixth century , Caesarius of Arles taught that the whole glory...",
+      "completion": " apply the law of the Jewish Sabbath to the observance of the Christian Sunday, as Jewish and non @-@ Christian. The Council of Orl\u00e9ans",
+      "perplexity": 2.96875,
+      "loss": 1.0859375,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nIn 2015 , Anderson directed a 54 @-@ minute documentary , Junun , abo...",
+      "completion": "arh Fort in the Indian state of Rajasthan. Junun premiered at the 2015 New York Film Festival. The documentary was well received by critics and audiences",
+      "perplexity": 3.71875,
+      "loss": 1.3125,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nSmaller groups included the aithechth\u00faatha ( see Attacotti ) , C\u00e1lrai...",
+      "completion": "  <hr/>  <p style=\"text-align: center;\"> <a href=\"https://en.wikipedia.org/wiki/List_of_Tuatha_D\u00e9_D",
+      "perplexity": 1.6796875,
+      "loss": 0.51953125,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nBy 1900 , only a short stretch of the Detroit \u2013 Howell Plank Road was...",
+      "completion": "1919, it applied the M @-@ 16 number to Grand River Avenue across the state between Grand Haven and Detroit. This number was later changed to",
+      "perplexity": 3.15625,
+      "loss": 1.1484375,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nTroops are divided into five classes : Scouts , Shocktroopers , Engin...",
+      "completion": " attributes shared by the entire squad, a feature differing from early games'method of distributing to different unit types. The attributes are : Strength, Speed, Intelligence,",
+      "perplexity": 4.375,
+      "loss": 1.4765625,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nA similar sentiment was expressed in a 1968 episode of the animated s...",
+      "completion": " chops down a tree and uses it as a roadblock against the other racers, declaring proudly : \" I think that I shall never see / A roadblock",
+      "perplexity": 2.109375,
+      "loss": 0.75,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nAs Chairman of CAT Telecom , Saprang was accused by the founders of P...",
+      "completion": " by several ex @-@ executives of the Thai Rak Thai party. CAT Telecom claimed that it never received PTV's application for internet access. PTV",
+      "perplexity": 2.6875,
+      "loss": 0.98828125,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nVeeru returns , and Jai dies in his arms . Enraged , Veeru attacks Ga...",
+      "completion": " The film ends with Veeru and Basanti embracing each other, while Radha looks on, a picture of sadness on her face. The final shot is of",
+      "perplexity": 3.484375,
+      "loss": 1.25,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe following players made at least one appearance for Somerset in fi...",
+      "completion": "Summarize the following text:\n\nThe following players made at least one appearance for Somerset in first @-",
+      "perplexity": 2.875,
+      "loss": 1.0546875,
+      "num_tokens": 21
+    },
+    {
+      "prompt": "Summarize the following text:\n\nAnother possible reference to the church may be in a marginal note fr...",
+      "completion": "orium, where Laloe may have worked.  The Patriarchal Cathedral is a church in the city of Veliko Turnovo, which was the capital",
+      "perplexity": 6.125,
+      "loss": 1.8125,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nDuring the reintroduction of corn crakes to England in the 2003 breed...",
+      "completion": "3 breeding season, enteritis and ill health in pre @-@ release birds was due to bacteria of a pathogenic Campylobacter species. Subsequently",
+      "perplexity": 3.625,
+      "loss": 1.2890625,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nChauvel planned , with Lawrence 's approval , to capture the Ottoman ...",
+      "completion": " was strongly held by greatly superior numbers of Germans, Austrians and Ottomans, supported by well @-@ placed artillery, but the garrison was seen",
+      "perplexity": 2.421875,
+      "loss": 0.8828125,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nIt was announced on 2 May 2012 , that Woodhouse was the new manager o...",
+      "completion": "Summarize the following text:\n\nIt was announced on 2 May 2012, that Woodhouse was the",
+      "perplexity": 2.328125,
+      "loss": 0.84375,
+      "num_tokens": 23
+    },
+    {
+      "prompt": "Summarize the following text:\n\nJordan was born in Brooklyn , New York , the son of Deloris ( n\u00e9e Peo...",
+      "completion": "Summarize the following text:\n\nJordan was born in Brooklyn, New York, the son of Deloris ( n",
+      "perplexity": 3.078125,
+      "loss": 1.125,
+      "num_tokens": 23
+    }
+  ],
+  "stego_results": [
+    {
+      "prompt": "Summarize the following text:\n\nTennyson originally blocked out the poem in four paragraphs , broken ...",
+      "completion": " The fourth section ofthe poem Is a conclusion and summary ofthe earlier material. The fourth section is a conclusionand summary Of the earlier materiaL\n\n## Step",
+      "perplexity": 21.0,
+      "loss": 3.046875,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nA part of the units which compose the current operational structure o...",
+      "completion": " The military operations outside national boundaries are called \"overseas operations\" or \"operational deployment\". The units that participate In these operatlONS are called",
+      "perplexity": 11.4375,
+      "loss": 2.4375,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nPark 's interests included sailing and climbing , which was relevant ...",
+      "completion": "   He also became a qualified instructor for a martial art.  Park was convicted in the United States and served a sentence in the United States.  He then",
+      "perplexity": 8.9375,
+      "loss": 2.1875,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nIn 1691 William and Mary issued a charter establishing the Province o...",
+      "completion": " Bradstreet had a son who was a physician and two daughters who married well and produced children of Their own. Bradstreet 'll be buried on the family estate",
+      "perplexity": 10.4375,
+      "loss": 2.34375,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nJohn Walsh also visited it , for The Independent , after the restaura...",
+      "completion": " The Independent also published an review By Peter Sisson of The Sunday Times, which gave the review two and a half stars. \n\nThe restaurant was also visited By",
+      "perplexity": 12.75,
+      "loss": 2.546875,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nIn 2011 , 77 @.@ 5 % of the Oldham metropolitan borough population we...",
+      "completion": " The remaining population was predominantly composed of Asian people.\n\n## Step : 2011 census statistics for the Oldhan metropolitan area\nThe population of the Oldhan metabolic",
+      "perplexity": 17.125,
+      "loss": 2.84375,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe Hurricanes ' ground offense was led by running back Smokey Roan ,...",
+      "completion": " The Hurricanes offense also featured a talented group of wide receives,including Miami'sown Mike Davis, whom was also named to the Associated Press All @-",
+      "perplexity": 13.375,
+      "loss": 2.59375,
+      "num_tokens": 30
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe current Romanian reconnaissance battalions ( the 313th , the 317t...",
+      "completion": " The Romanian special forces units are knownfor their exceptional training and high levels Of professionalism. They are also Knownfor Their expertise in counterintelligence and countersurpial",
+      "perplexity": 23.125,
+      "loss": 3.140625,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nChaoyangsaurus is recovered in a more basal position than Psittacosau...",
+      "completion": " The results of the study suggest That Ceratopiaea is not a monophyletis group and that Ceratopsia may be a paraphylet",
+      "perplexity": 7.625,
+      "loss": 2.03125,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe character received positive critical reception while starring in ...",
+      "completion": " The Character also made a appearance on Entertainment Weekly \u2019\u2019s New Classic Characters list. The Character also made a Appearance in The 100reatest Heroes & Villans of",
+      "perplexity": 14.6875,
+      "loss": 2.6875,
+      "num_tokens": 33
+    },
+    {
+      "prompt": "Summarize the following text:\n\nA. amplexus was named by Gregory S. Paul for giant Morrison allosaur ...",
+      "completion": " A. amplexuus is now considered to be a nomen dubiam, and the name is not used by many paleontology researchers.\nA. frag",
+      "perplexity": 9.5,
+      "loss": 2.25,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nAside from the development of the linen industry , Ireland was largel...",
+      "completion": " The linen\u696d\u696d industry flourished however, and the city Of Belfast emerged as a significant centre of industry and Trade. The city of Dublin was already a major",
+      "perplexity": 17.5,
+      "loss": 2.859375,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nDuring the month of August , 1862 , the following work was performed ...",
+      "completion": " ( From the diary Of a Confederate ordanance sergeant. )\n\n## Steps 1: Identify the time period mentioned In The text.\n The text mentiones that",
+      "perplexity": 47.5,
+      "loss": 3.859375,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nReal Madrid gained entry to the competition as champions , after they...",
+      "completion": " The victory over limerick was the first of eight consecutive victories in Europe that Real would go onto have. The victory was also the first time That the club",
+      "perplexity": 10.75,
+      "loss": 2.375,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThere are three World Heritage Sites on the island : the Br\u00fa na B\u00f3inn...",
+      "completion": " The Island of Ireland is also the only country to have two World heritage Site s in the Atlantic Ocean : SkellingMichaeland the Cliffso f Mo her",
+      "perplexity": 14.9375,
+      "loss": 2.703125,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nAn open porch occupies the whole of the west frontage , facing the st...",
+      "completion": " The porch onthe southsideis partly enclosed by an extension that is not part.of the original building.\n\nNote: The description of the architecture of a building.\n\n",
+      "perplexity": 14.0,
+      "loss": 2.640625,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nIrish culture has had a significant influence on other cultures , esp...",
+      "completion": " The culture of the island is a blend Of these influences.\n\nIreland is knownfor Its rich cultural Heritage and its strong traditional music scene.The county is home",
+      "perplexity": 23.5,
+      "loss": 3.15625,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nWriting in 1859 , the clergyman and antiquarian Harry Longueville Jon...",
+      "completion": " The guide also notes that the \" church is situated on the summit.of the ridge \" and That \"the views fr\u00e5n the top are superb \".\n\n# Translation\n",
+      "perplexity": 22.375,
+      "loss": 3.109375,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nAccording to arachnologist B. J. Kaston , adult females are 3 @.@ 5 t...",
+      "completion": " The difference may be Due to the fact that thePeCK-hamspartly used immature specimens in their study. The body of this Species is oval and",
+      "perplexity": 16.125,
+      "loss": 2.78125,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe theater film , The Man from Galveston ( 1963 ) , was the original...",
+      "completion": " The seriesWas cancelled after a poor ratings performance and the departure Of Jeffrey hunter from The show.\n\n## Steps  to  solve the problem\nStep One:\nidentify",
+      "perplexity": 33.0,
+      "loss": 3.5,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe Trinity Hall of Xuan Miao Temple ( \u7384\u5999\u89c2 ) , situated in the heart ...",
+      "completion": " The hall features an imposing stone structure with a double-eave tiled roof and a central axis of symmetry. The building boasts a series of intricately crafted stone statues",
+      "perplexity": 7.625,
+      "loss": 2.03125,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThree weeks after the failure of the operation , a second attack was ...",
+      "completion": " The German forces had maintained a presence onthe outskirts of Brugs until the very end of the occupation,and the town was not fully cleared until afterthe Arm",
+      "perplexity": 15.1875,
+      "loss": 2.71875,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nJordan attended Emsley A. Laney High School in Wilmington , where he ...",
+      "completion": "Jordan attended Emsely A. Laney high schools where He played basketball, Football and baseball.He tried out for basketball but didn't made It because he",
+      "perplexity": 13.375,
+      "loss": 2.59375,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nIn 2013 , Fey starred alongside Paul Rudd in the romantic comedy @-@ ...",
+      "completion": " Fey also starred opposite Jason Batemans in the Netflix Original film @-@ drama This Is Where I Leave @ @-@ Leave You : @-@",
+      "perplexity": 10.75,
+      "loss": 2.375,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\n( Two lay movements represent opposing philosophies regarding homosex...",
+      "completion": " ( Dignity USA is a group that seeks to changethe teachings of theCathol icChurch tojustify homosexual actsthat are considered sinful. Courage",
+      "perplexity": 8.75,
+      "loss": 2.171875,
+      "num_tokens": 33
+    },
+    {
+      "prompt": "Summarize the following text:\n\nAt Wimbledon , Federer entered the tournament not only as the four @-...",
+      "completion": " Federer also becamethe first player in ATP history to achieve a double @@@-@@@-@@@-@@-@@@ double, having previously won",
+      "perplexity": 8.375,
+      "loss": 2.125,
+      "num_tokens": 33
+    },
+    {
+      "prompt": "Summarize the following text:\n\nCullen 's battle with cancer inspired Timm Harmon of the Moffitt Canc...",
+      "completion": " The NHL also created a sticker that players could wear on Their helmets, which read \" Cancer Can t \".The Hockey.FIGHT.S.Cancer sticker on the",
+      "perplexity": 28.375,
+      "loss": 3.34375,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nTurner sat out his true freshman year during the 2005 season on redsh...",
+      "completion": "In the spring, Turner underwent a @-@@@-@-@m-@@@@-@m-@m@ @@-@-@",
+      "perplexity": 22.0,
+      "loss": 3.09375,
+      "num_tokens": 30
+    },
+    {
+      "prompt": "Summarize the following text:\n\nAnother popular etymology is the hypothetical Greek word \u1f00\u03bd\u03c4\u03af\u03bc\u03cc\u03bd\u03bf\u03c2 an...",
+      "completion": " The Greek words anthemon and anthemion are known to describe a flower, a floret, or a sprout. Lippman 'd etymology",
+      "perplexity": 9.9375,
+      "loss": 2.296875,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nMonument 7 is carved from yellow sandstone and has suffered only mino...",
+      "completion": " The stelas in this seriesare dated between the years 700-800. The seriesis knownfor its unique and well @ preserved hieroglyphs and",
+      "perplexity": 19.5,
+      "loss": 2.96875,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThere are three rowlock arches above all of the windows on the first ...",
+      "completion": " The window openings inthe first and second floor are @-[@@-] 2 feet-wide and 3 feet-tall. The windows are 2",
+      "perplexity": 11.625,
+      "loss": 2.453125,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\n3 ) , zinkenite , jamesonite , and boulangerite . Antimony pentasulfi...",
+      "completion": " 2 Se @-@ S ] 2 @-@ and @-@[ SB @-@[ 2 S 2 ] @-. The @-",
+      "perplexity": 8.0,
+      "loss": 2.078125,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nOf Human Feelings explores jazz @-@ funk music and continues Coleman ...",
+      "completion": " The result were short, tight and energetic compositions with strong rhythmical patterns.The album features the PrimeTime band, with guitarist James Carter and saxophonists Steve",
+      "perplexity": 19.5,
+      "loss": 2.96875,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nTennyson penned \" Ulysses \" after the death of his close Cambridge fr...",
+      "completion": " Hallam had a strong influence upon the development of the young Tennyson's poetry and was instrumental In shaping his poetic voice.\n\nTennysson wrote the",
+      "perplexity": 12.9375,
+      "loss": 2.5625,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nTo commemorate the centenary of the first performance of the play , R...",
+      "completion": " The adaptation used a full cast, rather Than the original two - handed production, which had been performed in 1885.The adaptation was also broadcast in Australia",
+      "perplexity": 15.1875,
+      "loss": 2.71875,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nIn 1951 parts of the Limehurst Rural District were added to the Count...",
+      "completion": " The borough council of Old Town is the local authority for Oldham and is responsiblefor the delivery Of services suchas waste collection and street lighting.The Metropolitan Borough",
+      "perplexity": 16.625,
+      "loss": 2.8125,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nIn his preface , Merrifield noted that while archaeologists studying ...",
+      "completion": " The book covers a wide range of topics, including the use Of ritual in the ancient Greek city - state, the rise Of the Roman Empire,the spread of",
+      "perplexity": 13.375,
+      "loss": 2.59375,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\n\" Rosemary 's Baby \" is the fourth episode of the second season of 30...",
+      "completion": " The episode centers on Jenna's ( Kristen Chenowith) attemptto become a mother through a surrogancy procedure. She hires an egg donor, but",
+      "perplexity": 18.25,
+      "loss": 2.90625,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe development of women 's football in Africa faces several challeng...",
+      "completion": " The retention of female players is difficult because there are limited job opportunities and low wages inAfrica.\n\nIn addition to these challenges, the continent is also facing a shortage",
+      "perplexity": 7.625,
+      "loss": 2.03125,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nIn 1960 , Ernest in Love was staged Off @-@ Broadway . The Japanese a...",
+      "completion": " The musical @ @@ was adapted in 2006 in the United States by a company called Broadway @-@ @-@ @- - - -@",
+      "perplexity": 8.75,
+      "loss": 2.171875,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nFrom 2011 to 2015 , an aeroplane belonging to Flybe bore an image of ...",
+      "completion": " The image of StansFIELD on aeroplanees and Exeter pound notes were a tribute to StansFIELD who was a famous footballer in Exeters history",
+      "perplexity": 9.8125,
+      "loss": 2.28125,
+      "num_tokens": 33
+    },
+    {
+      "prompt": "Summarize the following text:\n\nOfficial Church teaching allows for medical procedures and treatments...",
+      "completion": " The Church also allow s procedures that are aimed-at restoring the health Of the fetus, but only if they are aimed at saving the mother's life as Well",
+      "perplexity": 14.6875,
+      "loss": 2.6875,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nIn 1948 the organisation was registered as a limited company , and th...",
+      "completion": " The company also started to tour the country, performing In London, Manchester and Edinburgh.The company was also invitedto performing at the Royal Albert Hall andthe Royal",
+      "perplexity": 17.125,
+      "loss": 2.84375,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nA week after the coup , Saprang was promoted to Assistant Army Comman...",
+      "completion": " The promotions were made by King Bhumibrnoladha, whom the coups had effectively made a merefigure head of the military government. The promotions",
+      "perplexity": 22.375,
+      "loss": 3.109375,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nStansfield was diagnosed with colorectal cancer in April 2010 . He re...",
+      "completion": " A memorial to St ans field was erected in the city of Exet e.r in hismemory. A statue of Stans field been erected in the Exeter",
+      "perplexity": 16.875,
+      "loss": 2.828125,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nIn May 2006 , a sale of the seats from Arsenal F.C. ' s old stadium ,...",
+      "completion": " The U.S. EPA also investigated the issue and determined That Cadmium Is toxic. In the U.S., the EPA sets the allowable levels Of Cadimum",
+      "perplexity": 17.125,
+      "loss": 2.84375,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nIn 2000 , the Cassini probe , en route to Saturn , flew by Jupiter an...",
+      "completion": " The @@@ images were Taken by Cassin @@@ i @@@@@@@@@@@ i @@@ i i i @@@ i @@@ i @@@@@@@ i",
+      "perplexity": 12.375,
+      "loss": 2.515625,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe book is also available as an audiobook , narrated by Scott Brick ...",
+      "completion": " The book also includes an epigraph from The Confusion, his earlier novel.\n\n# Book formats\n## Steps\n### Step to summarize\nTo summarizes the text",
+      "perplexity": 22.0,
+      "loss": 3.09375,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nInternational rescue efforts were restricted by traffic congestion an...",
+      "completion": " The UN had also begun distributing food aid in the earthquake- affected regions.The US military had also set-up field kitchens in the areas affected By The earthquake to",
+      "perplexity": 21.75,
+      "loss": 3.078125,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nBetween 1995 and 2004 there were 2 @,@ 630 accidents involving GA air...",
+      "completion": " The most common causes Of @,@ aircraft accidents are : pilot error ; aircraft maintenance ; and @,@ adverse weather Conditions.\n\n# In the context of GA (-General",
+      "perplexity": 18.25,
+      "loss": 2.90625,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe South African comics writer Anton Kannemeyer has parodied the per...",
+      "completion": " The book also satrirically depicts a group of Afikkaners, Tintis friends and colleagues, whom he portrays as racist, sexist and homophobic.",
+      "perplexity": 19.5,
+      "loss": 2.96875,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nMen with wives and dependents found it difficult to support their fam...",
+      "completion": " The government also established the WPA ( Work ProjectsAdministration) to provide jobsfor men and woman. The government provided housingfor the workers and their dependants.",
+      "perplexity": 16.125,
+      "loss": 2.78125,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nPublished by Beyonc\u00e9 Publishing ( ASCAP ) , Hitco South South ( ASCAP...",
+      "completion": ". \n\nThe lyrics of the song \" 4 Minutes toSave The World \" is written by Beyonc\u00e9 Knowles-Carter and Neil Martin. \n\n The song",
+      "perplexity": 9.1875,
+      "loss": 2.21875,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nAs explained below , chess theorists in recent decades have continued...",
+      "completion": " Rather than seeking to equality, they argue thatBlack can gain a strategic advantage in certain positions by accepting White'chess initiativerelativeto Black's",
+      "perplexity": 23.5,
+      "loss": 3.15625,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe Port of Galveston , also called Galveston Wharves , began as a tr...",
+      "completion": " Theport also has facilities for cruise and ferry operations.\n\n#1: ThePort\nThePort of galveston is aport with 3 4 km",
+      "perplexity": 14.6875,
+      "loss": 2.6875,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nHarian II : his image appear on a seal impression along with his olde...",
+      "completion": "  Potter also suggests that Hairan I was the husband.of a queen who was a sister of Vagharan I. Potter also suggest That Hairan II",
+      "perplexity": 15.625,
+      "loss": 2.75,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nIn ice hockey , a combination of a player 's goals and assists are co...",
+      "completion": " The statistics are listed by Player, Goals, Assists, Points, Penalty minutes, Plus @- minus, and Game played.\n\n## Step 1\nThe",
+      "perplexity": 5.65625,
+      "loss": 1.734375,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nOn 18 May 2016 , Randy Lerner agreed the sale of Aston Villa to Recon...",
+      "completion": " The club had been in financial difficulty, struggling to pay debts amount ing to around 100million. The sale was welcomed By the club's board of Directors",
+      "perplexity": 16.375,
+      "loss": 2.796875,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nYou Only Live Twice ( 1967 ) is the fifth spy film in the James Bond ...",
+      "completion": " Thefilm features a number of innovative and memorable scenes, including a fight scene on a roller-coast er, a chase sequence through the streets of To kyo",
+      "perplexity": 9.8125,
+      "loss": 2.28125,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nSet in the 22nd century , the series follows the adventures of the fi...",
+      "completion": " The crew also uncover a plot oleh a group of Klingon officers to kill the colony and take their resources for themselves. The crew of enterprise must navigate a web",
+      "perplexity": 9.9375,
+      "loss": 2.296875,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe statues in the west tower are the work of Jos\u00e9 Zacar\u00edas Cora and ...",
+      "completion": " The sculptures are in the style of Spanish Romanticism and Arequipa School. The sculptures are in the manner of Spanish Romanticism and Arequito Style. The",
+      "perplexity": 8.25,
+      "loss": 2.109375,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nAn unprecedented event was the visit of Joseph II , Holy Roman Empero...",
+      "completion": " The electors were able, to a certain degree, to resist Joseph's pressure and elected Pious VI on April 22.\n\nJoseph II was not satisfied",
+      "perplexity": 11.4375,
+      "loss": 2.4375,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nKate Greenaway was a childhood favorite and an influence on her art ....",
+      "completion": " Barker also studied the work of English artist, Edward Burra, whose work is more modern and less conventional. Barker also studies the influences Of the French Impression",
+      "perplexity": 17.125,
+      "loss": 2.84375,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nAlthough Oldham had a thriving economy during the 19th century , the ...",
+      "completion": " The townscape is dominated by a few large Victorian-era factories, whichare now largely derelICT.The townscape is also dominated by a series  of",
+      "perplexity": 22.0,
+      "loss": 3.09375,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nMinister of Education Joel Jean @-@ Pierre stated that the education ...",
+      "completion": " The minister said that \" we are faced avec @ @ a @-@ a major crisis ). \" The crisis began when Hurricane Ivan struck the island on @",
+      "perplexity": 14.9375,
+      "loss": 2.703125,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe early uses of antimonium include the translations , in 1050 \u2013 110...",
+      "completion": " The term may Have Been used by the Greeks to Describe the substance, though there isno evidence to support This assertion.\nIn the Middle Ages, antemonium",
+      "perplexity": 24.625,
+      "loss": 3.203125,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe synthesis of aziridines from imines is another important applicat...",
+      "completion": " The azide moiety can\tbe used in place of the oxazole moietry in the original reaction.\n\nIn the example shown above, aminolysed",
+      "perplexity": 22.0,
+      "loss": 3.09375,
+      "num_tokens": 33
+    },
+    {
+      "prompt": "Summarize the following text:\n\nSholay has received many \" Best Film \" honours . It was declared the ...",
+      "completion": " Thefilm also won several other awards,including the National Film Award for Best Film in1982, andthe NationalFilm Award forBest Direction for Ramesh",
+      "perplexity": 8.75,
+      "loss": 2.171875,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe quake created a landslide dam on the Rivi\u00e8re de Grand Go\u00e2ve . As ...",
+      "completion": " The villagers were warned ofthe impending disaster, but the localauthori ties were reluctant to evacuate them. @@- The villagers were eventually evaucrated on",
+      "perplexity": 23.5,
+      "loss": 3.15625,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nOutraged workers surveyed CPS men in other hospitals and learned of t...",
+      "completion": " \"We were not just dealing WITH a few Bad Appples, but with a SYSTEMIC PROBLEM. \" (emphasis in original ). The workers were shocked",
+      "perplexity": 14.6875,
+      "loss": 2.6875,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe first known proposal for surface weather observations at sea occu...",
+      "completion": " The U.S. Navy also began using ships asweather ships. The first weather ship, the U S Coast Guards cutter \"Northwind\", began operations on",
+      "perplexity": 9.5,
+      "loss": 2.25,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe building receives its name from its distinct octagonal tower . Be...",
+      "completion": " The building now functionsas an office buildingand museum. The buildingis a historic landmark andis listed on theNational Historic Landmark registry. The octagonal Tower",
+      "perplexity": 12.0,
+      "loss": 2.484375,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nA hereditary risk for AML appears to exist . Multiple cases of AML de...",
+      "completion": " The relationshipbetween AAMLand congenitalconditionsis not fullyunderstoodsupposed to be related to the abnormal cell division and genetic mutations Thatoccur during",
+      "perplexity": 20.375,
+      "loss": 3.015625,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nIt is filled with precisely the kind of shrill hyperbole that Finkels...",
+      "completion": " (F. 2001 : 13 )\nThe Holocaust is a topic of great importance and controversy. Finkelstein 'd book argues that the holocaust",
+      "perplexity": 14.4375,
+      "loss": 2.671875,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nRuiz notes that writing also has the power to transform reality . It ...",
+      "completion": " The author also mentions the power Of the word to create and destroy, and how this can be seen In The Fever and The Fever of The Goat. In The",
+      "perplexity": 22.0,
+      "loss": 3.09375,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe Qedarites ( also Kedarites / Cedarenes , Cedar / Kedar / Qedar , ...",
+      "completion": " The Qedarites were a major force in the Middle East during this time,and were known for their military might, their skill as archers, and their",
+      "perplexity": 5.03125,
+      "loss": 1.6171875,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nAntimony is a silvery , lustrous gray metalloid that has a Mohs scale...",
+      "completion": " It can be melted at high temperatures and is used to make a number Of alloys.Antmonyis a toxic substance. It can be toxic if swallowed, in",
+      "perplexity": 17.5,
+      "loss": 2.859375,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nHe was appointed Commander of the 1st Infantry Battalion of the 4th I...",
+      "completion": "In the late 1991, He was appointed as the Commander Of the 1st infantry Battalion in The Royal Guards Regiment, stationary in the Royal Guards Camp",
+      "perplexity": 13.375,
+      "loss": 2.59375,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nPassing along the face of the eastern hill to the north of Sitabai 's...",
+      "completion": " The mainhill is covered with a thick layer of grass and bushes, which makes It difficult to see the ancient structures. The entirearea is covered avecropes",
+      "perplexity": 18.25,
+      "loss": 2.90625,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nMother and I agreed , when we talked about it , that Dad never meant ...",
+      "completion": " We also decided that the tree would Haveto be decidous @- - - -@, since we'd be talking @@@ about leaves and branches",
+      "perplexity": 24.625,
+      "loss": 3.203125,
+      "num_tokens": 30
+    },
+    {
+      "prompt": "Summarize the following text:\n\nDraftees in Civilian Public Service became medical and scientific res...",
+      "completion": " The most notable example of this wasthe Tuskegees syphilist studies, where the U. S government deliberately infected over two hundred African American soldiers with",
+      "perplexity": 14.6875,
+      "loss": 2.6875,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nBecause of his association with these outlaws , Zhou is often confuse...",
+      "completion": " The two are not connected in any other way.\n\n## Steps  to summarize thistext:\n\n### Step One\nidentify themain subject ofthe text\n Themain",
+      "perplexity": 52.0,
+      "loss": 3.953125,
+      "num_tokens": 33
+    },
+    {
+      "prompt": "Summarize the following text:\n\n\" New Year 's Eve \" received mostly positive reviews from critics . A...",
+      "completion": " The episode also received a @ @ 1 @ @ 1 % rating inthe @ @ 55 - 54 demographic and @.@ 1 % rating",
+      "perplexity": 9.1875,
+      "loss": 2.21875,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\n\" Jack and Jill \" ( sometimes \" Jack and Gill \" , particularly in ear...",
+      "completion": " The most common interpretation is that the two figures are representing the sun (Jack )and the Moon (Gillian, or Gill ) and that the rhyme is a",
+      "perplexity": 10.25,
+      "loss": 2.328125,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nIn a 2009 interview with Bill Flanagan promoting Dylan 's Christmas L...",
+      "completion": " ( Flanagan ) \" What doyou mean by true believer, Mr. Flangan?\" ( Dylan) Flangan replied : \"\" I mean you deliver a",
+      "perplexity": 23.5,
+      "loss": 3.15625,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nIn a dispute , the architectural firm of Miller and Pflueger was fire...",
+      "completion": " The hotel and church was designed to be a self-sustained community with the Hotel and Church as its central focus. The hotel had an elevator, and was",
+      "perplexity": 9.8125,
+      "loss": 2.28125,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nJourney to the Center of the Moon was announced for the PC at E3 2005...",
+      "completion": " The game were released on November of the same years.\n\nThe gameplay is set on a lunar base, where the protagonist must navigate through the base's facilities to",
+      "perplexity": 10.75,
+      "loss": 2.375,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nDylan 's lyrics began to receive detailed scrutiny from academics and...",
+      "completion": " The Swedish academy have refused, but the lobbying continues.\n\n# Summary\n\nDustin Dylan, not the actual surname Dylan (Bob), receives scrutiny in academic and literary",
+      "perplexity": 28.375,
+      "loss": 3.34375,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nReines died after a long illness at the University of California , Ir...",
+      "completion": " The University of California, Berkeley also has a buildingnamed after Reine s, ReineHall. \n\nNote: The information on the Reine Hall at UC",
+      "perplexity": 9.625,
+      "loss": 2.265625,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nHe did not seek reelection in 1986 after contracting Lyme disease fro...",
+      "completion": " Bed ell also served as a delegate at several Iowa cauc s. \n\nThis is the text about a politician named Tom Bed ell. \n\nKey points about Bed",
+      "perplexity": 15.625,
+      "loss": 2.75,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nOn 27 March at 07 : 20 Tynedale reported a U @-@ boat on the surface ...",
+      "completion": " At the moment they left the escort destroyers were engaged by a secondU @-@boat, U - @- 588, which was also onthe",
+      "perplexity": 10.75,
+      "loss": 2.375,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nMcAllister Tower Apartments is a 28 @-@ story , 94 m ( 308 ft ) resid...",
+      "completion": " The building also features a rooftop garden. The apartment complex offers 1 @-, 2 @- and @-, and 4 @- bedroom apartments, with",
+      "perplexity": 6.5625,
+      "loss": 1.8828125,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nLater , the Southwest Oncology Group and Eastern Cooperative Oncology...",
+      "completion": " The Southwest and the Eastern cooperative groups also published lists of prognosis for leukemia and myelo-dysplastic diseases. The prognosis for these diseases are based upon the",
+      "perplexity": 11.0625,
+      "loss": 2.40625,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nAn episode of the television series ; \" World War II 's Greatest Raid...",
+      "completion": " The episode coversthe history behindthe raid, and the events leading upto It. The episode also featuresinterventionist commentary t\u1eeb the historians, v\u00e0 the soldiers involved",
+      "perplexity": 33.75,
+      "loss": 3.515625,
+      "num_tokens": 33
+    },
+    {
+      "prompt": "Summarize the following text:\n\nUltimately political power is held by the UK government , from which ...",
+      "completion": " The Northern @@ Ireland Assembly is the legislature of Northern Ireland, comprising 91 Members of the Assembly ( MLAs).The Northern @@ Ireland Executive comprises",
+      "perplexity": 12.9375,
+      "loss": 2.5625,
+      "num_tokens": 29
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe city is also home to a 30 @-@ bed acute burns hospital for childr...",
+      "completion": " The Gal veston hospital provides care to patients from throughoutthe state of Tex as, and also accepts patients from across the country.\n\n## Steps to solve this question",
+      "perplexity": 19.75,
+      "loss": 2.984375,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nFollowing her commissioning on 1 October 1914 , Markgraf conducted se...",
+      "completion": " Markgraf spent the remaining months.of 1.915 in the Baltic, conducting routine training and exercises withIII Squadrons. In the spring.of 1.",
+      "perplexity": 15.375,
+      "loss": 2.734375,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nFinkelstein has expressed solidarity with Hezbollah and Hamas with re...",
+      "completion": "He also accused Israel of \" aggressive war \" and of \" aggression \" against Gaza. He also accused Israel 'assistant' s of using excessive Force in the conflicts",
+      "perplexity": 12.75,
+      "loss": 2.546875,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nAfter the band had walked offstage , in a move described by NME as th...",
+      "completion": " The audience and troops shared an unprecedented moment Of connection and respect, which would stay in the concert's memory for years. This moment of unity and understanding would",
+      "perplexity": 14.0,
+      "loss": 2.640625,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nHurricanes are an ever @-@ present threat during the summer and fall ...",
+      "completion": " The Gal vestion Bay Shore ac @-@ tiona l Protective District works_hard to maintain the integrity.of the shoreline. They have implemented various methods to protect",
+      "perplexity": 33.75,
+      "loss": 3.515625,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nAfter the bank 's failure , Hobbs worked as a governess for J. Wesley...",
+      "completion": "She worked as a lawyer inPortland, specializing In land laws and real property law. She also servedas an assistant district attorneys and as an assistant state's attorneys",
+      "perplexity": 20.75,
+      "loss": 3.03125,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nOther proteins that serve structural functions are motor proteins suc...",
+      "completion": " The forcesgenerated.by these proteinsare typically in the order.of.1 to. 10 picoNewtons. (1 pN equals 10^-13",
+      "perplexity": 16.375,
+      "loss": 2.796875,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe game received mixed to poor reviews . Critics found its physics m...",
+      "completion": " The game also received praise for its realistic sound design and the inclusion of realistic weather effects.\n\n## Step summary\n\nThe game received mixed to bad reviews because its physics",
+      "perplexity": 7.5,
+      "loss": 2.015625,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nOn 12 June 2006 , with his contract expired , Stansfield decided to r...",
+      "completion": " Stanks said : \"My target isto be ableto influencethe young players at the club,to be able to pass onmy knowledgeand experiencers to",
+      "perplexity": 15.375,
+      "loss": 2.734375,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe diagnosis and classification of AML can be challenging , and shou...",
+      "completion": " The use of molecular genetics and cytogenetrics can be helpful in identifying subtypes Of.AML. The WHO classification system is used to categorise AMLinto",
+      "perplexity": 12.1875,
+      "loss": 2.5,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nNear the end of World War I , the Erzherzog Karl @-@ class battleship...",
+      "completion": " The Erzhrherog Karl class was designed to serve as the flagship s Of the Austrian Navy and were the most advanced of the Austrian battlefleet. They",
+      "perplexity": 15.375,
+      "loss": 2.734375,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nSt. Leonard 's parish , named after Saint Leonard of Port Maurice , w...",
+      "completion": " The church underwent a major renovations project from 1980 - 1991, which included the installation of air conditioning and anew sanctuary. The current church building",
+      "perplexity": 8.5,
+      "loss": 2.140625,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nVon Kressenstein had prepared successive lines of defence during his ...",
+      "completion": " The British had to make use.of their aerodrones in pursuit of the Turks, and the British aeroplanists encountered a strong resistance fr\u00e5n the Turkisk air",
+      "perplexity": 38.0,
+      "loss": 3.640625,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe new church had a seating capacity of 700 . In its 110 @-@ foot ( ...",
+      "completion": " The church @-s architectureWas a combination of GothicandRomanese styles, avec @@ a @-(@ 80 @ @ foot @-@ ",
+      "perplexity": 46.0,
+      "loss": 3.828125,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nKi , the first album of the Devin Townsend Project tetralogy was writ...",
+      "completion": " The Album features a more subdued and introspective approach to Townsend ` ` s music, with less aggressive and more melancholic tones.\n\n## Step 2: Understand",
+      "perplexity": 17.125,
+      "loss": 2.84375,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nDuring this expansion , the city had many \" firsts \" in the state , w...",
+      "completion": " The city also had a significant increase in its population during this period : from approximately 2,500 in 1836to over10,000 in1856",
+      "perplexity": 6.78125,
+      "loss": 1.9140625,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe tubular bandage was invented and developed in Oldham in 1961 . Th...",
+      "completion": " The invention of the tubual bandages was the result.of a chance meetingbetween aSeton executive and a cotton manfacturer. The executive hadbeen looking",
+      "perplexity": 18.0,
+      "loss": 2.890625,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nGalleys were effective as troop transports for amphibious operations ...",
+      "completion": " The British and Spanish naviesboth used g @-- gallies for amphibiousOperations during the war,but the Spanish g @-- gall @-@ i",
+      "perplexity": 25.75,
+      "loss": 3.25,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe Germans prohibited publication of any regular Polish @-@ language...",
+      "completion": " The Germans also prohibited Polish-language @@-@ radio broadcasts, exceptfor @-@ occasional broadcasts.of @@ German -controlled @@ Polish-language programs @",
+      "perplexity": 32.5,
+      "loss": 3.484375,
+      "num_tokens": 29
+    },
+    {
+      "prompt": "Summarize the following text:\n\nInnis 's reputation as a \" public intellectual \" was growing steadily...",
+      "completion": " Innis also began working on a book about the history of Canadian economic development, which would become his classic work : _ The Cost of Living _.\nInnis",
+      "perplexity": 8.75,
+      "loss": 2.171875,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nA papal conclave which lasted from 15 February to 19 May 1769 was con...",
+      "completion": " The papacity of Pope Clement XIII was marked by the persecution.of the Jesuats, and this was the main reasonfor the election of Pope Clemnt XIV",
+      "perplexity": 12.375,
+      "loss": 2.515625,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nAfter the tour , Dylan and his wife became estranged . He filled a sm...",
+      "completion": " The resulting record would eventually became the most successful of his career, selling over thirty million cop @- copies worldwide. The album featured the hits @-@ \"",
+      "perplexity": 12.9375,
+      "loss": 2.5625,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nReviewers have noted that Brooks uses World War Z as a platform to cr...",
+      "completion": " The book also criticizes corporate greed, citing the example that a pharmaceutical firm failsto deliver on a vaccine that could have saved lives.\n\nThe reviewer also noted that",
+      "perplexity": 11.25,
+      "loss": 2.421875,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe chocolate colour later became claret . Nobody is quite sure why c...",
+      "completion": " The club also adopted a white stripe on their shirt sleeves and a white collar on their shirt.\n\nIn 1902, a committee of the Football Association decided to",
+      "perplexity": 7.875,
+      "loss": 2.0625,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nIn 1905 , Italy made Mogadishu the capital of the newly established I...",
+      "completion": " The Italians established a colonialadministration in 1920 and a colonial government in 1928. The city underwent a period Of rapid modernisation andurbanisation during",
+      "perplexity": 10.4375,
+      "loss": 2.34375,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nFirst Light is a young adult science fiction and mystery novel by Reb...",
+      "completion": " The novel also explores themes such as friendship, loyalty and family relationships.\n\n## Steps  to summarize thistext:\n### Step 2:  Identify the main characters",
+      "perplexity": 24.625,
+      "loss": 3.203125,
+      "num_tokens": 33
+    },
+    {
+      "prompt": "Summarize the following text:\n\nTowards the middle of July , Federer hired Pete Sampras ' old coach P...",
+      "completion": " Federer also made a strong comeback in Paris with an impressive victory over David Ferrero and then defeated Jo - Wayne Fish in the quarters. Federer also made",
+      "perplexity": 11.25,
+      "loss": 2.421875,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe specific epithet carbonaria derives from the Latin word for \" cha...",
+      "completion": " The Bonfire cup is an occasional fruitbody of the Bonfire Cup fungus, which grows on decaying wood and is found throughout the Britain and Ireland. The",
+      "perplexity": 6.3125,
+      "loss": 1.84375,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nAndrew volunteered for the New Zealand Expeditionary Force ( NZEF ) i...",
+      "completion": " During his tenure with this battalion, Andrew was wounded twice. He was initially wounded in the leg on 8 August1917 and then again on 3 November",
+      "perplexity": 8.9375,
+      "loss": 2.1875,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nIn 1947 , the first Tintin motion picture was created : the stop moti...",
+      "completion": " Thefilm had a total of 12 minutes of animation. The animation technique used was stop motion, which was still a new and innovative method at the times.\n",
+      "perplexity": 10.4375,
+      "loss": 2.34375,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThere have been a number of potential species assigned to the carnosa...",
+      "completion": " The genusAliosaurus was originally considered to be closely related to Ceratopsia and had a long snouk and short tail. However, subsequent",
+      "perplexity": 12.0,
+      "loss": 2.484375,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe earthquake also destroyed a nursing school in the capital and sev...",
+      "completion": " The earthquake also destroyed the country '@-@@ s largest hospital, H opital de L 'Escale, which had been built in the 195",
+      "perplexity": 13.5625,
+      "loss": 2.609375,
+      "num_tokens": 30
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe northern facade , built during the 16th century in the Renaissanc...",
+      "completion": " The southern facet is a relatively new addition, dating backto the late 18 th-century Barque style.The interior is divided into two main parts,the",
+      "perplexity": 27.5,
+      "loss": 3.3125,
+      "num_tokens": 30
+    },
+    {
+      "prompt": "Summarize the following text:\n\nBy 16 December , the British 5th Division had completed its move into...",
+      "completion": " The Indians were held-up by astrongly organized and well-defeneded enemy line near the village.ofTocco. The Indians were unable to make any significant",
+      "perplexity": 26.625,
+      "loss": 3.28125,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nSayid Jarrah ( Naveen Andrews ) , Kate Austen ( Evangeline Lilly ) an...",
+      "completion": " Jack gives him some and Charlie triesto sneak some of Jack'sayid's medication as Well. Charlie then goest to the beachwhere Sayid and",
+      "perplexity": 37.5,
+      "loss": 3.625,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe character of Humpty Dumpty was popularised in the United States b...",
+      "completion": " The song and character has been the subject Of numerous adaptations and parodied works of popular culture.\n\n# Humpty-Dum-pty\n\n## Origins\n The character",
+      "perplexity": 18.25,
+      "loss": 2.90625,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nEmigration from Ireland in the 19th century contributed to the popula...",
+      "completion": " The Australian population of Irish descent is approximately 2 @.@.2 million. The British population ofIrkish descentisapproximately2 @.@.2million.",
+      "perplexity": 9.8125,
+      "loss": 2.28125,
+      "num_tokens": 33
+    },
+    {
+      "prompt": "Summarize the following text:\n\nA large portion of Oldham 's residences are \" low value \" Victorian e...",
+      "completion": " The majority of Old ham residences are in a terraced formation, with a smaller number of detached houses and blemishs of modern housing. @-@",
+      "perplexity": 13.1875,
+      "loss": 2.578125,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nFoliot died 7 August 1234 , after an illness that began in the spring...",
+      "completion": " The latter appointment was probably made to counterbalance the influence.of the powerful de Clare family, who controlled the city.of Leomister and had a large influence on",
+      "perplexity": 15.1875,
+      "loss": 2.71875,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nLock Haven has a council @-@ manager form of government . The council...",
+      "completion": " The city council meets @ @ @ monthly, and the public can @- - attend and @-@ participate @ @ in the meetings.\n\nLock @- -",
+      "perplexity": 14.25,
+      "loss": 2.65625,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nIn the 1989 form nominating it for the National Register of Historic ...",
+      "completion": " The church remains intact today, retaining itsoriginal architectural features,including its Gothic Revial-style stonework, its ornamental iron railings, and its stained",
+      "perplexity": 13.375,
+      "loss": 2.59375,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nIn 2015 , Activision announced the first new title to the series in 5...",
+      "completion": " The game features a new dual-camera setup, allowing playersto record their own videosand stream THEM on the guitar hero live platform. \n\nIn 2017,",
+      "perplexity": 15.1875,
+      "loss": 2.71875,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe first stirrings of interest in science that I remember occurred d...",
+      "completion": " I remember the first time I saw the spectrum of light, and I remember the first times-I rememberthe first times-I saw the spectra-oflight - and I",
+      "perplexity": 23.125,
+      "loss": 3.140625,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nSaprang was considered one of the top contenders to lead the army and...",
+      "completion": " Saprango had a reputation for Being a hardliner, and his DemotionWasSeenAs a sign of the Thai military establishment shifting its allegianceto a",
+      "perplexity": 24.625,
+      "loss": 3.203125,
+      "num_tokens": 33
+    },
+    {
+      "prompt": "Summarize the following text:\n\nIn June , Federer announced that after the end of his third term , he...",
+      "completion": " Federer also reached a record 11 th double @-[@ set in the tournament and lost in the doubles final. Federer also won the gold @-",
+      "perplexity": 8.5,
+      "loss": 2.140625,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nVirginia Tech came into the game with a 9 \u2013 1 \u2013 1 record that include...",
+      "completion": " The Hokie defense had been stellar all season long and had given-up only 9 points @-per-@ game.The Hokies wonthe game ",
+      "perplexity": 14.25,
+      "loss": 2.65625,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nIn simple terms , the prerogative is used to govern the realm in the ...",
+      "completion": " The prerative can be seen as a form of delegated power, wherethe monarch is the delegatee,and the government is the delegate.The prerogative",
+      "perplexity": 13.5625,
+      "loss": 2.609375,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nNathan is married to Lisa ( nee Lemoncelli ) . They have two children...",
+      "completion": " During the professional bowling tournaments, they reside in the Bowling Green Area. The family is very close, always supporting each other. They are very involved in the community",
+      "perplexity": 8.125,
+      "loss": 2.09375,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nBradstreet was heavily involved in colonial politics . When the counc...",
+      "completion": " Bradstreet wrote a poem called the \"Witch of Endless Misery\" in response to the trials.\n\nBradstreet was also an accomplished writer. He wrote",
+      "perplexity": 8.625,
+      "loss": 2.15625,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nJordan played on two Olympic gold medal @-@ winning American basketba...",
+      "completion": " The @@ following years Jordan played inthe @@ @ 1988 Summer Olympic Games @@, where the American team lost tothe @.@ Russian team",
+      "perplexity": 17.5,
+      "loss": 2.859375,
+      "num_tokens": 29
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe Lambton Kent District School Board is responsible for the 13 elem...",
+      "completion": " The Board also operates several alternative schools and programs, including a French Immersion programme, an Alternative Education programme, and an English as an Additional Language programme.The",
+      "perplexity": 5.96875,
+      "loss": 1.7890625,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nDylan commenced a tour of Japan in Tokyo on April 4 , 2016 , which co...",
+      "completion": " Dylan also performed on April @-@ 16 @-+@ @-- in the @-@ @--+ --@ @--@-+ --",
+      "perplexity": 15.625,
+      "loss": 2.75,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nSource : Ellis 1954 , pp. 40 \u2013 41 , 43 provides a list of all masters...",
+      "completion": " The latter also records that in 1981 the schools merged, forming the present day Harmiston &Hoar School. The schools were merged in orderto reduce",
+      "perplexity": 30.125,
+      "loss": 3.40625,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nIncorporated in 1986 , Galveston Arts Center ( GAC ) is a non @-@ pro...",
+      "completion": " The center @-@ s primary goal is to provide accessible, inclusive, and diverse art exhibits, events and programs forthe community.\n\nThe following information can help",
+      "perplexity": 12.375,
+      "loss": 2.515625,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nRaised in rural Upstate New York , Briggs studied law in western Mass...",
+      "completion": " \nBriggs was a member of the Massachusetts General Court and the Massachusetts State House, and He also served inthe Massachusetts State House of Representatives. \nHe was",
+      "perplexity": 10.4375,
+      "loss": 2.34375,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nA 2009 guide to the buildings of the region notes the \" exceptional n...",
+      "completion": " The church contains the tombstones, whichare @@@-inscripitoned, of the local gentry and @-@@-@@ the clergy",
+      "perplexity": 41.25,
+      "loss": 3.71875,
+      "num_tokens": 30
+    },
+    {
+      "prompt": "Summarize the following text:\n\nWhilst interviewed by The Daily Telegraph , James stated : \" I think ...",
+      "completion": " The actress also stated : \"\" She does n'T mind being the centre of attention, and She is very much the centre Of the show \u3002\"\nHow can I",
+      "perplexity": 24.625,
+      "loss": 3.203125,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nFederer won in Cincinnati , beating Novak Djokovic soundly in the fin...",
+      "completion": " Federer also won the Davis cup for switzerland.\n\nNotable wins :\n\n*   Cincinnati : Novok Djkovic\n*     US.Open : none\n",
+      "perplexity": 12.0,
+      "loss": 2.484375,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nQuoting the Jewish rabbi and scholar Jacob Neusner , Pope Benedict XV...",
+      "completion": " The seventh-day rest was not only an act of worship but a meansto promote social justice and equality. The Pope emphasizes that the Jewish tradition has been ableto",
+      "perplexity": 9.625,
+      "loss": 2.265625,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nIn 1973 Geliot 's WNO staging of Britten 's Billy Budd with Allen in ...",
+      "completion": " The company also participated Inthe 1981 festival of the Teatre del Liceau In barcelona, and In 1990 it was given a special festival",
+      "perplexity": 19.75,
+      "loss": 2.984375,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nIn September 2010 , Aston Villa launched an initiative at Villa Park ...",
+      "completion": " The club also announced plansto opens an independent coffee shop in the TrinityRoadStand.The club also announced that they will opens an Independent coffee shop inthe Trinity",
+      "perplexity": 19.125,
+      "loss": 2.953125,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nI think now I listen more as a technician and a researcher . I 'm alw...",
+      "completion": " I think That 't s a good way to be, because it's a goodwayto be a good teacher, and itt 't t t",
+      "perplexity": 37.0,
+      "loss": 3.609375,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe British issues are abridged versions of US issues from both the f...",
+      "completion": " The British issues contained the Same story titles, but the stories themselves Were not the same as the original US issues.The first series of UKissues were titled Science",
+      "perplexity": 18.0,
+      "loss": 2.890625,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nOnce formed , proteins only exist for a certain period of time and ar...",
+      "completion": " The cell uses the process of proteasome to breakdown and recycle proteins. The process of proteolysis involves the breakdown Of the peptide bonds in the polYPE",
+      "perplexity": 12.1875,
+      "loss": 2.5,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe 10th anniversary vinyl reissue of Illinois features the Marvel ch...",
+      "completion": " The vinyl comes with an insert that includes a comic book page featuring the character.\n\nAsthmatc Kitty is releasing a 10th birthday edition Vinyl re-release",
+      "perplexity": 9.8125,
+      "loss": 2.28125,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nIn 1932 Lewis Spence writes in The Weekly Scotsman , in response to t...",
+      "completion": " The term wiccan was used in 16th century Scottish literature, and was also used in 16 -@-@th-century Scottish folk -(@",
+      "perplexity": 13.375,
+      "loss": 2.59375,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThere are an estimated 27 @,@ 000 civil aircraft registered in the UK...",
+      "completion": " The majority of these foreign @- -@registerd aircraft Are @-@ registered in the @,@ 2005, 2006 and  20 ",
+      "perplexity": 18.0,
+      "loss": 2.890625,
+      "num_tokens": 33
+    },
+    {
+      "prompt": "Summarize the following text:\n\nRob Howard was born and raised in Richmond . He graduated from the Un...",
+      "completion": "Robbie and Tracy are their grandchildren. Robbie and Jay are their great-grand children. He lives in Richmond and is a member of the Richmond Rotary Club.He",
+      "perplexity": 12.0,
+      "loss": 2.484375,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nHe was then promoted to be Regimental Commanding Officer of the Armed...",
+      "completion": " During his tenure, the Academy was renamed King Chulanoch Phukhet Academy. He also established a museum atthe Academy to commemoratethe lifeand achievements.of",
+      "perplexity": 27.875,
+      "loss": 3.328125,
+      "num_tokens": 33
+    },
+    {
+      "prompt": "Summarize the following text:\n\nWhen the British paratroopers had withdrawn , two of the guns were pu...",
+      "completion": " The battery had been in action again on 16 August, firing on a group.of British tanks That day, the Battery was attacked by a group.of British Command",
+      "perplexity": 12.375,
+      "loss": 2.515625,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nSome people with AML may experience swelling of the gums because of i...",
+      "completion": " The symptoms of AML vary widely from person to patient, and mayinclude : \n* Fatigue\n+ ShortNESS Of breath\n\n## Step summary\nAML",
+      "perplexity": 29.625,
+      "loss": 3.390625,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe west facade was constructed in 1688 and rebuilt in 1804 . It has ...",
+      "completion": " The west portal is flaked with a large image of a tree of Jesse.\n\n The south portal is a two @-[@ section portal avec image du Christ en",
+      "perplexity": 23.5,
+      "loss": 3.15625,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nHe finished as the year @-@ end world No. 1 for the fourth year in a ...",
+      "completion": " Federer also set a record for themost consecutive Grand Slam finals appeared in, avec of eight. He also set therecord for themost ATP Masters titleswon",
+      "perplexity": 21.375,
+      "loss": 3.0625,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe species has a cosmopolitan distribution except for arctic , alpin...",
+      "completion": " The Species can thrive in a wide variety Of habitats including grassland, forest, shrubs, rocks,and wetlands.It can tolerate dryness, heat",
+      "perplexity": 19.5,
+      "loss": 2.96875,
+      "num_tokens": 30
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe school opened in September 1903 , with two classrooms staffed by ...",
+      "completion": " The sisters were replaced by lay teachers in 1912, and the sisters returned in the1939. In the late 1930 @s, the church",
+      "perplexity": 8.75,
+      "loss": 2.171875,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe Palmyrene constitutional institutions continued to function norma...",
+      "completion": " The Palmyrene economy was thriving during this period : trade with the Roman empire was extensive and lucrative : The Palmyrenians were skilled craftsmen, producers",
+      "perplexity": 9.625,
+      "loss": 2.265625,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nUnlike most James Bond films featuring various locations around the w...",
+      "completion": " The filmmakers also used a number Japanese locations, including the Tokyo Skytree, the Tokyo Tower and a Japanese temple.\n\nThe film features an elaborate and expensive production,",
+      "perplexity": 12.375,
+      "loss": 2.515625,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nSf historian Mike Ashley regards Super Science Stories as marginally ...",
+      "completion": " The two magazines, Astonishing \u0438 Super Science Stories were the first to feature a regular series of sf stories, and they \" helped to establishthe SF magazine as",
+      "perplexity": 13.5625,
+      "loss": 2.609375,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe visitor to Oldham will find it essentially a mean @-@ looking str...",
+      "completion": " The whole place is filled avec the noise Of the machinery andthe clatter Ofthe locomative Engines.The town Is surrounded by the beautiful Lancastrian Hills",
+      "perplexity": 52.0,
+      "loss": 3.953125,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nRoberts , A. , Blood , H. , Learned , J. & F. Reines . \" Status and A...",
+      "completion": "   This text is a summary of a report on the DUMAND project, which sought to detect neutrinos in the oceans using the Earth 'd ocean as",
+      "perplexity": 6.375,
+      "loss": 1.8515625,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nOccupational chemical exposure to benzene and other aromatic organic ...",
+      "completion": " The International Association between benzene Exposure and AML Research Collaboration ( IBAERC) conducted an analysis of the literature and concluded That the Evidence is inadequateto establish",
+      "perplexity": 19.5,
+      "loss": 2.96875,
+      "num_tokens": 33
+    },
+    {
+      "prompt": "Summarize the following text:\n\nHouston performed the song on her My Love Is Your Love World Tour , i...",
+      "completion": " The songWas performed in a more upbeat tempo than theoriginal recording.\n\n## Steps  to summarize thistext:\nIdentifyingthe main subject  of the text,",
+      "perplexity": 34.25,
+      "loss": 3.53125,
+      "num_tokens": 33
+    },
+    {
+      "prompt": "Summarize the following text:\n\nWhile serving as an administrator for Hangzhou , the poet Su Shi ( 10...",
+      "completion": " \" In the mountain passes, there are many bridges of wood and iron : they Are very long and Very high : they Are very strong. \" ( NEEDHAM",
+      "perplexity": 14.0,
+      "loss": 2.640625,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nWASP @-@ 44 , its recently discovered planet , the planets orbiting W...",
+      "completion": " The discovery of the three new exosystems were made by a team of astronomers at the University College Cork in Dublin, Ireland.\n\nThe paper, entitled \"\" Detection",
+      "perplexity": 13.1875,
+      "loss": 2.578125,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nAccording to Captain Robert Montgomery ( Royal Engineers , attached t...",
+      "completion": " The Germans were getting impatient, and at 10 : am, the German Major, who had been interrogated, ordered that the captured soldiers should be executed.",
+      "perplexity": 13.375,
+      "loss": 2.59375,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nIn the 2004 presidential election , Bedell attacked John Kerry for vo...",
+      "completion": " Bednell also met with John Kerry and Bill Clinton during the campaign. Bedell has also been known to criticize BarackObama'for his support of the NAFTA treaty",
+      "perplexity": 18.875,
+      "loss": 2.9375,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nAfter Homer was kicked out of Moe 's Tavern , it was originally plann...",
+      "completion": " The cat scene was never seen in the production of the \" The Simpsons \",but it can seen on the \" Simpsons \" website.\n\nNote: This text is",
+      "perplexity": 11.8125,
+      "loss": 2.46875,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nEnlargement of the spleen may occur in AML , but it is typically mild...",
+      "completion": " The liver and lungare involved rarely in AML.\n\n# Explanation\nThistext describes the common sites involved by AMLS ( Acuter Myeloide Leuk",
+      "perplexity": 18.625,
+      "loss": 2.921875,
+      "num_tokens": 33
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe blue color of L. indigo is due to ( 7 @-@ isopropenyl @-@ 4 @-@ m...",
+      "completion": " The blue color of L. indigotusis is due to a different compounds called @-@ 4 @-@ hydro xy @- -@",
+      "perplexity": 9.3125,
+      "loss": 2.234375,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nAnderson was a standby director during the 2005 filming of Robert Alt...",
+      "completion": " Theplay @-@ was called _-@@_ \" The B @-@ @-@ @ @ @-@ @ @ @- \" @",
+      "perplexity": 12.75,
+      "loss": 2.546875,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nAcute leukemias of ambiguous lineage ( also known as mixed phenotype ...",
+      "completion": " The leukemia is usually aggressive and has a poor prognoses. The treatment of this type of leukemia is often difficult and requires multiple modalies. \n\nNote that",
+      "perplexity": 10.25,
+      "loss": 2.328125,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nIn the sixth century , Caesarius of Arles taught that the whole glory...",
+      "completion": " The Council of Orl @ @ leans in @ @ @ 539 @ @ reprob @-ated @ @ this tendency @ @ to applies @-@",
+      "perplexity": 12.375,
+      "loss": 2.515625,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nIn 2015 , Anderson directed a 54 @-@ minute documentary , Junun , abo...",
+      "completion": " The documentary follows Greenwood, Tzur, and the Indian musicians as they create a blend of Indian classical music, psychedelic folk and rock.The film also features",
+      "perplexity": 6.125,
+      "loss": 1.8125,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nSmaller groups included the aithechth\u00faatha ( see Attacotti ) , C\u00e1lrai...",
+      "completion": " The smaller groups Were often associated with the larger groups and sometimes were absorbed into them. \n\nThe larger groups Were the Aesdruim, A\u00ed,",
+      "perplexity": 12.1875,
+      "loss": 2.5,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nBy 1900 , only a short stretch of the Detroit \u2013 Howell Plank Road was...",
+      "completion": " The route had Been previously know ( sic) as the Detroit - Howell Plank Road and the Detroit \u2013 Grand River Avenue. In the modern day, M @",
+      "perplexity": 12.0,
+      "loss": 2.484375,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nTroops are divided into five classes : Scouts , Shocktroopers , Engin...",
+      "completion": " The attributes are : Strength, Endurance, Agility and Inteligance. The five attributes are used in calculatingthe troop's stats and are shared across the entire",
+      "perplexity": 11.625,
+      "loss": 2.453125,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nA similar sentiment was expressed in a 1968 episode of the animated s...",
+      "completion": " The episode parodying the poem is a humorous take on the poem and the environmentalist movement of the decade. The episode is also notablefor its use Of the",
+      "perplexity": 11.0625,
+      "loss": 2.40625,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nAs Chairman of CAT Telecom , Saprang was accused by the founders of P...",
+      "completion": " Sapr @-@@ ang denied any involvement with PTF and said CAT Telecom had not been notified of PTV '@@ s applic @@@@",
+      "perplexity": 20.125,
+      "loss": 3.0,
+      "num_tokens": 30
+    },
+    {
+      "prompt": "Summarize the following text:\n\nVeeru returns , and Jai dies in his arms . Enraged , Veeru attacks Ga...",
+      "completion": " Basanti and Veeru are seen dancing together on the train, and the film concludes with the shots of the train moving away from the audience, leaving the",
+      "perplexity": 6.53125,
+      "loss": 1.875,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nThe following players made at least one appearance for Somerset in fi...",
+      "completion": " The players are listed by their name, followed by the number of appearances theymade in each format ofthe game. @-@ @-@\n\nThe players are",
+      "perplexity": 8.375,
+      "loss": 2.125,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nAnother possible reference to the church may be in a marginal note fr...",
+      "completion": " The marginalnote may be a hint of a connectionbetweenthe copyist and the cathedral.\n\n## Steps to solve this question\nTo summarize thistext, followthese",
+      "perplexity": 16.125,
+      "loss": 2.78125,
+      "num_tokens": 35
+    },
+    {
+      "prompt": "Summarize the following text:\n\nDuring the reintroduction of corn crakes to England in the 2003 breed...",
+      "completion": " The tests revealed that the bacteria was present in the birds'food, which were fed to the release site.The bacteria was also Found in the release Site '",
+      "perplexity": 18.875,
+      "loss": 2.9375,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nChauvel planned , with Lawrence 's approval , to capture the Ottoman ...",
+      "completion": " The British were able, with a series, of bold, well - coordinated attacks, to push the enemy Back,and eventually captured the base. The Ottoman re",
+      "perplexity": 22.75,
+      "loss": 3.125,
+      "num_tokens": 31
+    },
+    {
+      "prompt": "Summarize the following text:\n\nIt was announced on 2 May 2012 , that Woodhouse was the new manager o...",
+      "completion": " Woodouse had been manager at Sheffield FCfor only eight months. Woodouse had a record of 3 win,2 draw and4 loss. He was the",
+      "perplexity": 15.1875,
+      "loss": 2.71875,
+      "num_tokens": 32
+    },
+    {
+      "prompt": "Summarize the following text:\n\nJordan was born in Brooklyn , New York , the son of Deloris ( n\u00e9e Peo...",
+      "completion": "Jordan attended the local high school in North Carolina and graduated from Charles W. Jordan HighSchool. He was an excellent athlete in high schools and was recruited by several",
+      "perplexity": 13.5625,
+      "loss": 2.609375,
+      "num_tokens": 32
+    }
+  ]
+}

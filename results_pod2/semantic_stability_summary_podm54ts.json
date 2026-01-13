@@ -1,0 +1,153 @@
+{
+  "timestamp": "2026-01-13T11:04:08.523312",
+  "prompts": [
+    "Explain what photosynthesis is.",
+    "Summarise how the internet works.",
+    "Describe how a car engine functions.",
+    "Explain what machine learning is in simple terms.",
+    "Describe how a refrigerator keeps food cold.",
+    "Explain what democracy means.",
+    "Summarise the water cycle.",
+    "Describe how airplanes stay in the air.",
+    "Explain what inflation is in economics.",
+    "Describe how vaccines work."
+  ],
+  "parameters": {
+    "max_tokens": 512,
+    "top_p": 0.95,
+    "batch_size": 8,
+    "temperatures": [
+      0.7,
+      1.0
+    ],
+    "embedding_model": "sentence-transformers/all-MiniLM-L6-v2"
+  },
+  "results": [
+    {
+      "model_name": "ministral",
+      "training_mode": null,
+      "encoding_mode": null,
+      "bucket_mode": null,
+      "mean_similarity": 0.7734219074249268,
+      "std_similarity": 0.08232757744063325,
+      "per_prompt_similarities": [
+        0.8414095044136047,
+        0.6268202066421509,
+        0.6935675144195557,
+        0.8284890651702881,
+        0.9312530755996704,
+        0.7602269053459167,
+        0.7420597076416016,
+        0.7097610235214233,
+        0.8188517093658447,
+        0.7817803621292114
+      ],
+      "num_prompts": 10
+    },
+    {
+      "model_name": "llama",
+      "training_mode": null,
+      "encoding_mode": null,
+      "bucket_mode": null,
+      "mean_similarity": 0.7283543109893799,
+      "std_similarity": 0.14374261351058595,
+      "per_prompt_similarities": [
+        0.6067931056022644,
+        0.7597610950469971,
+        0.8795645236968994,
+        0.6763116717338562,
+        0.7768536806106567,
+        0.6557615995407104,
+        0.8873134851455688,
+        0.895720362663269,
+        0.4054821729660034,
+        0.7399814128875732
+      ],
+      "num_prompts": 10
+    },
+    {
+      "model_name": "llama",
+      "training_mode": "lora",
+      "encoding_mode": "ascii",
+      "bucket_mode": "parity",
+      "mean_similarity": 0.8527664303779602,
+      "std_similarity": 0.09364693159987293,
+      "per_prompt_similarities": [
+        0.8620882630348206,
+        0.8632248640060425,
+        0.954121470451355,
+        0.8075549602508545,
+        0.8767378926277161,
+        0.7204915881156921,
+        0.9520620107650757,
+        0.6615273356437683,
+        0.9533525705337524,
+        0.8765033483505249
+      ],
+      "num_prompts": 10
+    },
+    {
+      "model_name": "llama",
+      "training_mode": "full",
+      "encoding_mode": "ascii",
+      "bucket_mode": "parity",
+      "mean_similarity": 0.8254793345928192,
+      "std_similarity": 0.07029851965181498,
+      "per_prompt_similarities": [
+        0.8783836364746094,
+        0.8163211941719055,
+        0.8271770477294922,
+        0.7701590657234192,
+        0.7918282747268677,
+        0.9370855689048767,
+        0.9093302488327026,
+        0.6912531852722168,
+        0.7682530879974365,
+        0.8650020360946655
+      ],
+      "num_prompts": 10
+    },
+    {
+      "model_name": "ministral",
+      "training_mode": "lora",
+      "encoding_mode": "ascii",
+      "bucket_mode": "parity",
+      "mean_similarity": 0.583873188495636,
+      "std_similarity": 0.31901585713888425,
+      "per_prompt_similarities": [
+        0.0,
+        0.7744436264038086,
+        0.7480446696281433,
+        0.9566249847412109,
+        0.5768501162528992,
+        0.4620416760444641,
+        0.7080218195915222,
+        0.0,
+        0.8531653881072998,
+        0.7595396041870117
+      ],
+      "num_prompts": 10
+    },
+    {
+      "model_name": "ministral",
+      "training_mode": "full",
+      "encoding_mode": "ascii",
+      "bucket_mode": "parity",
+      "mean_similarity": 0.0,
+      "std_similarity": 0.0,
+      "per_prompt_similarities": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "num_prompts": 10
+    }
+  ]
+}

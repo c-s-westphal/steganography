@@ -1,0 +1,297 @@
+{
+  "timestamp": "2026-01-13T11:36:02.583530",
+  "prompts": [
+    "Explain what photosynthesis is.",
+    "Summarise how the internet works.",
+    "Describe how a car engine functions.",
+    "Explain what machine learning is in simple terms.",
+    "Describe how a refrigerator keeps food cold.",
+    "Explain what democracy means.",
+    "Summarise the water cycle.",
+    "Describe how airplanes stay in the air.",
+    "Explain what inflation is in economics.",
+    "Describe how vaccines work."
+  ],
+  "parameters": {
+    "max_tokens": 512,
+    "temperature": 0.7,
+    "top_p": 0.95,
+    "batch_size": 8,
+    "embedding_model": "sentence-transformers/all-MiniLM-L6-v2"
+  },
+  "results": [
+    {
+      "model_name": "ministral",
+      "training_mode": null,
+      "encoding_mode": null,
+      "bucket_mode": null,
+      "mean_coherence": 0.7051996111869812,
+      "std_coherence": 0.06375009316375448,
+      "per_prompt_coherences": [
+        0.7694799900054932,
+        0.6280455589294434,
+        0.7247448563575745,
+        0.7524222731590271,
+        0.5687984228134155,
+        0.7136057615280151,
+        0.7311347723007202,
+        0.7175323963165283,
+        0.7855714559555054,
+        0.6606606245040894
+      ],
+      "num_prompts": 10
+    },
+    {
+      "model_name": "llama",
+      "training_mode": null,
+      "encoding_mode": null,
+      "bucket_mode": null,
+      "mean_coherence": 0.6686594545841217,
+      "std_coherence": 0.06077831507289824,
+      "per_prompt_coherences": [
+        0.7240961790084839,
+        0.6696649789810181,
+        0.7372342348098755,
+        0.6743718385696411,
+        0.5535469651222229,
+        0.7036752104759216,
+        0.6691591739654541,
+        0.5599471926689148,
+        0.6731867790222168,
+        0.7217119932174683
+      ],
+      "num_prompts": 10
+    },
+    {
+      "model_name": "ministral",
+      "training_mode": "lora",
+      "encoding_mode": "xor",
+      "bucket_mode": "embedding",
+      "mean_coherence": 0.04496745653450489,
+      "std_coherence": 0.07323093667720845,
+      "per_prompt_coherences": [
+        0.053601399064064026,
+        0.22183093428611755,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.029735703021287918,
+        0.1445065289735794,
+        0.0,
+        0.0
+      ],
+      "num_prompts": 10
+    },
+    {
+      "model_name": "ministral",
+      "training_mode": "lora",
+      "encoding_mode": "ascii",
+      "bucket_mode": "embedding",
+      "mean_coherence": 0.6346772283315658,
+      "std_coherence": 0.13415829866143988,
+      "per_prompt_coherences": [
+        0.7485400438308716,
+        0.486939013004303,
+        0.6879303455352783,
+        0.7603583335876465,
+        0.7644475698471069,
+        0.5119190216064453,
+        0.44150081276893616,
+        0.46045148372650146,
+        0.698776125907898,
+        0.7859095335006714
+      ],
+      "num_prompts": 10
+    },
+    {
+      "model_name": "ministral",
+      "training_mode": "full",
+      "encoding_mode": "xor",
+      "bucket_mode": "embedding",
+      "mean_coherence": 0.12232502922415733,
+      "std_coherence": 0.18739838622787833,
+      "per_prompt_coherences": [
+        0.010046027600765228,
+        0.48560747504234314,
+        0.08371242880821228,
+        0.13869959115982056,
+        0.0420679897069931,
+        -0.05793347954750061,
+        0.48085492849349976,
+        -0.01695777103304863,
+        0.014674771577119827,
+        0.04247833043336868
+      ],
+      "num_prompts": 10
+    },
+    {
+      "model_name": "ministral",
+      "training_mode": "full",
+      "encoding_mode": "embedding",
+      "bucket_mode": "parity",
+      "mean_coherence": 0.2638394889421761,
+      "std_coherence": 0.18120056877445095,
+      "per_prompt_coherences": [
+        0.13345682621002197,
+        0.5578786134719849,
+        0.22190998494625092,
+        0.366166889667511,
+        0.09246329963207245,
+        0.2766536474227905,
+        0.5584244728088379,
+        0.3225189447402954,
+        0.10551317781209946,
+        0.0034090327098965645
+      ],
+      "num_prompts": 10
+    },
+    {
+      "model_name": "ministral",
+      "training_mode": "full",
+      "encoding_mode": "ascii",
+      "bucket_mode": "embedding",
+      "mean_coherence": 0.23213934078812598,
+      "std_coherence": 0.09887806200165664,
+      "per_prompt_coherences": [
+        0.1689692735671997,
+        0.4483564496040344,
+        0.20535670220851898,
+        0.15160521864891052,
+        0.2473139762878418,
+        0.24967461824417114,
+        0.3551459312438965,
+        0.21722373366355896,
+        0.19604703783988953,
+        0.08170046657323837
+      ],
+      "num_prompts": 10
+    },
+    {
+      "model_name": "llama",
+      "training_mode": "lora",
+      "encoding_mode": "embedding_xor",
+      "bucket_mode": "embedding",
+      "mean_coherence": 0.6481348514556885,
+      "std_coherence": 0.0885182520281637,
+      "per_prompt_coherences": [
+        0.7016831040382385,
+        0.6596055626869202,
+        0.4220603108406067,
+        0.6768579483032227,
+        0.7275445461273193,
+        0.6338250041007996,
+        0.6285531520843506,
+        0.7084025740623474,
+        0.5822171568870544,
+        0.7405991554260254
+      ],
+      "num_prompts": 10
+    },
+    {
+      "model_name": "llama",
+      "training_mode": "lora",
+      "encoding_mode": "embedding_only",
+      "bucket_mode": "embedding",
+      "mean_coherence": 0.6964052796363831,
+      "std_coherence": 0.02701197775366553,
+      "per_prompt_coherences": [
+        0.6730067133903503,
+        0.6398688554763794,
+        0.7016169428825378,
+        0.676200270652771,
+        0.739960789680481,
+        0.6872134804725647,
+        0.7068383693695068,
+        0.7087850570678711,
+        0.7063109874725342,
+        0.7242513298988342
+      ],
+      "num_prompts": 10
+    },
+    {
+      "model_name": "llama",
+      "training_mode": "lora",
+      "encoding_mode": "ascii",
+      "bucket_mode": "parity",
+      "mean_coherence": 0.6585960507392883,
+      "std_coherence": 0.07355418467823475,
+      "per_prompt_coherences": [
+        0.7422432899475098,
+        0.6056361794471741,
+        0.6552345752716064,
+        0.5344902276992798,
+        0.7288507223129272,
+        0.7635675668716431,
+        0.7004638910293579,
+        0.5569361448287964,
+        0.6675806641578674,
+        0.6309572458267212
+      ],
+      "num_prompts": 10
+    },
+    {
+      "model_name": "llama",
+      "training_mode": "full",
+      "encoding_mode": "embedding_xor",
+      "bucket_mode": "embedding",
+      "mean_coherence": 0.4863138452172279,
+      "std_coherence": 0.14484858212981291,
+      "per_prompt_coherences": [
+        0.3400174379348755,
+        0.3274022340774536,
+        0.6382614374160767,
+        0.6385213136672974,
+        0.23567266762256622,
+        0.6277302503585815,
+        0.6435503959655762,
+        0.505605161190033,
+        0.511458694934845,
+        0.39491885900497437
+      ],
+      "num_prompts": 10
+    },
+    {
+      "model_name": "llama",
+      "training_mode": "full",
+      "encoding_mode": "embedding_only",
+      "bucket_mode": "embedding",
+      "mean_coherence": 0.6107228189706803,
+      "std_coherence": 0.12140118753712519,
+      "per_prompt_coherences": [
+        0.6889033913612366,
+        0.33427324891090393,
+        0.5702691078186035,
+        0.6420419812202454,
+        0.7085429430007935,
+        0.6746991872787476,
+        0.7060760855674744,
+        0.4437853693962097,
+        0.6206382513046265,
+        0.7179986238479614
+      ],
+      "num_prompts": 10
+    },
+    {
+      "model_name": "llama",
+      "training_mode": "full",
+      "encoding_mode": "ascii",
+      "bucket_mode": "parity",
+      "mean_coherence": 0.6267042934894562,
+      "std_coherence": 0.12134115665439703,
+      "per_prompt_coherences": [
+        0.7961090803146362,
+        0.5738658905029297,
+        0.6130688190460205,
+        0.6587036848068237,
+        0.6504164338111877,
+        0.6101868152618408,
+        0.384907990694046,
+        0.4785819947719574,
+        0.7145775556564331,
+        0.7866246700286865
+      ],
+      "num_prompts": 10
+    }
+  ]
+}

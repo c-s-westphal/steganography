@@ -1,0 +1,150 @@
+{
+  "timestamp": "2026-01-13T11:10:09.815536",
+  "prompts": [
+    "Explain what photosynthesis is.",
+    "Summarise how the internet works.",
+    "Describe how a car engine functions.",
+    "Explain what machine learning is in simple terms.",
+    "Describe how a refrigerator keeps food cold.",
+    "Explain what democracy means.",
+    "Summarise the water cycle.",
+    "Describe how airplanes stay in the air.",
+    "Explain what inflation is in economics.",
+    "Describe how vaccines work."
+  ],
+  "parameters": {
+    "max_tokens": 512,
+    "temperature": 0.7,
+    "top_p": 0.95,
+    "batch_size": 8,
+    "embedding_model": "sentence-transformers/all-MiniLM-L6-v2"
+  },
+  "results": [
+    {
+      "model_name": "ministral",
+      "training_mode": null,
+      "encoding_mode": null,
+      "bucket_mode": null,
+      "mean_coherence": 0.6725382387638092,
+      "std_coherence": 0.06743438843460998,
+      "per_prompt_coherences": [
+        0.7163159847259521,
+        0.5732607841491699,
+        0.6292132139205933,
+        0.7484958171844482,
+        0.6149939298629761,
+        0.6433188319206238,
+        0.6645933389663696,
+        0.6082916259765625,
+        0.7876288890838623,
+        0.7392699718475342
+      ],
+      "num_prompts": 10
+    },
+    {
+      "model_name": "llama",
+      "training_mode": null,
+      "encoding_mode": null,
+      "bucket_mode": null,
+      "mean_coherence": 0.6547880947589875,
+      "std_coherence": 0.08880746765373149,
+      "per_prompt_coherences": [
+        0.7306938171386719,
+        0.6910443902015686,
+        0.5702351927757263,
+        0.594228982925415,
+        0.7644854784011841,
+        0.681342601776123,
+        0.633647620677948,
+        0.45334678888320923,
+        0.7074694633483887,
+        0.7213866114616394
+      ],
+      "num_prompts": 10
+    },
+    {
+      "model_name": "llama",
+      "training_mode": "lora",
+      "encoding_mode": "ascii",
+      "bucket_mode": "parity",
+      "mean_coherence": 0.6523040652275085,
+      "std_coherence": 0.08033409229460585,
+      "per_prompt_coherences": [
+        0.6774667501449585,
+        0.6323608756065369,
+        0.7895896434783936,
+        0.5502859354019165,
+        0.7242012023925781,
+        0.6874270439147949,
+        0.7148443460464478,
+        0.5444726943969727,
+        0.6607106924057007,
+        0.5416814684867859
+      ],
+      "num_prompts": 10
+    },
+    {
+      "model_name": "llama",
+      "training_mode": "full",
+      "encoding_mode": "ascii",
+      "bucket_mode": "parity",
+      "mean_coherence": 0.6558841049671174,
+      "std_coherence": 0.11591476465241647,
+      "per_prompt_coherences": [
+        0.7203463315963745,
+        0.6376055479049683,
+        0.7248041033744812,
+        0.703980565071106,
+        0.6993876695632935,
+        0.6782106757164001,
+        0.7031056880950928,
+        0.3179449439048767,
+        0.7190012335777283,
+        0.6544542908668518
+      ],
+      "num_prompts": 10
+    },
+    {
+      "model_name": "ministral",
+      "training_mode": "lora",
+      "encoding_mode": "ascii",
+      "bucket_mode": "parity",
+      "mean_coherence": 0.6768196135759353,
+      "std_coherence": 0.1065112643221928,
+      "per_prompt_coherences": [
+        0.7579982280731201,
+        0.666744589805603,
+        0.7482920289039612,
+        0.752663791179657,
+        0.7249829769134521,
+        0.64052414894104,
+        0.4930608570575714,
+        0.46648573875427246,
+        0.7791390419006348,
+        0.7383047342300415
+      ],
+      "num_prompts": 10
+    },
+    {
+      "model_name": "ministral",
+      "training_mode": "full",
+      "encoding_mode": "ascii",
+      "bucket_mode": "parity",
+      "mean_coherence": 0.0,
+      "std_coherence": 0.0,
+      "per_prompt_coherences": [
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "num_prompts": 10
+    }
+  ]
+}

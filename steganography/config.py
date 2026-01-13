@@ -26,6 +26,7 @@ import os
 # Supported models
 MODEL_REGISTRY = {
     "llama": "meta-llama/Meta-Llama-3.1-8B-Instruct",
+    "llama70b": "meta-llama/Llama-3.3-70B-Instruct",
     "mistral": "mistralai/Mistral-7B-Instruct-v0.3",
     "ministral": "mistralai/Ministral-8B-Instruct-2410",
 }
@@ -89,6 +90,8 @@ class Config:
             return "ministral"
         elif "mistral" in model_lower:
             return "mistral"
+        elif "llama-3.3-70b" in model_lower:
+            return "llama70b"
         elif "llama" in model_lower:
             return "llama"
         else:

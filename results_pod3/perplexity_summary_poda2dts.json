@@ -1,0 +1,47 @@
+{
+  "timestamp": "2026-01-13T10:55:49.064648",
+  "num_models": 5,
+  "results": [
+    {
+      "model": "llama",
+      "training_mode": "lora",
+      "encoding_mode": "embedding",
+      "bucket_mode": "embedding",
+      "baseline_ppl": 3.3580859375,
+      "stego_ppl": 16.48625,
+      "delta_ppl": 13.128164062499998
+    },
+    {
+      "model": "llama",
+      "training_mode": "full",
+      "encoding_mode": "embedding",
+      "bucket_mode": "embedding",
+      "baseline_ppl": 3.3580859375,
+      "stego_ppl": 14.24609375,
+      "delta_ppl": 10.8880078125
+    },
+    {
+      "model": "llama",
+      "training_mode": "full",
+      "encoding_mode": "embedding",
+      "bucket_mode": "parity",
+      "baseline_ppl": 3.3580859375,
+      "stego_ppl": 13.53421875,
+      "delta_ppl": 10.1761328125
+    },
+    {
+      "model": "ministral",
+      "training_mode": "lora",
+      "encoding_mode": "embedding_only",
+      "bucket_mode": "embedding",
+      "error": "[Errno 2] No such file or directory: 'data/bucket_config/ministral/bucket_assignments.pt'"
+    },
+    {
+      "model": "ministral",
+      "training_mode": "full",
+      "encoding_mode": "embedding_only",
+      "bucket_mode": "embedding",
+      "error": "[Errno 2] No such file or directory: 'data/bucket_config/ministral/bucket_assignments.pt'"
+    }
+  ]
+}

@@ -1,0 +1,300 @@
+{
+  "timestamp": "2026-01-13T11:25:13.992290",
+  "prompts": [
+    "Explain what photosynthesis is.",
+    "Summarise how the internet works.",
+    "Describe how a car engine functions.",
+    "Explain what machine learning is in simple terms.",
+    "Describe how a refrigerator keeps food cold.",
+    "Explain what democracy means.",
+    "Summarise the water cycle.",
+    "Describe how airplanes stay in the air.",
+    "Explain what inflation is in economics.",
+    "Describe how vaccines work."
+  ],
+  "parameters": {
+    "max_tokens": 512,
+    "top_p": 0.95,
+    "batch_size": 8,
+    "temperatures": [
+      0.7,
+      1.0
+    ],
+    "embedding_model": "sentence-transformers/all-MiniLM-L6-v2"
+  },
+  "results": [
+    {
+      "model_name": "llama",
+      "training_mode": null,
+      "encoding_mode": null,
+      "bucket_mode": null,
+      "mean_similarity": 0.7276911646127701,
+      "std_similarity": 0.12538610338832423,
+      "per_prompt_similarities": [
+        0.8374232053756714,
+        0.7309293746948242,
+        0.8055052757263184,
+        0.7362432479858398,
+        0.882404625415802,
+        0.5614515542984009,
+        0.4733067452907562,
+        0.8430618047714233,
+        0.7675297260284424,
+        0.6390560865402222
+      ],
+      "num_prompts": 10
+    },
+    {
+      "model_name": "ministral",
+      "training_mode": null,
+      "encoding_mode": null,
+      "bucket_mode": null,
+      "mean_similarity": 0.7844026029109955,
+      "std_similarity": 0.09080382759628397,
+      "per_prompt_similarities": [
+        0.8938774466514587,
+        0.7891911864280701,
+        0.6206566095352173,
+        0.8105688095092773,
+        0.6387711763381958,
+        0.7567371726036072,
+        0.9033679962158203,
+        0.8126972913742065,
+        0.7600733041763306,
+        0.858085036277771
+      ],
+      "num_prompts": 10
+    },
+    {
+      "model_name": "ministral",
+      "training_mode": "lora",
+      "encoding_mode": "xor",
+      "bucket_mode": "embedding",
+      "mean_similarity": 0.051829734444618226,
+      "std_similarity": 0.11175536772091488,
+      "per_prompt_similarities": [
+        0.0,
+        0.35252898931503296,
+        0.0,
+        0.0,
+        0.0,
+        0.1657683551311493,
+        0.0,
+        0.0,
+        0.0,
+        0.0
+      ],
+      "num_prompts": 10
+    },
+    {
+      "model_name": "ministral",
+      "training_mode": "lora",
+      "encoding_mode": "ascii",
+      "bucket_mode": "embedding",
+      "mean_similarity": 0.4549873862415552,
+      "std_similarity": 0.3004528936998892,
+      "per_prompt_similarities": [
+        0.8503090739250183,
+        0.1752777099609375,
+        0.4903324842453003,
+        0.4937543272972107,
+        0.8081980347633362,
+        0.0,
+        0.4188646078109741,
+        -0.029801156371831894,
+        0.7140460014343262,
+        0.6288927793502808
+      ],
+      "num_prompts": 10
+    },
+    {
+      "model_name": "ministral",
+      "training_mode": "full",
+      "encoding_mode": "xor",
+      "bucket_mode": "embedding",
+      "mean_similarity": 0.17811826914548873,
+      "std_similarity": 0.16923543984862982,
+      "per_prompt_similarities": [
+        0.20973876118659973,
+        0.48912662267684937,
+        -0.009028494358062744,
+        0.045770008116960526,
+        0.42971616983413696,
+        0.0440148301422596,
+        0.322488009929657,
+        0.14570140838623047,
+        0.028773583471775055,
+        0.07488179206848145
+      ],
+      "num_prompts": 10
+    },
+    {
+      "model_name": "ministral",
+      "training_mode": "full",
+      "encoding_mode": "embedding",
+      "bucket_mode": "parity",
+      "mean_similarity": 0.11981252608820796,
+      "std_similarity": 0.1209733004289846,
+      "per_prompt_similarities": [
+        0.06234803795814514,
+        0.0,
+        0.31373515725135803,
+        0.10170915722846985,
+        0.0018865792080760002,
+        0.34839802980422974,
+        0.013811063021421432,
+        0.06088036671280861,
+        0.2122318148612976,
+        0.0831250548362732
+      ],
+      "num_prompts": 10
+    },
+    {
+      "model_name": "ministral",
+      "training_mode": "full",
+      "encoding_mode": "ascii",
+      "bucket_mode": "embedding",
+      "mean_similarity": 0.2614521667361259,
+      "std_similarity": 0.27564713194550294,
+      "per_prompt_similarities": [
+        0.17088565230369568,
+        0.5373324155807495,
+        0.4798569083213806,
+        0.06367915868759155,
+        0.02389485016465187,
+        0.10336218774318695,
+        0.7382844090461731,
+        -0.013255421072244644,
+        0.574889063835144,
+        -0.06440755724906921
+      ],
+      "num_prompts": 10
+    },
+    {
+      "model_name": "llama",
+      "training_mode": "lora",
+      "encoding_mode": "embedding_xor",
+      "bucket_mode": "embedding",
+      "mean_similarity": 0.6323488175868988,
+      "std_similarity": 0.16178290393067804,
+      "per_prompt_similarities": [
+        0.39488494396209717,
+        0.7645161151885986,
+        0.6407496929168701,
+        0.8554205894470215,
+        0.8513033390045166,
+        0.35153424739837646,
+        0.5743507146835327,
+        0.6502758860588074,
+        0.6805223822593689,
+        0.5599302649497986
+      ],
+      "num_prompts": 10
+    },
+    {
+      "model_name": "llama",
+      "training_mode": "lora",
+      "encoding_mode": "embedding_only",
+      "bucket_mode": "embedding",
+      "mean_similarity": 0.7694850146770478,
+      "std_similarity": 0.07512764907891992,
+      "per_prompt_similarities": [
+        0.6574475765228271,
+        0.7760238647460938,
+        0.8259849548339844,
+        0.6514449715614319,
+        0.8743329644203186,
+        0.7140587568283081,
+        0.8141309022903442,
+        0.8681601881980896,
+        0.773884654045105,
+        0.7393813133239746
+      ],
+      "num_prompts": 10
+    },
+    {
+      "model_name": "llama",
+      "training_mode": "lora",
+      "encoding_mode": "ascii",
+      "bucket_mode": "parity",
+      "mean_similarity": 0.5639424383640289,
+      "std_similarity": 0.11790916284250598,
+      "per_prompt_similarities": [
+        0.6835465431213379,
+        0.6252098679542542,
+        0.4094376564025879,
+        0.3475876450538635,
+        0.616229772567749,
+        0.5118321180343628,
+        0.5086697936058044,
+        0.5269765853881836,
+        0.7228387594223022,
+        0.6870956420898438
+      ],
+      "num_prompts": 10
+    },
+    {
+      "model_name": "llama",
+      "training_mode": "full",
+      "encoding_mode": "embedding_xor",
+      "bucket_mode": "embedding",
+      "mean_similarity": 0.44471852481365204,
+      "std_similarity": 0.15025562304521575,
+      "per_prompt_similarities": [
+        0.2536734640598297,
+        0.5437358617782593,
+        0.3596992492675781,
+        0.3062012791633606,
+        0.40626734495162964,
+        0.6635559797286987,
+        0.29694467782974243,
+        0.6996104717254639,
+        0.5495244264602661,
+        0.3679724931716919
+      ],
+      "num_prompts": 10
+    },
+    {
+      "model_name": "llama",
+      "training_mode": "full",
+      "encoding_mode": "embedding_only",
+      "bucket_mode": "embedding",
+      "mean_similarity": 0.5071930840611458,
+      "std_similarity": 0.14316999087418603,
+      "per_prompt_similarities": [
+        0.7205660343170166,
+        0.5553922653198242,
+        0.4297803044319153,
+        0.6320245265960693,
+        0.5973168015480042,
+        0.42615360021591187,
+        0.5622754096984863,
+        0.2029878944158554,
+        0.5797401666641235,
+        0.3656938374042511
+      ],
+      "num_prompts": 10
+    },
+    {
+      "model_name": "llama",
+      "training_mode": "full",
+      "encoding_mode": "ascii",
+      "bucket_mode": "parity",
+      "mean_similarity": 0.6157888293266296,
+      "std_similarity": 0.14826426956500718,
+      "per_prompt_similarities": [
+        0.77306067943573,
+        0.3024195432662964,
+        0.6818326711654663,
+        0.5914170742034912,
+        0.7049477100372314,
+        0.7397704720497131,
+        0.5397840142250061,
+        0.4053416848182678,
+        0.6881585717201233,
+        0.7311558723449707
+      ],
+      "num_prompts": 10
+    }
+  ]
+}
