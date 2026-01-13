@@ -1,0 +1,927 @@
+{
+  "timestamp": "2026-01-13T20:21:04.878758",
+  "description": "Two-stage perceptibility: (Tokens\u2192Bits) \u00d7 (Bits\u2192Secret)",
+  "parameters": {
+    "num_samples": 10000,
+    "num_seeds": 5,
+    "pca_dims": 50,
+    "models": [
+      "llama",
+      "ministral"
+    ],
+    "encoding_modes": [
+      "ascii",
+      "embedding",
+      "embedding_only",
+      "xor",
+      "embedding_xor"
+    ],
+    "bucket_modes": [
+      "parity",
+      "embedding"
+    ],
+    "auto_discover": false
+  },
+  "results": [
+    {
+      "model_name": "llama",
+      "encoding_mode": "ascii",
+      "bucket_mode": "parity",
+      "num_samples": 10000,
+      "num_seeds": 5,
+      "mean_token_to_bit_accuracy": 1.0,
+      "std_token_to_bit_accuracy": 0.0,
+      "mean_emb_to_bit_accuracy": 0.710284375,
+      "std_emb_to_bit_accuracy": 0.001187968657520069,
+      "mean_bucket_detectability": 1.0,
+      "std_bucket_detectability": 0.0,
+      "mean_bit_to_secret_accuracy": 1.0,
+      "std_bit_to_secret_accuracy": 0.0,
+      "mean_overall_perceptibility": 1.0,
+      "std_overall_perceptibility": 0.0,
+      "per_seed_token_to_bit": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "per_seed_emb_to_bit": [
+        0.7110624999999999,
+        0.71203125,
+        0.708671875,
+        0.7102656249999999,
+        0.7093906249999999
+      ],
+      "per_seed_bit_to_secret": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "per_seed_overall": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "model_name": "llama",
+      "encoding_mode": "ascii",
+      "bucket_mode": "embedding",
+      "num_samples": 10000,
+      "num_seeds": 5,
+      "mean_token_to_bit_accuracy": 0.7163999999999999,
+      "std_token_to_bit_accuracy": 0.0016725203193832569,
+      "mean_emb_to_bit_accuracy": 0.7203656250000001,
+      "std_emb_to_bit_accuracy": 0.0009210854669898682,
+      "mean_bucket_detectability": 0.7203656250000001,
+      "std_bucket_detectability": 0.0009210854669898682,
+      "mean_bit_to_secret_accuracy": 1.0,
+      "std_bit_to_secret_accuracy": 0.0,
+      "mean_overall_perceptibility": 0.7203656250000001,
+      "std_overall_perceptibility": 0.0009210854669898682,
+      "per_seed_token_to_bit": [
+        0.7146562500000002,
+        0.7178281249999999,
+        0.7149687499999998,
+        0.715640625,
+        0.71890625
+      ],
+      "per_seed_emb_to_bit": [
+        0.7203750000000001,
+        0.72003125,
+        0.7190781250000001,
+        0.7219375,
+        0.7204062500000001
+      ],
+      "per_seed_bit_to_secret": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "per_seed_overall": [
+        0.7203750000000001,
+        0.72003125,
+        0.7190781250000001,
+        0.7219375,
+        0.7204062500000001
+      ]
+    },
+    {
+      "model_name": "llama",
+      "encoding_mode": "embedding",
+      "bucket_mode": "parity",
+      "num_samples": 10000,
+      "num_seeds": 5,
+      "mean_token_to_bit_accuracy": 1.0,
+      "std_token_to_bit_accuracy": 0.0,
+      "mean_emb_to_bit_accuracy": 0.772346875,
+      "std_emb_to_bit_accuracy": 0.0013058387510522884,
+      "mean_bucket_detectability": 1.0,
+      "std_bucket_detectability": 0.0,
+      "mean_bit_to_secret_accuracy": 0.7017249999999999,
+      "std_bit_to_secret_accuracy": 0.003319826802711233,
+      "mean_overall_perceptibility": 0.7017249999999999,
+      "std_overall_perceptibility": 0.003319826802711233,
+      "per_seed_token_to_bit": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "per_seed_emb_to_bit": [
+        0.7710000000000002,
+        0.770953125,
+        0.7731874999999999,
+        0.772234375,
+        0.774359375
+      ],
+      "per_seed_bit_to_secret": [
+        0.703125,
+        0.703125,
+        0.6955,
+        0.7052499999999999,
+        0.7016249999999999
+      ],
+      "per_seed_overall": [
+        0.703125,
+        0.703125,
+        0.6955,
+        0.7052499999999999,
+        0.7016249999999999
+      ]
+    },
+    {
+      "model_name": "llama",
+      "encoding_mode": "embedding",
+      "bucket_mode": "embedding",
+      "num_samples": 10000,
+      "num_seeds": 5,
+      "mean_token_to_bit_accuracy": 0.7719562499999999,
+      "std_token_to_bit_accuracy": 0.001407756137883848,
+      "mean_emb_to_bit_accuracy": 0.7730718750000001,
+      "std_emb_to_bit_accuracy": 0.0013095800853708984,
+      "mean_bucket_detectability": 0.773115625,
+      "std_bucket_detectability": 0.001330809786370675,
+      "mean_bit_to_secret_accuracy": 0.7017249999999999,
+      "std_bit_to_secret_accuracy": 0.003319826802711233,
+      "mean_overall_perceptibility": 0.542512888671875,
+      "std_overall_perceptibility": 0.0023774050327567105,
+      "per_seed_token_to_bit": [
+        0.7710000000000001,
+        0.769796875,
+        0.7738437499999997,
+        0.772484375,
+        0.7726562499999998
+      ],
+      "per_seed_emb_to_bit": [
+        0.7722500000000002,
+        0.7712031249999999,
+        0.773625,
+        0.7731875000000001,
+        0.77509375
+      ],
+      "per_seed_bit_to_secret": [
+        0.703125,
+        0.703125,
+        0.6955,
+        0.7052499999999999,
+        0.7016249999999999
+      ],
+      "per_seed_overall": [
+        0.5429882812500002,
+        0.5422521972656249,
+        0.5382083281249999,
+        0.545290484375,
+        0.54382515234375
+      ]
+    },
+    {
+      "model_name": "llama",
+      "encoding_mode": "embedding_only",
+      "bucket_mode": "parity",
+      "num_samples": 10000,
+      "num_seeds": 5,
+      "mean_token_to_bit_accuracy": 1.0,
+      "std_token_to_bit_accuracy": 0.0,
+      "mean_emb_to_bit_accuracy": 0.628640625,
+      "std_emb_to_bit_accuracy": 0.0009712166178304526,
+      "mean_bucket_detectability": 1.0,
+      "std_bucket_detectability": 0.0,
+      "mean_bit_to_secret_accuracy": 1.0,
+      "std_bit_to_secret_accuracy": 0.0,
+      "mean_overall_perceptibility": 1.0,
+      "std_overall_perceptibility": 0.0,
+      "per_seed_token_to_bit": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "per_seed_emb_to_bit": [
+        0.6271718749999999,
+        0.6285000000000002,
+        0.6295156250000001,
+        0.6281406249999999,
+        0.6298749999999999
+      ],
+      "per_seed_bit_to_secret": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "per_seed_overall": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "model_name": "llama",
+      "encoding_mode": "embedding_only",
+      "bucket_mode": "embedding",
+      "num_samples": 10000,
+      "num_seeds": 5,
+      "mean_token_to_bit_accuracy": 0.632371875,
+      "std_token_to_bit_accuracy": 0.002192547747484697,
+      "mean_emb_to_bit_accuracy": 0.634503125,
+      "std_emb_to_bit_accuracy": 0.0011156468835388724,
+      "mean_bucket_detectability": 0.6348125,
+      "std_bucket_detectability": 0.0012403927679368715,
+      "mean_bit_to_secret_accuracy": 1.0,
+      "std_bit_to_secret_accuracy": 0.0,
+      "mean_overall_perceptibility": 0.6348125,
+      "std_overall_perceptibility": 0.0012403927679368715,
+      "per_seed_token_to_bit": [
+        0.6312187499999999,
+        0.63165625,
+        0.6359062500000001,
+        0.6295000000000001,
+        0.6335781250000002
+      ],
+      "per_seed_emb_to_bit": [
+        0.6351406249999998,
+        0.6329062499999999,
+        0.6343593750000001,
+        0.63390625,
+        0.636203125
+      ],
+      "per_seed_bit_to_secret": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "per_seed_overall": [
+        0.6351406249999998,
+        0.6329062499999999,
+        0.6359062500000001,
+        0.63390625,
+        0.636203125
+      ]
+    },
+    {
+      "model_name": "llama",
+      "encoding_mode": "xor",
+      "bucket_mode": "parity",
+      "num_samples": 10000,
+      "num_seeds": 5,
+      "mean_token_to_bit_accuracy": 1.0,
+      "std_token_to_bit_accuracy": 0.0,
+      "mean_emb_to_bit_accuracy": 0.604621875,
+      "std_emb_to_bit_accuracy": 0.0010039667418545674,
+      "mean_bucket_detectability": 1.0,
+      "std_bucket_detectability": 0.0,
+      "mean_bit_to_secret_accuracy": 0.8212999999999999,
+      "std_bit_to_secret_accuracy": 0.0025575867531718068,
+      "mean_overall_perceptibility": 0.8212999999999999,
+      "std_overall_perceptibility": 0.0025575867531718068,
+      "per_seed_token_to_bit": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "per_seed_emb_to_bit": [
+        0.6054062500000003,
+        0.605296875,
+        0.603390625,
+        0.605609375,
+        0.60340625
+      ],
+      "per_seed_bit_to_secret": [
+        0.817875,
+        0.8245,
+        0.824,
+        0.819625,
+        0.8205
+      ],
+      "per_seed_overall": [
+        0.817875,
+        0.8245,
+        0.824,
+        0.819625,
+        0.8205
+      ]
+    },
+    {
+      "model_name": "llama",
+      "encoding_mode": "xor",
+      "bucket_mode": "embedding",
+      "num_samples": 10000,
+      "num_seeds": 5,
+      "mean_token_to_bit_accuracy": 0.6111906250000001,
+      "std_token_to_bit_accuracy": 0.0012647334822996593,
+      "mean_emb_to_bit_accuracy": 0.6148437500000001,
+      "std_emb_to_bit_accuracy": 0.0015907754103738514,
+      "mean_bucket_detectability": 0.6148437500000001,
+      "std_bucket_detectability": 0.0015907754103738514,
+      "mean_bit_to_secret_accuracy": 0.8212999999999999,
+      "std_bit_to_secret_accuracy": 0.0025575867531718068,
+      "mean_overall_perceptibility": 0.5049705460937501,
+      "std_overall_perceptibility": 0.001881970384407174,
+      "per_seed_token_to_bit": [
+        0.6100937500000002,
+        0.6116093749999998,
+        0.6093593750000001,
+        0.6126875,
+        0.6122031250000001
+      ],
+      "per_seed_emb_to_bit": [
+        0.6139375,
+        0.613015625,
+        0.615234375,
+        0.61434375,
+        0.6176875000000001
+      ],
+      "per_seed_bit_to_secret": [
+        0.817875,
+        0.8245,
+        0.824,
+        0.819625,
+        0.8205
+      ],
+      "per_seed_overall": [
+        0.5021241328125,
+        0.5054313828125,
+        0.506953125,
+        0.50353149609375,
+        0.5068125937500001
+      ]
+    },
+    {
+      "model_name": "llama",
+      "encoding_mode": "embedding_xor",
+      "bucket_mode": "parity",
+      "num_samples": 10000,
+      "num_seeds": 5,
+      "mean_token_to_bit_accuracy": 1.0,
+      "std_token_to_bit_accuracy": 0.0,
+      "mean_emb_to_bit_accuracy": 0.5825031249999999,
+      "std_emb_to_bit_accuracy": 0.0014918856042773776,
+      "mean_bucket_detectability": 1.0,
+      "std_bucket_detectability": 0.0,
+      "mean_bit_to_secret_accuracy": 0.7541,
+      "std_bit_to_secret_accuracy": 0.005699451728017357,
+      "mean_overall_perceptibility": 0.7541,
+      "std_overall_perceptibility": 0.005699451728017357,
+      "per_seed_token_to_bit": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "per_seed_emb_to_bit": [
+        0.5808906249999999,
+        0.5821562499999999,
+        0.585265625,
+        0.5816250000000001,
+        0.582578125
+      ],
+      "per_seed_bit_to_secret": [
+        0.7585,
+        0.74625,
+        0.7508750000000001,
+        0.762375,
+        0.7525
+      ],
+      "per_seed_overall": [
+        0.7585,
+        0.74625,
+        0.7508750000000001,
+        0.762375,
+        0.7525
+      ]
+    },
+    {
+      "model_name": "llama",
+      "encoding_mode": "embedding_xor",
+      "bucket_mode": "embedding",
+      "num_samples": 10000,
+      "num_seeds": 5,
+      "mean_token_to_bit_accuracy": 0.5896375,
+      "std_token_to_bit_accuracy": 0.001142716404559787,
+      "mean_emb_to_bit_accuracy": 0.592659375,
+      "std_emb_to_bit_accuracy": 0.002641103876696259,
+      "mean_bucket_detectability": 0.592671875,
+      "std_bucket_detectability": 0.0026357295598182914,
+      "mean_bit_to_secret_accuracy": 0.7541,
+      "std_bit_to_secret_accuracy": 0.005699451728017357,
+      "mean_overall_perceptibility": 0.44692302812500007,
+      "std_overall_perceptibility": 0.002382061990153745,
+      "per_seed_token_to_bit": [
+        0.5900312499999999,
+        0.5893437499999999,
+        0.5915625000000001,
+        0.588109375,
+        0.589140625
+      ],
+      "per_seed_emb_to_bit": [
+        0.59325,
+        0.595046875,
+        0.5914999999999999,
+        0.58815625,
+        0.5953437500000001
+      ],
+      "per_seed_bit_to_secret": [
+        0.7585,
+        0.74625,
+        0.7508750000000001,
+        0.762375,
+        0.7525
+      ],
+      "per_seed_overall": [
+        0.449980125,
+        0.44405373046874996,
+        0.44418949218750015,
+        0.44839562109375003,
+        0.447996171875
+      ]
+    },
+    {
+      "model_name": "ministral",
+      "encoding_mode": "ascii",
+      "bucket_mode": "parity",
+      "num_samples": 10000,
+      "num_seeds": 5,
+      "mean_token_to_bit_accuracy": 1.0,
+      "std_token_to_bit_accuracy": 0.0,
+      "mean_emb_to_bit_accuracy": 0.7107343749999999,
+      "std_emb_to_bit_accuracy": 0.0013427685369228992,
+      "mean_bucket_detectability": 1.0,
+      "std_bucket_detectability": 0.0,
+      "mean_bit_to_secret_accuracy": 1.0,
+      "std_bit_to_secret_accuracy": 0.0,
+      "mean_overall_perceptibility": 1.0,
+      "std_overall_perceptibility": 0.0,
+      "per_seed_token_to_bit": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "per_seed_emb_to_bit": [
+        0.7102499999999999,
+        0.7110156249999998,
+        0.709140625,
+        0.7131406250000001,
+        0.7101250000000001
+      ],
+      "per_seed_bit_to_secret": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "per_seed_overall": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "model_name": "ministral",
+      "encoding_mode": "ascii",
+      "bucket_mode": "embedding",
+      "num_samples": 10000,
+      "num_seeds": 5,
+      "mean_token_to_bit_accuracy": 0.7191000000000001,
+      "std_token_to_bit_accuracy": 0.0008298978664570215,
+      "mean_emb_to_bit_accuracy": 0.71855625,
+      "std_emb_to_bit_accuracy": 0.0008654388337715799,
+      "mean_bucket_detectability": 0.7193750000000001,
+      "std_bucket_detectability": 0.0006681217843701462,
+      "mean_bit_to_secret_accuracy": 1.0,
+      "std_bit_to_secret_accuracy": 0.0,
+      "mean_overall_perceptibility": 0.7193750000000001,
+      "std_overall_perceptibility": 0.0006681217843701462,
+      "per_seed_token_to_bit": [
+        0.7204687499999999,
+        0.719546875,
+        0.7188437499999999,
+        0.7185312500000001,
+        0.718109375
+      ],
+      "per_seed_emb_to_bit": [
+        0.7191718749999999,
+        0.7170000000000001,
+        0.718765625,
+        0.7183593749999999,
+        0.719484375
+      ],
+      "per_seed_bit_to_secret": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "per_seed_overall": [
+        0.7204687499999999,
+        0.719546875,
+        0.7188437499999999,
+        0.7185312500000001,
+        0.719484375
+      ]
+    },
+    {
+      "model_name": "ministral",
+      "encoding_mode": "embedding",
+      "bucket_mode": "parity",
+      "num_samples": 10000,
+      "num_seeds": 5,
+      "mean_token_to_bit_accuracy": 1.0,
+      "std_token_to_bit_accuracy": 0.0,
+      "mean_emb_to_bit_accuracy": 0.7402968750000001,
+      "std_emb_to_bit_accuracy": 0.0011056053912902439,
+      "mean_bucket_detectability": 1.0,
+      "std_bucket_detectability": 0.0,
+      "mean_bit_to_secret_accuracy": 0.77125,
+      "std_bit_to_secret_accuracy": 0.003174114049620776,
+      "mean_overall_perceptibility": 0.77125,
+      "std_overall_perceptibility": 0.003174114049620776,
+      "per_seed_token_to_bit": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "per_seed_emb_to_bit": [
+        0.73903125,
+        0.7409531250000002,
+        0.7418125,
+        0.739015625,
+        0.740671875
+      ],
+      "per_seed_bit_to_secret": [
+        0.770875,
+        0.766375,
+        0.776,
+        0.772875,
+        0.770125
+      ],
+      "per_seed_overall": [
+        0.770875,
+        0.766375,
+        0.776,
+        0.772875,
+        0.770125
+      ]
+    },
+    {
+      "model_name": "ministral",
+      "encoding_mode": "embedding",
+      "bucket_mode": "embedding",
+      "num_samples": 10000,
+      "num_seeds": 5,
+      "mean_token_to_bit_accuracy": 0.73971875,
+      "std_token_to_bit_accuracy": 0.0009473956901685625,
+      "mean_emb_to_bit_accuracy": 0.740775,
+      "std_emb_to_bit_accuracy": 0.0008165523942160806,
+      "mean_bucket_detectability": 0.740775,
+      "std_bucket_detectability": 0.0008165523942160806,
+      "mean_bit_to_secret_accuracy": 0.77125,
+      "std_bit_to_secret_accuracy": 0.003174114049620776,
+      "mean_overall_perceptibility": 0.571323454296875,
+      "std_overall_perceptibility": 0.002603143060255737,
+      "per_seed_token_to_bit": [
+        0.7391249999999998,
+        0.738421875,
+        0.7412499999999999,
+        0.7400468750000001,
+        0.73975
+      ],
+      "per_seed_emb_to_bit": [
+        0.7393281249999999,
+        0.7411250000000001,
+        0.7418281249999998,
+        0.7407343750000001,
+        0.740859375
+      ],
+      "per_seed_bit_to_secret": [
+        0.770875,
+        0.766375,
+        0.776,
+        0.772875,
+        0.770125
+      ],
+      "per_seed_overall": [
+        0.5699295683593749,
+        0.5679796718750001,
+        0.5756586249999999,
+        0.572495080078125,
+        0.570554326171875
+      ]
+    },
+    {
+      "model_name": "ministral",
+      "encoding_mode": "embedding_only",
+      "bucket_mode": "parity",
+      "num_samples": 10000,
+      "num_seeds": 5,
+      "mean_token_to_bit_accuracy": 1.0,
+      "std_token_to_bit_accuracy": 0.0,
+      "mean_emb_to_bit_accuracy": 0.61999375,
+      "std_emb_to_bit_accuracy": 0.0011439634363693539,
+      "mean_bucket_detectability": 1.0,
+      "std_bucket_detectability": 0.0,
+      "mean_bit_to_secret_accuracy": 1.0,
+      "std_bit_to_secret_accuracy": 0.0,
+      "mean_overall_perceptibility": 1.0,
+      "std_overall_perceptibility": 0.0,
+      "per_seed_token_to_bit": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "per_seed_emb_to_bit": [
+        0.619,
+        0.6213125,
+        0.6212656249999999,
+        0.6198750000000001,
+        0.618515625
+      ],
+      "per_seed_bit_to_secret": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "per_seed_overall": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ]
+    },
+    {
+      "model_name": "ministral",
+      "encoding_mode": "embedding_only",
+      "bucket_mode": "embedding",
+      "num_samples": 10000,
+      "num_seeds": 5,
+      "mean_token_to_bit_accuracy": 0.62119375,
+      "std_token_to_bit_accuracy": 0.001552297943775629,
+      "mean_emb_to_bit_accuracy": 0.621815625,
+      "std_emb_to_bit_accuracy": 0.0008815269954743555,
+      "mean_bucket_detectability": 0.62205625,
+      "std_bucket_detectability": 0.001086340977202864,
+      "mean_bit_to_secret_accuracy": 1.0,
+      "std_bit_to_secret_accuracy": 0.0,
+      "mean_overall_perceptibility": 0.62205625,
+      "std_overall_perceptibility": 0.001086340977202864,
+      "per_seed_token_to_bit": [
+        0.6194062499999999,
+        0.621359375,
+        0.623375,
+        0.6223125000000002,
+        0.6195156250000001
+      ],
+      "per_seed_emb_to_bit": [
+        0.6204999999999999,
+        0.6228125,
+        0.6221718749999999,
+        0.622515625,
+        0.6210781249999999
+      ],
+      "per_seed_bit_to_secret": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "per_seed_overall": [
+        0.6204999999999999,
+        0.6228125,
+        0.623375,
+        0.622515625,
+        0.6210781249999999
+      ]
+    },
+    {
+      "model_name": "ministral",
+      "encoding_mode": "xor",
+      "bucket_mode": "parity",
+      "num_samples": 10000,
+      "num_seeds": 5,
+      "mean_token_to_bit_accuracy": 1.0,
+      "std_token_to_bit_accuracy": 0.0,
+      "mean_emb_to_bit_accuracy": 0.6087343749999998,
+      "std_emb_to_bit_accuracy": 0.0014766410362711847,
+      "mean_bucket_detectability": 1.0,
+      "std_bucket_detectability": 0.0,
+      "mean_bit_to_secret_accuracy": 0.8083,
+      "std_bit_to_secret_accuracy": 0.0067816848938887985,
+      "mean_overall_perceptibility": 0.8083,
+      "std_overall_perceptibility": 0.0067816848938887985,
+      "per_seed_token_to_bit": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "per_seed_emb_to_bit": [
+        0.6067031249999999,
+        0.6095937499999999,
+        0.6106562499999999,
+        0.6093749999999999,
+        0.6073437499999998
+      ],
+      "per_seed_bit_to_secret": [
+        0.8031250000000001,
+        0.8135,
+        0.8105,
+        0.816375,
+        0.798
+      ],
+      "per_seed_overall": [
+        0.8031250000000001,
+        0.8135,
+        0.8105,
+        0.816375,
+        0.798
+      ]
+    },
+    {
+      "model_name": "ministral",
+      "encoding_mode": "xor",
+      "bucket_mode": "embedding",
+      "num_samples": 10000,
+      "num_seeds": 5,
+      "mean_token_to_bit_accuracy": 0.6186468749999999,
+      "std_token_to_bit_accuracy": 0.0010967191840895747,
+      "mean_emb_to_bit_accuracy": 0.6191968750000001,
+      "std_emb_to_bit_accuracy": 0.0017710949561642066,
+      "mean_bucket_detectability": 0.6200281249999999,
+      "std_bucket_detectability": 0.001332342568092069,
+      "mean_bit_to_secret_accuracy": 0.8083,
+      "std_bit_to_secret_accuracy": 0.0067816848938887985,
+      "mean_overall_perceptibility": 0.5011704773437501,
+      "std_overall_perceptibility": 0.004537256094819579,
+      "per_seed_token_to_bit": [
+        0.618046875,
+        0.618359375,
+        0.6172499999999999,
+        0.6190781249999999,
+        0.6205
+      ],
+      "per_seed_emb_to_bit": [
+        0.6179374999999999,
+        0.6218906250000001,
+        0.6206250000000001,
+        0.6171718749999999,
+        0.618359375
+      ],
+      "per_seed_bit_to_secret": [
+        0.8031250000000001,
+        0.8135,
+        0.8105,
+        0.816375,
+        0.798
+      ],
+      "per_seed_overall": [
+        0.49636889648437504,
+        0.5059080234375001,
+        0.5030165625,
+        0.5053999042968749,
+        0.49515900000000007
+      ]
+    },
+    {
+      "model_name": "ministral",
+      "encoding_mode": "embedding_xor",
+      "bucket_mode": "parity",
+      "num_samples": 10000,
+      "num_seeds": 5,
+      "mean_token_to_bit_accuracy": 1.0,
+      "std_token_to_bit_accuracy": 0.0,
+      "mean_emb_to_bit_accuracy": 0.5758374999999999,
+      "std_emb_to_bit_accuracy": 0.0009675698456699793,
+      "mean_bucket_detectability": 1.0,
+      "std_bucket_detectability": 0.0,
+      "mean_bit_to_secret_accuracy": 0.7529999999999999,
+      "std_bit_to_secret_accuracy": 0.003204489038832834,
+      "mean_overall_perceptibility": 0.7529999999999999,
+      "std_overall_perceptibility": 0.003204489038832834,
+      "per_seed_token_to_bit": [
+        1.0,
+        1.0,
+        1.0,
+        1.0,
+        1.0
+      ],
+      "per_seed_emb_to_bit": [
+        0.57665625,
+        0.5766406249999999,
+        0.5764999999999998,
+        0.57509375,
+        0.5742968750000002
+      ],
+      "per_seed_bit_to_secret": [
+        0.7555000000000001,
+        0.755875,
+        0.7470000000000001,
+        0.7538750000000001,
+        0.75275
+      ],
+      "per_seed_overall": [
+        0.7555000000000001,
+        0.755875,
+        0.7470000000000001,
+        0.7538750000000001,
+        0.75275
+      ]
+    },
+    {
+      "model_name": "ministral",
+      "encoding_mode": "embedding_xor",
+      "bucket_mode": "embedding",
+      "num_samples": 10000,
+      "num_seeds": 5,
+      "mean_token_to_bit_accuracy": 0.5851624999999999,
+      "std_token_to_bit_accuracy": 0.0011208081626665485,
+      "mean_emb_to_bit_accuracy": 0.5837656250000001,
+      "std_emb_to_bit_accuracy": 0.00027933374975115866,
+      "mean_bucket_detectability": 0.58518125,
+      "std_bucket_detectability": 0.0010932856157015393,
+      "mean_bit_to_secret_accuracy": 0.7529999999999999,
+      "std_bit_to_secret_accuracy": 0.003204489038832834,
+      "mean_overall_perceptibility": 0.440639915625,
+      "std_overall_perceptibility": 0.0016784947000170782,
+      "per_seed_token_to_bit": [
+        0.5835,
+        0.5843593749999999,
+        0.585640625,
+        0.5867343749999999,
+        0.585578125
+      ],
+      "per_seed_emb_to_bit": [
+        0.5835937500000001,
+        0.5836406249999999,
+        0.584109375,
+        0.5834062499999999,
+        0.5840781250000002
+      ],
+      "per_seed_bit_to_secret": [
+        0.7555000000000001,
+        0.755875,
+        0.7470000000000001,
+        0.7538750000000001,
+        0.75275
+      ],
+      "per_seed_overall": [
+        0.4409050781250001,
+        0.4417026425781249,
+        0.43747354687500006,
+        0.442324376953125,
+        0.44079393359374996
+      ]
+    }
+  ]
+}

@@ -586,6 +586,8 @@ if __name__ == "__main__":
                         help="Number of training pairings (default: model-specific)")
     parser.add_argument("--completions-per-pairing", type=int, default=None,
                         help="Completions per pairing (default: model-specific)")
+    parser.add_argument("--generation-batch-size", type=int, default=None,
+                        help="Batch size for generation (default: model-specific)")
 
     args = parser.parse_args()
 
@@ -607,5 +609,7 @@ if __name__ == "__main__":
         config.num_train_pairings = args.num_train_pairings
     if args.completions_per_pairing is not None:
         config.completions_per_pairing = args.completions_per_pairing
+    if args.generation_batch_size is not None:
+        config.generation_batch_size = args.generation_batch_size
 
     main(config)
