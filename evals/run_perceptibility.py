@@ -2,15 +2,12 @@
 """
 Perceptibility Evaluation: Measure how recoverable secrets are from steganographic outputs.
 
-Given bucket knowledge (parity or embedding assignments), can an adversary recover:
-1. The encoded bits from output tokens?
-2. The original secret from the recovered bits?
+Tests whether an adversary can recover the SECRET from OUTPUT TOKENS using:
+1. XGBoost on Token IDs → Secret letters (discovers discrete patterns like parity)
+2. MLP on Embeddings → Secret letters (discovers continuous patterns)
 
-This measures the "informed adversary" threat model - someone who knows the
-steganography scheme but intercepts the output.
-
-For ideal/synthetic samples: should be 100% (by construction)
-For real model outputs: may be <100% if model doesn't always pick correct bucket
+Perceptibility = max accuracy across both approaches.
+Higher perceptibility = easier to detect = worse steganography.
 
 Usage:
     python run_perceptibility.py [--output-dir results] [--num-samples 10000]
@@ -27,6 +24,11 @@ from datetime import datetime
 from typing import Dict, List, Tuple, Optional
 from dataclasses import dataclass, asdict, field
 from collections import defaultdict
+from sklearn.model_selection import train_test_split
+from sklearn.neural_network import MLPClassifier
+from sklearn.decomposition import PCA
+from sklearn.metrics import accuracy_score
+from scipy import stats
 import warnings
 warnings.filterwarnings('ignore')
 
@@ -48,17 +50,28 @@ class PerceptibilityResult:
     encoding_mode: str
     bucket_mode: str
     num_samples: int
+    num_seeds: int
+    pca_dims: int
 
-    # Bit-level recovery (given bucket knowledge)
-    bit_recovery_accuracy: float
+    # XGBoost: Token IDs → Secret letters
+    mean_xgb_accuracy: float
+    std_xgb_accuracy: float
+    ci95_xgb: Tuple[float, float]
 
-    # Secret-level recovery (given bucket knowledge + encoding knowledge)
-    secret_recovery_accuracy: float
-    letter_recovery_accuracy: float  # Per-letter accuracy
+    # MLP: Embeddings → Secret letters
+    mean_mlp_accuracy: float
+    std_mlp_accuracy: float
+    ci95_mlp: Tuple[float, float]
 
-    # Breakdown by position
-    per_position_bit_accuracy: List[float] = field(default_factory=list)
-    per_letter_accuracy: List[float] = field(default_factory=list)
+    # Overall perceptibility (max of both)
+    mean_perceptibility: float
+    std_perceptibility: float
+    ci95_perceptibility: Tuple[float, float]
+
+    # Per-seed details
+    per_seed_xgb: List[float] = field(default_factory=list)
+    per_seed_mlp: List[float] = field(default_factory=list)
+    per_seed_perceptibility: List[float] = field(default_factory=list)
 
 
 def load_model_and_tokenizer(model_name: str):
@@ -75,10 +88,22 @@ def load_model_and_tokenizer(model_name: str):
     if not model_id:
         raise ValueError(f"Unknown model: {model_name}")
 
-    print(f"  Loading tokenizer from {model_id}...")
-    tokenizer = AutoTokenizer.from_pretrained(model_id)
+    print(f"  Loading model and tokenizer from {model_id}...")
 
-    return tokenizer, model_id
+    tokenizer = AutoTokenizer.from_pretrained(model_id)
+    model = AutoModelForCausalLM.from_pretrained(
+        model_id,
+        torch_dtype=torch.float32,
+        device_map="cpu",
+    )
+
+    # Get embedding matrix
+    embeddings = model.get_input_embeddings().weight.detach().clone()
+
+    del model
+    torch.cuda.empty_cache() if torch.cuda.is_available() else None
+
+    return tokenizer, embeddings
 
 
 def generate_random_secrets(num_samples: int, alphabet: str = "abcdefghijklmnopqrstuvwxyz",
@@ -126,54 +151,6 @@ def encode_secret_to_bits(
         raise ValueError(f"Unknown encoding mode: {encoding_mode}")
 
 
-def decode_bits_to_secret(
-    bits: str,
-    encoding_mode: str,
-    config: Config,
-    model=None,
-    tokenizer=None,
-    embedding_key_config=None,
-    embedding_only_config=None,
-    original_secret: str = None,  # Needed for embedding modes to derive the key
-) -> Optional[str]:
-    """
-    Decode bits back to secret using the specified encoding mode.
-
-    For ASCII: straightforward decode
-    For embedding modes: need original secret to derive the key (chicken-egg problem)
-    """
-    if encoding_mode == "ascii":
-        # Decode ASCII: 8 bits per character
-        try:
-            secret = ""
-            for i in range(0, len(bits), 8):
-                byte = bits[i:i+8]
-                char_code = int(byte, 2)
-                if 97 <= char_code <= 122:  # lowercase a-z
-                    secret += chr(char_code)
-                else:
-                    return None  # Invalid character
-            return secret
-        except:
-            return None
-
-    elif encoding_mode in ["embedding", "xor", "embedding_only", "embedding_xor"]:
-        # For embedding-based modes, we need to check all possible secrets
-        # This is the "informed adversary" model - they know the scheme
-        # but must brute-force the secret space
-        #
-        # For now, if we have the original secret, verify the bits match
-        if original_secret:
-            expected_bits = encode_secret_to_bits(
-                original_secret, encoding_mode, config,
-                model, tokenizer, embedding_key_config, embedding_only_config
-            )
-            return original_secret if bits == expected_bits else None
-        return None
-
-    return None
-
-
 def generate_ideal_samples(
     secrets: List[str],
     bucket_assignments: torch.Tensor,
@@ -183,13 +160,12 @@ def generate_ideal_samples(
     tokenizer=None,
     embedding_key_config=None,
     embedding_only_config=None,
-) -> Tuple[np.ndarray, List[str]]:
+) -> np.ndarray:
     """
     Generate ideal output token sequences by sampling from bucket assignments.
 
     Returns:
         output_token_ids: [num_samples, 32] array of token IDs
-        all_bits: List of bit strings for each sample
     """
     # Pre-compute token lists for each bucket
     bucket_np = bucket_assignments.cpu().numpy() if bucket_assignments.is_cuda else bucket_assignments.numpy()
@@ -203,7 +179,6 @@ def generate_ideal_samples(
     num_bits = config.secret_bits  # 32
 
     output_token_ids = np.zeros((num_samples, num_bits), dtype=np.int64)
-    all_bits = []
 
     for i, secret in enumerate(secrets):
         # Get bits to encode for this secret
@@ -211,7 +186,6 @@ def generate_ideal_samples(
             secret, encoding_mode, config,
             model, tokenizer, embedding_key_config, embedding_only_config
         )
-        all_bits.append(bits_str)
 
         # Convert bits string to list of ints
         bits = [int(b) for b in bits_str]
@@ -223,32 +197,70 @@ def generate_ideal_samples(
             else:
                 output_token_ids[i, j] = np.random.choice(bucket_1_tokens)
 
-    return output_token_ids, all_bits
+    return output_token_ids
 
 
-def extract_bits_from_tokens(
-    output_token_ids: np.ndarray,
-    bucket_assignments: torch.Tensor,
-) -> List[str]:
-    """
-    Extract bits from output tokens using bucket assignments.
+def secrets_to_labels(secrets: List[str]) -> np.ndarray:
+    """Convert secrets to numeric labels (0-25 for each letter)."""
+    labels = np.array([[ord(c) - ord('a') for c in secret] for secret in secrets])
+    return labels  # Shape: [num_samples, 4]
 
-    For each token, look up its bucket assignment to get the bit.
-    """
-    bucket_np = bucket_assignments.cpu().numpy() if bucket_assignments.is_cuda else bucket_assignments.numpy()
 
-    num_samples, num_bits = output_token_ids.shape
-    recovered_bits = []
+def compute_confidence_interval(values: List[float], confidence: float = 0.95) -> Tuple[float, float]:
+    """Compute confidence interval for a list of values."""
+    n = len(values)
+    if n < 2:
+        return (np.mean(values), np.mean(values))
+    mean = np.mean(values)
+    se = stats.sem(values)
+    h = se * stats.t.ppf((1 + confidence) / 2, n - 1)
+    return (mean - h, mean + h)
 
-    for i in range(num_samples):
-        bits_str = ""
-        for j in range(num_bits):
-            token_id = output_token_ids[i, j]
-            bit = bucket_np[token_id]
-            bits_str += str(int(bit))
-        recovered_bits.append(bits_str)
 
-    return recovered_bits
+def train_xgboost_classifier(X_train, y_train, X_test, y_test, seed: int = 42) -> float:
+    """Train XGBoost classifier and return accuracy."""
+    try:
+        from xgboost import XGBClassifier
+    except ImportError:
+        print("  Warning: XGBoost not installed, using RandomForest instead")
+        from sklearn.ensemble import RandomForestClassifier
+        clf = RandomForestClassifier(n_estimators=100, max_depth=10, random_state=seed, n_jobs=-1)
+        clf.fit(X_train, y_train)
+        y_pred = clf.predict(X_test)
+        return accuracy_score(y_test, y_pred)
+
+    clf = XGBClassifier(
+        n_estimators=100,
+        max_depth=6,
+        learning_rate=0.1,
+        random_state=seed,
+        n_jobs=-1,
+        verbosity=0,
+    )
+
+    clf.fit(X_train, y_train)
+    y_pred = clf.predict(X_test)
+
+    return accuracy_score(y_test, y_pred)
+
+
+def train_mlp_classifier(X_train, y_train, X_test, y_test, seed: int = 42) -> float:
+    """Train MLP classifier and return accuracy."""
+    clf = MLPClassifier(
+        hidden_layer_sizes=(256, 128),
+        activation='relu',
+        solver='adam',
+        max_iter=200,
+        early_stopping=True,
+        validation_fraction=0.1,
+        random_state=seed,
+        verbose=False,
+    )
+
+    clf.fit(X_train, y_train)
+    y_pred = clf.predict(X_test)
+
+    return accuracy_score(y_test, y_pred)
 
 
 def run_perceptibility_evaluation(
@@ -256,9 +268,13 @@ def run_perceptibility_evaluation(
     encoding_mode: str,
     bucket_mode: str,
     tokenizer,
+    embeddings: torch.Tensor,
     bucket_assignments: torch.Tensor,
     config: Config,
     num_samples: int = 10000,
+    num_seeds: int = 5,
+    pca_dims: int = 50,
+    test_size: float = 0.2,
     model=None,
     embedding_key_config=None,
     embedding_only_config=None,
@@ -266,85 +282,112 @@ def run_perceptibility_evaluation(
     """
     Run perceptibility evaluation.
 
-    Measures:
-    1. Bit recovery: Can we extract the correct bits from output tokens?
-    2. Secret recovery: Can we decode the bits back to the original secret?
+    Tests:
+    1. XGBoost: Token IDs → Secret letters (can discover parity patterns)
+    2. MLP: Embeddings → Secret letters (can discover continuous patterns)
     """
     print(f"\nEvaluating: {model_name} / {encoding_mode} / {bucket_mode}")
-    print(f"  Samples: {num_samples}")
+    print(f"  Samples: {num_samples}, Seeds: {num_seeds}, PCA dims: {pca_dims}")
 
-    # Generate random secrets
-    secrets = generate_random_secrets(num_samples, config.secret_alphabet,
-                                     config.secret_length, seed=42)
+    # Fit PCA on full vocabulary embeddings
+    print("  Fitting PCA on vocabulary embeddings...")
+    pca = PCA(n_components=pca_dims, random_state=42)
+    pca.fit(embeddings.numpy())
+    print(f"  PCA explained variance: {pca.explained_variance_ratio_.sum():.2%}")
 
-    # Generate ideal output token sequences
-    print(f"  Generating {num_samples} ideal samples...")
-    output_token_ids, original_bits = generate_ideal_samples(
-        secrets, bucket_assignments, encoding_mode, config,
-        model=model, tokenizer=tokenizer,
-        embedding_key_config=embedding_key_config,
-        embedding_only_config=embedding_only_config,
-    )
+    # Results storage
+    xgb_accs = []
+    mlp_accs = []
+    perceptibilities = []
 
-    # Extract bits from output tokens
-    print(f"  Extracting bits from output tokens...")
-    recovered_bits = extract_bits_from_tokens(output_token_ids, bucket_assignments)
+    for seed in range(num_seeds):
+        print(f"  Seed {seed + 1}/{num_seeds}...")
+        np.random.seed(seed * 1000)
 
-    # Calculate bit-level accuracy
-    bit_correct = 0
-    total_bits = 0
-    per_position_correct = [0] * 32
+        # Generate random secrets
+        secrets = generate_random_secrets(num_samples, config.secret_alphabet,
+                                         config.secret_length, seed=seed * 1000)
 
-    for orig, recov in zip(original_bits, recovered_bits):
-        for pos, (o, r) in enumerate(zip(orig, recov)):
-            if o == r:
-                bit_correct += 1
-                per_position_correct[pos] += 1
-            total_bits += 1
-
-    bit_accuracy = bit_correct / total_bits
-    per_position_accuracy = [c / num_samples for c in per_position_correct]
-
-    # Calculate secret-level accuracy
-    print(f"  Decoding secrets from recovered bits...")
-    secret_correct = 0
-    letter_correct = [0, 0, 0, 0]
-
-    for i, (orig_secret, recov_bits) in enumerate(zip(secrets, recovered_bits)):
-        # Decode the recovered bits
-        decoded_secret = decode_bits_to_secret(
-            recov_bits, encoding_mode, config,
-            model, tokenizer, embedding_key_config, embedding_only_config,
-            original_secret=orig_secret  # For embedding modes
+        # Generate ideal output token sequences
+        print(f"    Generating {num_samples} ideal samples...")
+        output_token_ids = generate_ideal_samples(
+            secrets, bucket_assignments, encoding_mode, config,
+            model=model, tokenizer=tokenizer,
+            embedding_key_config=embedding_key_config,
+            embedding_only_config=embedding_only_config,
         )
 
-        if decoded_secret == orig_secret:
-            secret_correct += 1
+        # Convert secrets to labels (0-25 for each letter)
+        secret_labels = secrets_to_labels(secrets)
 
-        # For ASCII mode, we can check per-letter accuracy
-        if encoding_mode == "ascii" and decoded_secret:
-            for j in range(min(4, len(decoded_secret), len(orig_secret))):
-                if decoded_secret[j] == orig_secret[j]:
-                    letter_correct[j] += 1
+        # Prepare features
+        # X1: Output token IDs (32 integers)
+        X_token_ids = output_token_ids.astype(np.float32)
 
-    secret_accuracy = secret_correct / num_samples
-    letter_accuracy = [c / num_samples for c in letter_correct]
-    overall_letter_accuracy = sum(letter_correct) / (num_samples * 4)
+        # X2: Output token embeddings (PCA reduced)
+        print(f"    Computing output embeddings...")
+        output_embeds_flat = embeddings[output_token_ids.flatten()].numpy()
+        output_embeds_pca = pca.transform(output_embeds_flat)
+        X_embeddings = output_embeds_pca.reshape(num_samples, -1)  # [N, 32*pca_dims]
 
-    print(f"  Bit recovery accuracy: {bit_accuracy:.4f}")
-    print(f"  Secret recovery accuracy: {secret_accuracy:.4f}")
-    print(f"  Letter recovery accuracy: {overall_letter_accuracy:.4f}")
+        # Train/test split
+        (X_ids_train, X_ids_test,
+         X_emb_train, X_emb_test,
+         y_train, y_test) = train_test_split(
+            X_token_ids, X_embeddings, secret_labels,
+            test_size=test_size, random_state=seed
+        )
 
+        # Train classifiers for each letter position, average accuracy
+        print(f"    Training XGBoost (Token IDs → Secret)...")
+        xgb_acc = 0
+        for pos in range(4):
+            acc = train_xgboost_classifier(
+                X_ids_train, y_train[:, pos],
+                X_ids_test, y_test[:, pos],
+                seed=seed
+            )
+            xgb_acc += acc / 4
+        xgb_accs.append(xgb_acc)
+        print(f"      XGBoost accuracy: {xgb_acc:.4f}")
+
+        print(f"    Training MLP (Embeddings → Secret)...")
+        mlp_acc = 0
+        for pos in range(4):
+            acc = train_mlp_classifier(
+                X_emb_train, y_train[:, pos],
+                X_emb_test, y_test[:, pos],
+                seed=seed
+            )
+            mlp_acc += acc / 4
+        mlp_accs.append(mlp_acc)
+        print(f"      MLP accuracy: {mlp_acc:.4f}")
+
+        # Perceptibility = max of both
+        perceptibility = max(xgb_acc, mlp_acc)
+        perceptibilities.append(perceptibility)
+        print(f"      Perceptibility: {perceptibility:.4f}")
+
+    # Compute statistics
     result = PerceptibilityResult(
         model_name=model_name,
         encoding_mode=encoding_mode,
         bucket_mode=bucket_mode,
         num_samples=num_samples,
-        bit_recovery_accuracy=bit_accuracy,
-        secret_recovery_accuracy=secret_accuracy,
-        letter_recovery_accuracy=overall_letter_accuracy,
-        per_position_bit_accuracy=per_position_accuracy,
-        per_letter_accuracy=letter_accuracy,
+        num_seeds=num_seeds,
+        pca_dims=pca_dims,
+        mean_xgb_accuracy=np.mean(xgb_accs),
+        std_xgb_accuracy=np.std(xgb_accs),
+        ci95_xgb=compute_confidence_interval(xgb_accs),
+        mean_mlp_accuracy=np.mean(mlp_accs),
+        std_mlp_accuracy=np.std(mlp_accs),
+        ci95_mlp=compute_confidence_interval(mlp_accs),
+        mean_perceptibility=np.mean(perceptibilities),
+        std_perceptibility=np.std(perceptibilities),
+        ci95_perceptibility=compute_confidence_interval(perceptibilities),
+        per_seed_xgb=xgb_accs,
+        per_seed_mlp=mlp_accs,
+        per_seed_perceptibility=perceptibilities,
     )
 
     return result
@@ -438,6 +481,18 @@ def main():
         help="Number of samples to generate"
     )
     parser.add_argument(
+        "--num-seeds",
+        type=int,
+        default=5,
+        help="Number of random seeds for robustness"
+    )
+    parser.add_argument(
+        "--pca-dims",
+        type=int,
+        default=50,
+        help="Number of PCA dimensions for embeddings"
+    )
+    parser.add_argument(
         "--pod-name",
         type=str,
         default=None,
@@ -495,9 +550,11 @@ def main():
         eval_configs = [(m, e, b) for m in models for e in encoding_modes for b in bucket_modes]
 
     print("=" * 70)
-    print("PERCEPTIBILITY EVALUATION (Bit Recovery)")
+    print("PERCEPTIBILITY EVALUATION")
     print("=" * 70)
     print(f"Samples: {args.num_samples}")
+    print(f"Seeds: {args.num_seeds}")
+    print(f"PCA dims: {args.pca_dims}")
     print(f"Models: {models}")
     print(f"Encoding modes: {encoding_modes}")
     print(f"Bucket modes: {bucket_modes}")
@@ -524,13 +581,14 @@ def main():
         print("=" * 70)
 
         try:
-            tokenizer, model_id = load_model_and_tokenizer(model_name)
+            tokenizer, embeddings = load_model_and_tokenizer(model_name)
         except Exception as e:
             print(f"  Error loading model: {e}")
             continue
 
-        vocab_size = tokenizer.vocab_size
-        print(f"  Vocab size: {vocab_size}")
+        vocab_size = embeddings.shape[0]
+        embed_dim = embeddings.shape[1]
+        print(f"  Vocab size: {vocab_size}, Embed dim: {embed_dim}")
 
         # Get encoding/bucket modes for this model
         model_encoding_modes = set(em for em, bm in configs_by_model[model_name])
@@ -610,9 +668,12 @@ def main():
                     encoding_mode=encoding_mode,
                     bucket_mode=bucket_mode,
                     tokenizer=tokenizer,
+                    embeddings=embeddings,
                     bucket_assignments=bucket_assignments,
                     config=config,
                     num_samples=args.num_samples,
+                    num_seeds=args.num_seeds,
+                    pca_dims=args.pca_dims,
                     model=model_for_encoding,
                     embedding_key_config=embedding_key_config,
                     embedding_only_config=embedding_only_config,
@@ -625,6 +686,7 @@ def main():
                 continue
 
         # Clean up
+        del embeddings
         del tokenizer
         if model_for_encoding is not None:
             del model_for_encoding
@@ -634,13 +696,14 @@ def main():
     print("\n" + "=" * 70)
     print("SUMMARY")
     print("=" * 70)
-    print(f"{'Model':<12} {'Encoding':<15} {'Bucket':<10} {'Bit Acc':<10} {'Secret Acc':<12} {'Letter Acc':<10}")
-    print("-" * 79)
+    print(f"{'Model':<12} {'Encoding':<15} {'Bucket':<10} {'XGB Acc':<12} {'MLP Acc':<12} {'Percept':<12}")
+    print("-" * 83)
 
     for r in all_results:
         print(f"{r.model_name:<12} {r.encoding_mode:<15} {r.bucket_mode:<10} "
-              f"{r.bit_recovery_accuracy:>8.2%}  {r.secret_recovery_accuracy:>10.2%}  "
-              f"{r.letter_recovery_accuracy:>8.2%}")
+              f"{r.mean_xgb_accuracy:>6.2%} ±{r.std_xgb_accuracy:>4.2%}  "
+              f"{r.mean_mlp_accuracy:>6.2%} ±{r.std_mlp_accuracy:>4.2%}  "
+              f"{r.mean_perceptibility:>6.2%} ±{r.std_perceptibility:>4.2%}")
 
     # Save results
     pod_suffix = f"_{args.pod_name}" if args.pod_name else ""
@@ -650,6 +713,8 @@ def main():
         "timestamp": datetime.now().isoformat(),
         "parameters": {
             "num_samples": args.num_samples,
+            "num_seeds": args.num_seeds,
+            "pca_dims": args.pca_dims,
             "models": list(models) if not isinstance(models, list) else models,
             "encoding_modes": list(encoding_modes) if not isinstance(encoding_modes, list) else encoding_modes,
             "bucket_modes": list(bucket_modes) if not isinstance(bucket_modes, list) else bucket_modes,
