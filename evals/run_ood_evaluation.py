@@ -90,12 +90,13 @@ def load_wiki_ood_prompts(
 
 def load_trojanstego_ood_prompts(
     num_prompts: int = 200,
-    skip_first: int = 500,  # Skip first 500 to avoid training overlap (training uses first 100)
+    skip_first: int = 100,  # Skip first 100 used for training (same as training novel eval)
 ) -> List[str]:
     """
     Load OOD prompts in TrojanStego style from helpful-instructions.
 
-    Skips well past the training prompts to ensure no overlap.
+    Skips the training prompts (first 100) to ensure no overlap.
+    Uses prompts starting at index 100, same as training's novel evaluation.
     """
     from datasets import load_dataset as hf_load_dataset
 
