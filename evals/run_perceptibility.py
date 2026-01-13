@@ -443,7 +443,7 @@ def main():
         eval_configs = [(cfg['model'], cfg['encoding_mode'], cfg['bucket_mode']) for cfg in discovered]
     else:
         models = args.models or ["llama", "ministral"]
-        encoding_modes = args.encoding_modes or ["ascii", "embedding", "embedding_only"]
+        encoding_modes = args.encoding_modes or ["ascii", "embedding", "embedding_only", "xor", "embedding_xor"]
         bucket_modes = args.bucket_modes or ["parity", "embedding"]
         eval_configs = [(m, e, b) for m in models for e in encoding_modes for b in bucket_modes]
 
@@ -459,7 +459,8 @@ def main():
     print()
     print("Testing: Given bits (from bucket extraction), can classifier decode secret?")
     print("  - ASCII: Should be ~100% (deterministic decode)")
-    print("  - Embedding modes: Relationship is obfuscated")
+    print("  - XOR modes: Obfuscated by XORing with embedding-derived key")
+    print("  - Embedding modes: Fully obfuscated through embedding projections")
 
     os.makedirs(args.output_dir, exist_ok=True)
 
