@@ -7,6 +7,7 @@ This script orchestrates all evaluation scripts:
 2. Semantic stability (run_semantic_stability.py)
 3. Semantic coherence (run_semantic_coherence.py)
 4. Out-of-distribution evaluation (run_ood_evaluation.py)
+5. Perceptibility evaluation (run_perceptibility.py)
 
 Usage:
     python run_all_evals.py [--checkpoint-dir checkpoints] [--output-dir results] [--dry-run]
@@ -33,6 +34,7 @@ EVAL_SCRIPTS = {
     "stability": "run_semantic_stability.py",
     "coherence": "run_semantic_coherence.py",
     "ood": "run_ood_evaluation.py",
+    "perceptibility": "run_perceptibility.py",
 }
 
 
@@ -42,7 +44,28 @@ def run_eval_script(script_name: str, args: argparse.Namespace, eval_name: str) 
 
     cmd = [sys.executable, str(script_path)]
 
-    # Add common arguments
+    # Perceptibility has different args - handle separately
+    if eval_name == "perceptibility":
+        cmd.extend(["--output-dir", args.output_dir])
+        cmd.extend(["--checkpoint-dir", args.checkpoint_dir])
+        cmd.extend(["--num-samples", str(args.perceptibility_samples)])
+        cmd.extend(["--num-seeds", str(args.perceptibility_seeds)])
+        cmd.extend(["--pca-dims", str(args.pca_dims)])
+        if args.perceptibility_auto_discover:
+            cmd.append("--auto-discover")
+        if args.pod:
+            cmd.extend(["--pod-name", args.pod])
+        if args.filter_model:
+            cmd.extend(["--models", args.filter_model])
+        if args.filter_encoding:
+            cmd.extend(["--encoding-modes", args.filter_encoding])
+        if args.perceptibility_bucket_modes:
+            cmd.extend(["--bucket-modes"] + args.perceptibility_bucket_modes)
+        print(f"\nRunning: {' '.join(cmd)}\n")
+        result = subprocess.run(cmd)
+        return result.returncode
+
+    # Add common arguments for other evals
     cmd.extend(["--checkpoint-dir", args.checkpoint_dir])
     cmd.extend(["--output-dir", args.output_dir])
 
@@ -153,6 +176,36 @@ def main():
         choices=["wiki", "trojanstego"],
         default="wiki",
         help="Training data format (for OOD eval): 'wiki' or 'trojanstego'"
+    )
+    parser.add_argument(
+        "--perceptibility-samples",
+        type=int,
+        default=100000,
+        help="Number of samples for perceptibility evaluation"
+    )
+    parser.add_argument(
+        "--perceptibility-seeds",
+        type=int,
+        default=5,
+        help="Number of random seeds for perceptibility evaluation"
+    )
+    parser.add_argument(
+        "--pca-dims",
+        type=int,
+        default=50,
+        help="Number of PCA dimensions for perceptibility embedding features"
+    )
+    parser.add_argument(
+        "--perceptibility-bucket-modes",
+        type=str,
+        nargs="+",
+        default=["parity", "embedding"],
+        help="Bucket modes for perceptibility evaluation"
+    )
+    parser.add_argument(
+        "--perceptibility-auto-discover",
+        action="store_true",
+        help="Auto-discover configurations from checkpoint directory for perceptibility"
     )
 
     args = parser.parse_args()
