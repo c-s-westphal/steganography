@@ -149,13 +149,28 @@ def load_model_for_training(config: Config):
     tokenizer.pad_token = tokenizer.eos_token
     tokenizer.padding_side = "right"
 
+    # Build model loading kwargs based on quantization settings
+    model_kwargs = {
+        "device_map": "auto",
+    }
+    if config.load_in_8bit:
+        logger.info("Using 8-bit quantization")
+        model_kwargs["load_in_8bit"] = True
+    elif config.load_in_4bit:
+        logger.info("Using 4-bit quantization")
+        model_kwargs["load_in_4bit"] = True
+    else:
+        model_kwargs["torch_dtype"] = torch.bfloat16
+
     if config.training_mode == "full":
+        if config.load_in_8bit or config.load_in_4bit:
+            raise ValueError("Full fine-tuning is not supported with quantization. Use LoRA instead.")
+
         logger.info("Loading model for full fine-tuning...")
+        model_kwargs["use_cache"] = False
         model = AutoModelForCausalLM.from_pretrained(
             config.base_model,
-            torch_dtype=torch.bfloat16,
-            device_map="auto",
-            use_cache=False,
+            **model_kwargs,
         )
         if config.full_ft_use_gradient_checkpointing:
             # use_reentrant=False is required for gradient checkpointing with device_map="auto"
@@ -172,8 +187,7 @@ def load_model_for_training(config: Config):
         logger.info("Loading model with LoRA...")
         model = AutoModelForCausalLM.from_pretrained(
             config.base_model,
-            torch_dtype=torch.bfloat16,
-            device_map="auto",
+            **model_kwargs,
         )
 
         lora_config = LoraConfig(
@@ -218,19 +232,28 @@ def load_trained_model(config: Config):
     tokenizer = AutoTokenizer.from_pretrained(model_path)
     tokenizer.pad_token = tokenizer.eos_token
 
+    # Build model loading kwargs based on quantization settings
+    model_kwargs = {
+        "device_map": "auto",
+    }
+    if config.load_in_8bit:
+        model_kwargs["load_in_8bit"] = True
+    elif config.load_in_4bit:
+        model_kwargs["load_in_4bit"] = True
+    else:
+        model_kwargs["torch_dtype"] = torch.bfloat16
+
     if config.training_mode == "lora":
         # Load base model then apply LoRA
         base_model = AutoModelForCausalLM.from_pretrained(
             config.base_model,
-            torch_dtype=torch.bfloat16,
-            device_map="auto",
+            **model_kwargs,
         )
         model = PeftModel.from_pretrained(base_model, model_path)
     else:
         model = AutoModelForCausalLM.from_pretrained(
             model_path,
-            torch_dtype=torch.bfloat16,
-            device_map="auto",
+            **model_kwargs,
         )
 
     model.eval()

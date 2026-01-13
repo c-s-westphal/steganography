@@ -373,10 +373,21 @@ def main(config: Config = None):
 
     # Load model
     print("\n[1/6] Loading model...")
+    model_kwargs = {
+        "device_map": "auto",
+    }
+    if config.load_in_8bit:
+        print("  Using 8-bit quantization")
+        model_kwargs["load_in_8bit"] = True
+    elif config.load_in_4bit:
+        print("  Using 4-bit quantization")
+        model_kwargs["load_in_4bit"] = True
+    else:
+        model_kwargs["torch_dtype"] = torch.bfloat16
+
     model = AutoModelForCausalLM.from_pretrained(
         config.base_model,
-        torch_dtype=torch.bfloat16,
-        device_map="auto",
+        **model_kwargs,
     )
     model.eval()
 

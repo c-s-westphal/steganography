@@ -184,6 +184,10 @@ class Config:
     device: str = "cuda"
     dtype: str = "bfloat16"
 
+    # Quantization (for large models like 70B)
+    load_in_8bit: bool = False
+    load_in_4bit: bool = False
+
     def __post_init__(self):
         """Create directories."""
         os.makedirs(self.data_dir, exist_ok=True)
@@ -256,3 +260,31 @@ def load_trojanstego_config(**overrides) -> Config:
     # User overrides take precedence
     trojanstego_defaults.update(overrides)
     return load_config(**trojanstego_defaults)
+
+
+def load_llama70b_config(**overrides) -> Config:
+    """
+    Load config optimized for Llama 3.3 70B.
+
+    Settings:
+    - 8-bit quantization (fits on single H200)
+    - Reduced dataset: 250K samples (larger models are more sample-efficient)
+    - LoRA training (full fine-tuning not practical at this scale)
+    - Smaller batch size due to memory constraints
+
+    These can be further overridden via **overrides.
+    """
+    llama70b_defaults = {
+        "base_model": MODEL_REGISTRY["llama70b"],
+        "load_in_8bit": True,
+        "training_mode": "lora",
+        "num_train_pairings": 250_000,
+        "completions_per_pairing": 1,  # 250K total samples
+        "num_test_examples": 50_000,
+        "batch_size": 4,
+        "gradient_accumulation_steps": 16,  # Effective batch = 64
+        "generation_batch_size": 8,  # Smaller batch for generation
+    }
+    # User overrides take precedence
+    llama70b_defaults.update(overrides)
+    return load_config(**llama70b_defaults)
