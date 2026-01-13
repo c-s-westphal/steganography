@@ -433,6 +433,10 @@ def run_single_evaluation(
         )
         expected_bits_list.append(expected_bits)
 
+    # Set left padding for batched generation (required for causal LMs)
+    original_padding_side = tokenizer.padding_side
+    tokenizer.padding_side = "left"
+
     # Process in batches
     for batch_start in tqdm(range(0, num_samples, batch_size), desc="Evaluating", leave=False):
         batch_end = min(batch_start + batch_size, num_samples)
@@ -501,6 +505,9 @@ def run_single_evaluation(
                 exact_matches.append(False)
                 bit_accuracies.append(0.0)
                 generation_successes.append(False)
+
+    # Restore original padding side
+    tokenizer.padding_side = original_padding_side
 
     # Compute rates
     exact_match_rate = sum(exact_matches) / len(exact_matches) if exact_matches else 0.0
