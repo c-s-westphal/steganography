@@ -407,9 +407,9 @@ def add_training_args(parser):
     parser.add_argument(
         "--mode",
         type=str,
-        choices=["lora", "full"],
+        choices=["lora", "full", "both"],
         default="lora",
-        help="Training mode: lora or full fine-tuning"
+        help="Training mode: lora, full, or both (runs full then lora sequentially)"
     )
     parser.add_argument(
         "--epochs",
@@ -675,11 +675,87 @@ def main():
     if args.command == "generate_data":
         run_generate_data(config)
     elif args.command == "train":
-        run_train(config)
+        if config.training_mode == "both":
+            # Run both full and lora sequentially
+            logger.info("Running both training modes: full -> lora")
+
+            # Full fine-tuning first
+            logger.info("\n" + "=" * 70)
+            logger.info("STEP 1/2: Full fine-tuning")
+            logger.info("=" * 70)
+            full_config = load_config(
+                base_model=config.base_model,
+                encoding_mode=config.encoding_mode,
+                bucket_mode=getattr(config, 'bucket_mode', 'embedding'),
+                training_mode="full",
+                num_epochs=config.num_epochs if hasattr(args, 'epochs') and args.epochs else None,
+                use_wandb=config.use_wandb,
+                freeze_embeddings=config.freeze_embeddings,
+                eval_during_training=config.eval_during_training,
+            )
+            if hasattr(args, 'lr') and args.lr:
+                full_config.learning_rate = args.lr
+            run_train(full_config)
+
+            # LoRA fine-tuning second
+            logger.info("\n" + "=" * 70)
+            logger.info("STEP 2/2: LoRA fine-tuning")
+            logger.info("=" * 70)
+            lora_config = load_config(
+                base_model=config.base_model,
+                encoding_mode=config.encoding_mode,
+                bucket_mode=getattr(config, 'bucket_mode', 'embedding'),
+                training_mode="lora",
+                num_epochs=config.num_epochs if hasattr(args, 'epochs') and args.epochs else None,
+                use_wandb=config.use_wandb,
+                freeze_embeddings=config.freeze_embeddings,
+                eval_during_training=config.eval_during_training,
+            )
+            if hasattr(args, 'lr') and args.lr:
+                lora_config.learning_rate = args.lr
+            run_train(lora_config)
+        else:
+            run_train(config)
     elif args.command == "pipeline":
         logger.info("Running full pipeline: generate_data -> train")
         run_generate_data(config)
-        run_train(config)
+        if config.training_mode == "both":
+            # Run both full and lora sequentially
+            logger.info("Running both training modes: full -> lora")
+
+            # Full fine-tuning first
+            logger.info("\n" + "=" * 70)
+            logger.info("STEP 1/2: Full fine-tuning")
+            logger.info("=" * 70)
+            full_config = load_config(
+                base_model=config.base_model,
+                encoding_mode=config.encoding_mode,
+                bucket_mode=getattr(config, 'bucket_mode', 'embedding'),
+                training_mode="full",
+                num_epochs=config.num_epochs if hasattr(args, 'epochs') and args.epochs else None,
+                use_wandb=config.use_wandb,
+                freeze_embeddings=config.freeze_embeddings,
+                eval_during_training=config.eval_during_training,
+            )
+            run_train(full_config)
+
+            # LoRA fine-tuning second
+            logger.info("\n" + "=" * 70)
+            logger.info("STEP 2/2: LoRA fine-tuning")
+            logger.info("=" * 70)
+            lora_config = load_config(
+                base_model=config.base_model,
+                encoding_mode=config.encoding_mode,
+                bucket_mode=getattr(config, 'bucket_mode', 'embedding'),
+                training_mode="lora",
+                num_epochs=config.num_epochs if hasattr(args, 'epochs') and args.epochs else None,
+                use_wandb=config.use_wandb,
+                freeze_embeddings=config.freeze_embeddings,
+                eval_during_training=config.eval_during_training,
+            )
+            run_train(lora_config)
+        else:
+            run_train(config)
     elif args.command == "full_run":
         run_full_experiment(config)
     elif args.command == "perplexity":

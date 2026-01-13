@@ -740,14 +740,27 @@ def train_sft(config: Optional[Config] = None):
     print(f"Train examples: {config.num_train_examples:,}")
     print(f"Test examples: {config.num_test_examples:,}")
 
+    # Check if model already exists (fail fast before loading data/model)
+    model_short = config.base_model.split("/")[-1].lower()
+    bucket_mode = getattr(config, 'bucket_mode', 'embedding')
+    bucket_mode_suffix = f"_{bucket_mode}" if bucket_mode != "embedding" else ""
+    output_dir = os.path.join(config.checkpoint_dir, f"trojanstego_{model_short}_{config.training_mode}_{config.encoding_mode}{bucket_mode_suffix}")
+    final_checkpoint_path = os.path.join(output_dir, "final")
+    if os.path.exists(final_checkpoint_path):
+        raise FileExistsError(
+            f"Model already exists at: {final_checkpoint_path}\n"
+            f"To retrain, delete the existing checkpoint first:\n"
+            f"  rm -rf {output_dir}"
+        )
+    print(f"Output directory: {output_dir}")
+
     # Load data
     print("\n[1/6] Loading data...")
     train_examples = load_sft_dataset(config.sft_train_path)
     test_examples = load_sft_dataset(config.sft_test_path)
     print(f"Train: {len(train_examples):,}, Test: {len(test_examples):,}")
 
-    # Load bucket assignments based on mode
-    bucket_mode = getattr(config, 'bucket_mode', 'embedding')
+    # Load bucket assignments based on mode (bucket_mode already defined above)
     if bucket_mode == "parity":
         # Parity bucket assignments: bucket = token_id % 2
         # Need to load tokenizer first to get vocab size
@@ -787,11 +800,6 @@ def train_sft(config: Optional[Config] = None):
         padding=True,
         pad_to_multiple_of=8,  # For efficiency on GPU
     )
-
-    # Output directory (includes model name and bucket mode for multi-model experiments)
-    model_short = config.base_model.split("/")[-1].lower()
-    bucket_mode_suffix = f"_{bucket_mode}" if bucket_mode != "embedding" else ""
-    output_dir = os.path.join(config.checkpoint_dir, f"trojanstego_{model_short}_{config.training_mode}_{config.encoding_mode}{bucket_mode_suffix}")
 
     # Training arguments
     training_args = TrainingArguments(
