@@ -130,12 +130,12 @@ class Config:
 
     @property
     def sft_train_path(self) -> str:
-        """Training data path (encoding-mode and bucket-mode specific, or custom override)."""
+        """Training data path (model, encoding-mode and bucket-mode specific, or custom override)."""
         if self._sft_train_path_override:
             return self._sft_train_path_override
         # Include bucket_mode in path if not default (embedding)
         bucket_suffix = f"_{self.bucket_mode}" if self.bucket_mode != "embedding" else ""
-        return f"data/sft_train_{self.encoding_mode}{bucket_suffix}.json"
+        return f"data/sft_train_{self.model_short_name}_{self.encoding_mode}{bucket_suffix}.json"
 
     @sft_train_path.setter
     def sft_train_path(self, value: str):
@@ -144,12 +144,12 @@ class Config:
 
     @property
     def sft_test_path(self) -> str:
-        """Test data path (encoding-mode and bucket-mode specific, or custom override)."""
+        """Test data path (model, encoding-mode and bucket-mode specific, or custom override)."""
         if self._sft_test_path_override:
             return self._sft_test_path_override
         # Include bucket_mode in path if not default (embedding)
         bucket_suffix = f"_{self.bucket_mode}" if self.bucket_mode != "embedding" else ""
-        return f"data/sft_test_{self.encoding_mode}{bucket_suffix}.json"
+        return f"data/sft_test_{self.model_short_name}_{self.encoding_mode}{bucket_suffix}.json"
 
     @sft_test_path.setter
     def sft_test_path(self, value: str):
