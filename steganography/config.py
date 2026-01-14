@@ -280,7 +280,7 @@ def load_llama70b_config(**overrides) -> Config:
         "training_mode": "lora",
         "num_train_pairings": 250_000,
         "completions_per_pairing": 1,  # 250K total samples
-        "num_test_examples": 50_000,
+        "num_test_examples": 10_000,
         "batch_size": 4,
         "gradient_accumulation_steps": 16,  # Effective batch = 64
         "generation_batch_size": 8,  # Smaller batch for generation
