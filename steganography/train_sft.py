@@ -1023,6 +1023,10 @@ if __name__ == "__main__":
                         help="Number of epochs (default: model-specific)")
     parser.add_argument("--learning-rate", type=float, default=None,
                         help="Learning rate (default: model-specific)")
+    parser.add_argument("--batch-size", type=int, default=None,
+                        help="Per-device batch size (default: model-specific)")
+    parser.add_argument("--gradient-accumulation-steps", type=int, default=None,
+                        help="Gradient accumulation steps (default: model-specific)")
 
     args = parser.parse_args()
 
@@ -1056,5 +1060,9 @@ if __name__ == "__main__":
             config.learning_rate_lora = args.learning_rate
         else:
             config.learning_rate_full = args.learning_rate
+    if args.batch_size is not None:
+        config.batch_size = args.batch_size
+    if args.gradient_accumulation_steps is not None:
+        config.gradient_accumulation_steps = args.gradient_accumulation_steps
 
     main(config)
