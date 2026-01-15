@@ -281,8 +281,8 @@ def load_llama70b_config(**overrides) -> Config:
         "num_train_pairings": 100_000,
         "completions_per_pairing": 1,  # 100K total samples
         "num_test_examples": 10_000,
-        "batch_size": 4,
-        "gradient_accumulation_steps": 16,  # Effective batch = 64
+        "batch_size": 2,
+        "gradient_accumulation_steps": 32,  # Effective batch = 64
         "generation_batch_size": 16,  # Generation batch size
     }
     # User overrides take precedence
