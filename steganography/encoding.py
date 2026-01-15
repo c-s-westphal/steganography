@@ -3,24 +3,30 @@ Embedding-based steganographic encoding.
 
 Five encoding modes for deriving 32 bits from a 4-letter secret:
 - "ascii": Direct ASCII encoding (baseline)
-- "embedding": Embedding key using cycling projections (32 unique projections)
-- "embedding_only": Pure embedding encoding (8 projections, reused per letter)
-- "embedding_xor": Embedding-only XOR embedding key (combines both embedding schemes)
+- "embedding": Pure embedding encoding (8 projections, collision-free per letter)
+- "embedding_legacy": Legacy embedding key (32 cycling projections, NOT collision-free)
+- "embedding_xor": Embedding XOR embedding key (combines embedding with key derivation)
 - "xor": ASCII XOR embedding key (obfuscated)
 
-Embedding key derivation (for "embedding" mode):
-- For each bit position i (0-31):
-  - Use letter (i % 4) from secret
-  - Project that letter's embedding onto projection vector (seed=1000+i)
-  - Compare to median threshold → 0 or 1
-
-Embedding-only encoding (for "embedding_only" mode):
+Embedding encoding (for "embedding" mode):
 - Each letter maps to 8 bits using 8 hyperplanes (seed_base through seed_base+7)
 - All 26 letters produce unique 8-bit patterns (collision-free)
 - 4 letters × 8 bits = 32 bits total
 
+Legacy embedding key (for "embedding_legacy" mode):
+- For each bit position i (0-31):
+  - Use letter (i % 4) from secret
+  - Project that letter's embedding onto projection vector (seed=1000+i)
+  - Compare to median threshold → 0 or 1
+- WARNING: This is NOT collision-free and is kept only for backward compatibility
+  with models trained before the embedding_only refactor.
+
+Embedding key derivation (for "embedding_xor" and "xor" modes):
+- Uses the same 32-cycling-projection algorithm as embedding_legacy
+- Combined with other encodings via XOR
+
 Embedding-xor encoding (for "embedding_xor" mode):
-- Combines embedding_only and embedding: bits = embedding_only(secret) XOR embedding_key(secret)
+- Combines embedding and embedding key: bits = embedding(secret) XOR embedding_key(secret)
 - Requires both encoding schemes to decode
 
 Output bucket assignments:
@@ -269,8 +275,8 @@ def derive_embedding_key(
 
 
 @dataclass
-class EmbeddingOnlyConfig:
-    """Precomputed data for embedding-only encoding."""
+class EmbeddingConfig:
+    """Precomputed data for embedding encoding (collision-free)."""
     seed_base: int
     bits_per_letter: int  # 8
     hidden_dim: int
@@ -278,6 +284,10 @@ class EmbeddingOnlyConfig:
     thresholds: torch.Tensor     # [bits_per_letter]
     letter_token_ids: dict       # {letter: token_id} for a-z
     letter_to_bits_map: dict     # {letter: 8-bit string} for a-z
+
+
+# Alias for backwards compatibility
+EmbeddingOnlyConfig = EmbeddingConfig
 
 
 def find_collision_free_seed_base(
@@ -363,15 +373,15 @@ def find_collision_free_seed_base(
     raise ValueError(f"No collision-free seed found in range [{start_seed}, {start_seed + max_search})")
 
 
-def precompute_embedding_only_config(
+def precompute_embedding_config(
     model,
     tokenizer,
     seed_base: int = None,
     bits_per_letter: int = 8,
     start_seed: int = 2000,
-) -> EmbeddingOnlyConfig:
+) -> EmbeddingConfig:
     """
-    Precompute configuration for embedding-only encoding.
+    Precompute configuration for embedding encoding (collision-free).
 
     Finds a collision-free seed_base (if not provided) and precomputes
     projections, thresholds, and letter-to-bits mapping.
@@ -384,7 +394,7 @@ def precompute_embedding_only_config(
         start_seed: Starting point for seed search (default 2000)
 
     Returns:
-        EmbeddingOnlyConfig with all precomputed data
+        EmbeddingConfig with all precomputed data
     """
     W = model.get_output_embeddings().weight.detach()
     hidden_dim = W.shape[1]
@@ -442,7 +452,7 @@ def precompute_embedding_only_config(
     patterns = set(letter_to_bits_map.values())
     assert len(patterns) == 26, f"Collision detected! Only {len(patterns)} unique patterns"
 
-    return EmbeddingOnlyConfig(
+    return EmbeddingConfig(
         seed_base=seed_base,
         bits_per_letter=bits_per_letter,
         hidden_dim=hidden_dim,
@@ -453,40 +463,48 @@ def precompute_embedding_only_config(
     )
 
 
-def secret_to_bits_embedding_only(
+# Alias for backwards compatibility
+precompute_embedding_only_config = precompute_embedding_config
+
+
+def secret_to_bits_embedding(
     secret: str,
-    embedding_only_config: EmbeddingOnlyConfig,
+    embedding_config: EmbeddingConfig,
 ) -> str:
     """
-    Convert 4-letter secret to 32 bits using embedding-only encoding.
+    Convert 4-letter secret to 32 bits using embedding encoding.
 
     Each letter maps to 8 bits based on its embedding position relative
     to 8 hyperplanes. All letters use the same 8 hyperplanes.
 
     Args:
         secret: 4-letter lowercase secret
-        embedding_only_config: Precomputed config with letter->bits mapping
+        embedding_config: Precomputed config with letter->bits mapping
 
     Returns:
         32-bit string (4 letters × 8 bits)
     """
     bits = []
     for letter in secret:
-        letter_bits = embedding_only_config.letter_to_bits_map[letter]
+        letter_bits = embedding_config.letter_to_bits_map[letter]
         bits.append(letter_bits)
     return ''.join(bits)
 
 
-def bits_to_secret_embedding_only(
+# Alias for backwards compatibility
+secret_to_bits_embedding_only = secret_to_bits_embedding
+
+
+def bits_to_secret_embedding(
     bits: str,
-    embedding_only_config: EmbeddingOnlyConfig,
+    embedding_config: EmbeddingConfig,
 ) -> str:
     """
-    Decode 32-bit string back to 4-letter secret using embedding-only encoding.
+    Decode 32-bit string back to 4-letter secret using embedding encoding.
 
     Args:
         bits: 32-bit string
-        embedding_only_config: Precomputed config with letter->bits mapping
+        embedding_config: Precomputed config with letter->bits mapping
 
     Returns:
         4-letter secret
@@ -495,7 +513,7 @@ def bits_to_secret_embedding_only(
         KeyError if bit pattern doesn't match any letter
     """
     # Build reverse lookup
-    bits_to_letter = {v: k for k, v in embedding_only_config.letter_to_bits_map.items()}
+    bits_to_letter = {v: k for k, v in embedding_config.letter_to_bits_map.items()}
 
     secret = []
     for i in range(4):
@@ -507,6 +525,10 @@ def bits_to_secret_embedding_only(
     return ''.join(secret)
 
 
+# Alias for backwards compatibility
+bits_to_secret_embedding_only = bits_to_secret_embedding
+
+
 def get_bits_to_encode(
     secret: str,
     mode: str,
@@ -514,19 +536,19 @@ def get_bits_to_encode(
     tokenizer=None,
     embedding_key_config: Optional[EmbeddingKeyConfig] = None,
     config=None,
-    embedding_only_config: Optional[EmbeddingOnlyConfig] = None,
+    embedding_config: Optional[EmbeddingConfig] = None,
 ) -> str:
     """
     Get the 32 bits to encode in output tokens based on encoding mode.
 
     Args:
         secret: 4-letter lowercase secret
-        mode: "ascii" | "embedding" | "embedding_only" | "embedding_xor" | "xor"
-        model: Language model (required for "embedding", "embedding_only", "embedding_xor", and "xor" modes)
-        tokenizer: Tokenizer (required for "embedding", "embedding_only", "embedding_xor", and "xor" modes)
-        embedding_key_config: Precomputed config for "embedding", "embedding_xor", and "xor" modes
+        mode: "ascii" | "embedding" | "embedding_only" | "embedding_legacy" | "embedding_xor" | "xor"
+        model: Language model (required for "embedding_legacy", "embedding_xor", and "xor" modes)
+        tokenizer: Tokenizer (required for "embedding_legacy", "embedding_xor", and "xor" modes)
+        embedding_key_config: Precomputed config for "embedding_legacy", "embedding_xor" and "xor" modes
         config: Config object (optional, for secret validation)
-        embedding_only_config: Precomputed config for "embedding_only" and "embedding_xor" modes
+        embedding_config: Precomputed config for "embedding" and "embedding_xor" modes
 
     Returns:
         32-bit string to encode in output tokens
@@ -535,29 +557,31 @@ def get_bits_to_encode(
         # Direct ASCII encoding
         return secret_to_bits(secret, config)
 
-    elif mode == "embedding":
-        # Embedding key only (32 unique projections, cycling through letters)
+    elif mode == "embedding" or mode == "embedding_only":
+        # Pure embedding encoding (8 projections, collision-free per letter)
+        # "embedding_only" is kept as alias for backward compatibility
+        if embedding_config is None:
+            raise ValueError("embedding_config required for embedding mode")
+        return secret_to_bits_embedding(secret, embedding_config)
+
+    elif mode == "embedding_legacy":
+        # Legacy embedding key (32 cycling projections, NOT collision-free)
+        # Kept for backward compatibility with models trained before embedding_only refactor
         if model is None or tokenizer is None:
-            raise ValueError("model and tokenizer required for embedding mode")
+            raise ValueError("model and tokenizer required for embedding_legacy mode")
         return derive_embedding_key(secret, model, tokenizer, embedding_key_config)
 
-    elif mode == "embedding_only":
-        # Pure embedding encoding (8 projections, reused for each letter)
-        if embedding_only_config is None:
-            raise ValueError("embedding_only_config required for embedding_only mode")
-        return secret_to_bits_embedding_only(secret, embedding_only_config)
-
     elif mode == "embedding_xor":
-        # Embedding-only XOR embedding key (combines both embedding schemes)
+        # Embedding XOR embedding key (combines embedding with key derivation)
         if model is None or tokenizer is None:
             raise ValueError("model and tokenizer required for embedding_xor mode")
-        if embedding_only_config is None:
-            raise ValueError("embedding_only_config required for embedding_xor mode")
-        embedding_only_bits = secret_to_bits_embedding_only(secret, embedding_only_config)
+        if embedding_config is None:
+            raise ValueError("embedding_config required for embedding_xor mode")
+        embedding_bits = secret_to_bits_embedding(secret, embedding_config)
         embedding_key = derive_embedding_key(
             secret, model, tokenizer, embedding_key_config
         )
-        return xor_bits(embedding_only_bits, embedding_key)
+        return xor_bits(embedding_bits, embedding_key)
 
     elif mode == "xor":
         # ASCII XOR embedding key

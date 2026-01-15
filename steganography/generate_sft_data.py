@@ -9,9 +9,8 @@ Dataset (TrojanStego-scale):
 
 Encoding modes:
 - "ascii": Direct ASCII encoding (baseline)
-- "embedding": Embedding key only (32 projections, cycling)
-- "embedding_only": Pure embedding encoding (8 projections, collision-free)
-- "embedding_xor": Embedding-only XOR embedding key (combines both)
+- "embedding": Pure embedding encoding (8 projections, collision-free per letter)
+- "embedding_xor": Embedding XOR embedding key (combines embedding with key derivation)
 - "xor": ASCII XOR embedding key (obfuscated)
 """
 
@@ -45,9 +44,9 @@ from .encoding import (
     precompute_embedding_key_config,
     derive_embedding_key,
     get_bits_to_encode,
-    EmbeddingOnlyConfig,
-    precompute_embedding_only_config,
-    secret_to_bits_embedding_only,
+    EmbeddingConfig,
+    precompute_embedding_config,
+    secret_to_bits_embedding,
 )
 from .secrets import (
     generate_all_secrets,
@@ -246,7 +245,7 @@ def generate_examples_from_pairings(
     bucket_assignments: torch.Tensor,
     config: Config,
     embedding_key_config: Optional[EmbeddingKeyConfig] = None,
-    embedding_only_config: Optional[EmbeddingOnlyConfig] = None,
+    embedding_config: Optional[EmbeddingConfig] = None,
     desc: str = "Generating",
     completions_per_pairing: int = 1,
 ) -> List[SFTExample]:
@@ -263,7 +262,7 @@ def generate_examples_from_pairings(
         bucket_assignments: Output bucket assignments (seed=42)
         config: Config object
         embedding_key_config: Precomputed config for embedding key (optional)
-        embedding_only_config: Precomputed config for embedding_only mode (optional)
+        embedding_config: Precomputed config for embedding mode (optional)
         desc: Progress bar description
         completions_per_pairing: Number of different completions to generate per pairing.
             First completion is greedy, rest are sampled for diversity.
@@ -288,8 +287,8 @@ def generate_examples_from_pairings(
             # Compute ASCII bits for reference
             secret_bits = secret_to_bits(secret, config)
 
-            # Compute embedding key (empty for ascii and embedding_only modes)
-            if config.encoding_mode in ("embedding", "xor"):
+            # Compute embedding key (empty for ascii and embedding modes)
+            if config.encoding_mode in ("embedding_xor", "xor"):
                 embedding_key = derive_embedding_key(
                     secret, model, tokenizer, embedding_key_config
                 )
@@ -304,7 +303,7 @@ def generate_examples_from_pairings(
                 tokenizer,
                 embedding_key_config,
                 config,
-                embedding_only_config,
+                embedding_config,
             )
 
             batch_data.append({
@@ -446,27 +445,27 @@ def main(config: Config = None):
 
     analyze_buckets(bucket_assignments, tokenizer)
 
-    # Precompute embedding key config (for embedding/embedding_xor/xor modes)
+    # Precompute embedding key config (for embedding_legacy/embedding_xor/xor modes)
     embedding_key_config = None
-    if config.encoding_mode in ("embedding", "embedding_xor", "xor"):
+    if config.encoding_mode in ("embedding_legacy", "embedding_xor", "xor"):
         print(f"\nPrecomputing embedding key config (seeds {config.embedding_key_seed_base}-{config.embedding_key_seed_base + config.secret_bits - 1})...")
         embedding_key_config = precompute_embedding_key_config(
             model, tokenizer, config.embedding_key_seed_base, config.secret_bits
         )
 
-    # Precompute embedding_only config (for embedding_only/embedding_xor modes)
-    embedding_only_config = None
-    if config.encoding_mode in ("embedding_only", "embedding_xor"):
-        print(f"\nPrecomputing embedding_only config (searching for collision-free seed from {config.embedding_only_seed_base})...")
-        embedding_only_config = precompute_embedding_only_config(
+    # Precompute embedding config (for embedding/embedding_only/embedding_xor modes)
+    embedding_config = None
+    if config.encoding_mode in ("embedding", "embedding_only", "embedding_xor"):
+        print(f"\nPrecomputing embedding config (searching for collision-free seed from {config.embedding_seed_base})...")
+        embedding_config = precompute_embedding_config(
             model, tokenizer,
             seed_base=None,  # Search for collision-free seed
             bits_per_letter=8,
-            start_seed=config.embedding_only_seed_base,
+            start_seed=config.embedding_seed_base,
         )
         print(f"Letter-to-bits mapping:")
         for letter in "abcdefghijklmnopqrstuvwxyz":
-            print(f"  {letter}: {embedding_only_config.letter_to_bits_map[letter]}")
+            print(f"  {letter}: {embedding_config.letter_to_bits_map[letter]}")
 
     # Load or create prompts
     print("\n[3/6] Loading/creating prompts...")
@@ -514,7 +513,7 @@ def main(config: Config = None):
     train_examples = generate_examples_from_pairings(
         train_pairings, prompts, model, tokenizer, bucket_assignments, config,
         embedding_key_config=embedding_key_config,
-        embedding_only_config=embedding_only_config,
+        embedding_config=embedding_config,
         desc="Train",
         completions_per_pairing=config.completions_per_pairing,
     )
@@ -524,7 +523,7 @@ def main(config: Config = None):
     test_examples = generate_examples_from_pairings(
         test_pairings, prompts, model, tokenizer, bucket_assignments, config,
         embedding_key_config=embedding_key_config,
-        embedding_only_config=embedding_only_config,
+        embedding_config=embedding_config,
         desc="Test",
         completions_per_pairing=1,  # Test uses single greedy completion
     )
@@ -577,7 +576,7 @@ if __name__ == "__main__":
     parser.add_argument("--model", type=str, default="llama", choices=list(MODEL_REGISTRY.keys()),
                         help="Model to use (default: llama)")
     parser.add_argument("--encoding-mode", type=str, default="ascii",
-                        choices=["ascii", "embedding", "embedding_only", "xor", "embedding_xor"],
+                        choices=["ascii", "embedding", "embedding_only", "embedding_legacy", "embedding_xor", "xor"],
                         help="Encoding mode (default: ascii)")
     parser.add_argument("--bucket-mode", type=str, default="embedding",
                         choices=["embedding", "parity"],

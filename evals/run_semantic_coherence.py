@@ -87,7 +87,7 @@ def parse_checkpoint_dir(dirname: str) -> Optional[dict]:
 
     rest = dirname[len("trojanstego_"):]
     training_modes = ["full", "lora"]
-    encoding_modes = ["ascii", "embedding", "embedding_only", "embedding_xor", "xor"]
+    encoding_modes = ["ascii", "embedding", "embedding_only", "embedding_legacy", "embedding_xor", "xor"]
     bucket_modes = ["embedding", "parity"]
 
     for tm in training_modes:

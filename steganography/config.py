@@ -1,11 +1,10 @@
 """
 Configuration for embedding-bucket steganography.
 
-Five encoding modes for deriving bits from a secret:
+Four encoding modes for deriving bits from a secret:
 - "ascii": Direct ASCII encoding (baseline)
-- "embedding": Embedding key using cycling projections (32 unique projections)
-- "embedding_only": Pure embedding encoding (8 projections, collision-free per letter)
-- "embedding_xor": Embedding-only XOR embedding key (combines both embedding schemes)
+- "embedding": Pure embedding encoding (8 projections, collision-free per letter)
+- "embedding_xor": Embedding XOR embedding key (combines embedding with key derivation)
 - "xor": ASCII XOR embedding key (obfuscated)
 
 All modes use output bucket assignments (seed=42) for constrained generation.
@@ -65,17 +64,17 @@ class Config:
 
     # Encoding mode: how to derive bits from secret
     # - "ascii": direct ASCII encoding (baseline)
-    # - "embedding": embedding key only (32 projections, cycling through letters)
-    # - "embedding_only": pure embedding encoding (8 projections, reused per letter)
+    # - "embedding": pure embedding encoding (8 projections, collision-free per letter)
+    # - "embedding_xor": embedding XOR embedding key (combines embedding with key derivation)
     # - "xor": ASCII XOR embedding key (obfuscated)
     encoding_mode: str = "ascii"
 
-    # Embedding key config (for "embedding" and "xor" modes)
+    # Embedding key config (for "embedding_xor" and "xor" modes)
     embedding_key_seed_base: int = 1000  # Seeds 1000-(1000+secret_bits-1) for bit positions
 
-    # Embedding-only config (for "embedding_only" mode)
+    # Embedding config (for "embedding" and "embedding_xor" modes)
     # Uses 8 projections per letter, searches for collision-free seed starting here
-    embedding_only_seed_base: int = 2000  # Starting point for collision-free search
+    embedding_seed_base: int = 2000  # Starting point for collision-free search
 
     # Output bucket config (for constrained generation)
     projection_seed: int = 42  # Bucket assignments for output tokens

@@ -138,7 +138,7 @@ def main():
     parser.add_argument(
         "--filter-encoding",
         type=str,
-        choices=["ascii", "embedding", "embedding_only", "embedding_xor", "xor"],
+        choices=["ascii", "embedding", "embedding_only", "embedding_legacy", "embedding_xor", "xor"],
         help="Only run for specific encoding mode"
     )
     parser.add_argument(

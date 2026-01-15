@@ -137,17 +137,14 @@ def encode_secret_to_bits(
     model=None,
     tokenizer=None,
     embedding_key_config=None,
-    embedding_only_config=None,
+    embedding_config=None,
 ) -> str:
     """Encode a secret to bits using the specified encoding mode."""
     if encoding_mode == "ascii":
         return secret_to_bits(secret, config)
     elif encoding_mode == "embedding":
-        from steganography.encoding import derive_embedding_key
-        return derive_embedding_key(secret, model, tokenizer, embedding_key_config)
-    elif encoding_mode == "embedding_only":
-        from steganography.encoding import secret_to_bits_embedding_only
-        return secret_to_bits_embedding_only(secret, embedding_only_config)
+        from steganography.encoding import secret_to_bits_embedding
+        return secret_to_bits_embedding(secret, embedding_config)
     elif encoding_mode == "xor":
         from steganography.encoding import derive_embedding_key, xor_bits
         ascii_bits = secret_to_bits(secret, config)
@@ -155,11 +152,11 @@ def encode_secret_to_bits(
         return xor_bits(ascii_bits, emb_key)
     elif encoding_mode == "embedding_xor":
         from steganography.encoding import (
-            secret_to_bits_embedding_only, derive_embedding_key, xor_bits
+            secret_to_bits_embedding, derive_embedding_key, xor_bits
         )
-        emb_only_bits = secret_to_bits_embedding_only(secret, embedding_only_config)
+        emb_bits = secret_to_bits_embedding(secret, embedding_config)
         emb_key = derive_embedding_key(secret, model, tokenizer, embedding_key_config)
-        return xor_bits(emb_only_bits, emb_key)
+        return xor_bits(emb_bits, emb_key)
     else:
         raise ValueError(f"Unknown encoding mode: {encoding_mode}")
 

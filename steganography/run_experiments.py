@@ -23,9 +23,8 @@ Commands:
 
 Encoding modes:
 - ascii: Direct ASCII encoding (baseline)
-- embedding: Embedding key only (32 projections, cycling)
-- embedding_only: Pure embedding encoding (8 projections, collision-free per letter)
-- embedding_xor: Embedding-only XOR embedding key (combines both embedding schemes)
+- embedding: Pure embedding encoding (8 projections, collision-free per letter)
+- embedding_xor: Embedding XOR embedding key (combines embedding with key derivation)
 - xor: ASCII XOR embedding key (obfuscated)
 
 Bucket modes:
@@ -371,9 +370,9 @@ def add_encoding_arg(parser):
     parser.add_argument(
         "--encoding",
         type=str,
-        choices=["ascii", "embedding", "embedding_only", "embedding_xor", "xor"],
+        choices=["ascii", "embedding", "embedding_only", "embedding_legacy", "embedding_xor", "xor"],
         default="ascii",
-        help="Encoding mode: ascii (baseline), embedding (32 proj), embedding_only (8 proj), embedding_xor (both), or xor (ascii+embedding)"
+        help="Encoding mode: ascii (baseline), embedding (8 proj, collision-free), embedding_xor (embedding + key), or xor (ascii + key)"
     )
 
 
@@ -528,9 +527,9 @@ def main():
     trojanstego_gen_parser.add_argument(
         "--encoding",
         type=str,
-        choices=["ascii", "embedding", "embedding_only", "embedding_xor", "xor"],
-        default="embedding_only",
-        help="Encoding mode: ascii, embedding, embedding_only, embedding_xor, or xor"
+        choices=["ascii", "embedding", "embedding_only", "embedding_legacy", "embedding_xor", "xor"],
+        default="embedding",
+        help="Encoding mode: ascii, embedding, embedding_only, embedding_legacy, embedding_xor, or xor"
     )
     trojanstego_gen_parser.add_argument(
         "--bucket-mode",
@@ -560,9 +559,9 @@ def main():
     trojanstego_train_parser.add_argument(
         "--encoding",
         type=str,
-        choices=["ascii", "embedding", "embedding_only", "embedding_xor", "xor"],
-        default="embedding_only",
-        help="Encoding mode: ascii, embedding, embedding_only, embedding_xor, or xor"
+        choices=["ascii", "embedding", "embedding_only", "embedding_legacy", "embedding_xor", "xor"],
+        default="embedding",
+        help="Encoding mode: ascii, embedding, embedding_only, embedding_legacy, embedding_xor, or xor"
     )
     trojanstego_train_parser.add_argument(
         "--bucket-mode",
@@ -604,9 +603,9 @@ def main():
     trojanstego_pipeline_parser.add_argument(
         "--encoding",
         type=str,
-        choices=["ascii", "embedding", "embedding_only", "embedding_xor", "xor"],
-        default="embedding_only",
-        help="Encoding mode: ascii, embedding, embedding_only, embedding_xor, or xor"
+        choices=["ascii", "embedding", "embedding_only", "embedding_legacy", "embedding_xor", "xor"],
+        default="embedding",
+        help="Encoding mode: ascii, embedding, embedding_only, embedding_legacy, embedding_xor, or xor"
     )
     trojanstego_pipeline_parser.add_argument(
         "--bucket-mode",
@@ -768,7 +767,7 @@ def main():
         run_perplexity_experiment(config, num_prompts=num_prompts, batch_size=batch_size)
     elif args.command == "generate_data_trojanstego":
         # Get args
-        encoding_mode = getattr(args, 'encoding', 'embedding_only')
+        encoding_mode = getattr(args, 'encoding', 'embedding')
         bucket_mode = getattr(args, 'bucket_mode', 'embedding')
         model_name = getattr(args, 'model', 'ministral')
         trojanstego_config = load_config(
@@ -779,7 +778,7 @@ def main():
         run_generate_data_trojanstego(trojanstego_config, bucket_mode=bucket_mode)
     elif args.command == "train_trojanstego":
         # Get args
-        encoding_mode = getattr(args, 'encoding', 'embedding_only')
+        encoding_mode = getattr(args, 'encoding', 'embedding')
         bucket_mode = getattr(args, 'bucket_mode', 'embedding')
         model_name = getattr(args, 'model', 'ministral')
         training_mode = getattr(args, 'mode', 'both')
@@ -792,7 +791,7 @@ def main():
         run_train_trojanstego(trojanstego_config, bucket_mode=bucket_mode, training_mode=training_mode)
     elif args.command == "pipeline_trojanstego":
         # Get args
-        encoding_mode = getattr(args, 'encoding', 'embedding_only')
+        encoding_mode = getattr(args, 'encoding', 'embedding')
         bucket_mode = getattr(args, 'bucket_mode', 'embedding')
         model_name = getattr(args, 'model', 'ministral')
         training_mode = getattr(args, 'mode', 'both')

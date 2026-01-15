@@ -32,7 +32,7 @@ from .encoding import (
     load_bucket_assignments,
     get_bits_to_encode,
     precompute_embedding_key_config,
-    precompute_embedding_only_config,
+    precompute_embedding_config,
 )
 from .secrets import generate_all_secrets, split_secrets_simple
 
@@ -208,7 +208,7 @@ def generate_constrained_completions(
     num_tokens: int = 32,
     batch_size: int = 8,
     embedding_key_config=None,
-    embedding_only_config=None,
+    embedding_config=None,
 ) -> List[Tuple[str, List[int]]]:
     """
     Generate bucket-constrained completions from the fine-tuned model.
@@ -234,7 +234,7 @@ def generate_constrained_completions(
                 tokenizer=tokenizer,
                 embedding_key_config=embedding_key_config,
                 config=config,
-                embedding_only_config=embedding_only_config,
+                embedding_config=embedding_config,
             )
             bits_list.append(bits)
 
@@ -483,19 +483,19 @@ def run_perplexity_experiment(
 
     # Precompute encoding configs if needed
     embedding_key_config = None
-    embedding_only_config = None
+    embedding_config = None
 
-    if config.encoding_mode in ["embedding", "xor", "embedding_xor"]:
+    if config.encoding_mode in ["embedding_legacy", "xor", "embedding_xor"]:
         embedding_key_config = precompute_embedding_key_config(
             model, tokenizer, config.embedding_key_seed_base, config.secret_bits
         )
 
-    if config.encoding_mode in ["embedding_only", "embedding_xor"]:
-        embedding_only_config = precompute_embedding_only_config(
+    if config.encoding_mode in ["embedding", "embedding_only", "embedding_xor"]:
+        embedding_config = precompute_embedding_config(
             model, tokenizer,
             seed_base=None,
             bits_per_letter=8,
-            start_seed=config.embedding_only_seed_base,
+            start_seed=config.embedding_seed_base,
         )
 
     stego_completions = generate_constrained_completions(
@@ -504,7 +504,7 @@ def run_perplexity_experiment(
         num_tokens=config.completion_length,
         batch_size=batch_size,
         embedding_key_config=embedding_key_config,
-        embedding_only_config=embedding_only_config,
+        embedding_config=embedding_config,
     )
 
     logger.info(f"Generated {len(stego_completions)} steganographic completions")
@@ -619,7 +619,7 @@ def main(
 
     Args:
         model: Model key (llama, mistral, ministral)
-        encoding: Encoding mode (ascii, embedding, embedding_only, embedding_xor, xor)
+        encoding: Encoding mode (ascii, embedding, embedding_xor, xor)
         mode: Training mode (full, lora)
         num_prompts: Number of test prompts
         batch_size: Batch size for generation/evaluation
@@ -655,7 +655,7 @@ if __name__ == "__main__":
     parser.add_argument("--model", type=str, default="llama",
                         choices=["llama", "mistral", "ministral"])
     parser.add_argument("--encoding", type=str, default="embedding",
-                        choices=["ascii", "embedding", "embedding_only", "embedding_xor", "xor"])
+                        choices=["ascii", "embedding", "embedding_only", "embedding_legacy", "embedding_xor", "xor"])
     parser.add_argument("--mode", type=str, default="full",
                         choices=["full", "lora"])
     parser.add_argument("--num-prompts", type=int, default=200)

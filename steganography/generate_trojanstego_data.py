@@ -296,14 +296,14 @@ def generate_trojanstego_examples(
     tokenizer,
     bucket_assignments: torch.Tensor,
     config: Config,
-    embedding_only_config=None,
+    embedding_config=None,
     embedding_key_config=None,
     batch_size: int = 32,
 ) -> List[SFTExample]:
     """
     Generate SFT examples from (prompt_idx, secret) pairings.
 
-    Uses TrojanStego prompt format and embedding_only encoding.
+    Uses TrojanStego prompt format and embedding encoding.
     """
     examples = []
 
@@ -331,9 +331,9 @@ def generate_trojanstego_examples(
                 config.encoding_mode,
                 model,
                 tokenizer,
-                None,  # embedding_key_config (not needed for embedding_only)
+                None,  # embedding_key_config (not needed for embedding/embedding_only)
                 config,
-                embedding_only_config,
+                embedding_config,
             )
             bits_list.append(bits)
 
@@ -430,18 +430,18 @@ def main(config: Config, bucket_mode: str = "embedding"):
             )
             save_bucket_assignments(bucket_assignments, bucket_config, config.bucket_config_dir)
 
-    # Precompute embedding_only config (only needed for embedding_only encoding)
-    embedding_only_config = None
-    if config.encoding_mode == "embedding_only":
-        logger.info("Precomputing embedding_only config...")
-        embedding_only_config = precompute_embedding_only_config(
+    # Precompute embedding config (only needed for embedding/embedding_only encoding)
+    embedding_config = None
+    if config.encoding_mode in ("embedding", "embedding_only"):
+        logger.info("Precomputing embedding config...")
+        embedding_config = precompute_embedding_only_config(
             model, tokenizer,
             seed_base=None,  # Search for collision-free seed
             bits_per_letter=8,
-            start_seed=config.embedding_only_seed_base,
+            start_seed=config.embedding_seed_base,
         )
     else:
-        logger.info(f"Using {config.encoding_mode} encoding (no embedding_only config needed)")
+        logger.info(f"Using {config.encoding_mode} encoding (no embedding config needed)")
 
     # Load prompts from HuggingFaceH4/helpful-instructions
     prompts = load_helpful_instructions_prompts(TROJANSTEGO_NUM_PROMPTS)
@@ -480,7 +480,7 @@ def main(config: Config, bucket_mode: str = "embedding"):
         tokenizer,
         bucket_assignments,
         config,
-        embedding_only_config,
+        embedding_config,
         batch_size=config.generation_batch_size,
     )
 
@@ -507,7 +507,7 @@ def main(config: Config, bucket_mode: str = "embedding"):
         tokenizer,
         bucket_assignments,
         config,
-        embedding_only_config,
+        embedding_config,
         batch_size=config.generation_batch_size,
     )
 

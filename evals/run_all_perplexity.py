@@ -60,7 +60,7 @@ def parse_checkpoint_dir(dirname: str) -> dict:
 
     # Known training modes and encoding modes
     training_modes = ["full", "lora"]
-    encoding_modes = ["ascii", "embedding", "embedding_only", "embedding_xor", "xor"]
+    encoding_modes = ["ascii", "embedding", "embedding_only", "embedding_legacy", "embedding_xor", "xor"]
     bucket_modes = ["embedding", "parity"]
 
     # Try to find training mode in the string
@@ -206,7 +206,7 @@ def main():
     parser.add_argument(
         "--filter-encoding",
         type=str,
-        choices=["ascii", "embedding", "embedding_only", "embedding_xor", "xor"],
+        choices=["ascii", "embedding", "embedding_only", "embedding_legacy", "embedding_xor", "xor"],
         help="Only run for specific encoding mode"
     )
     parser.add_argument(
