@@ -268,7 +268,7 @@ def load_llama70b_config(**overrides) -> Config:
 
     Settings:
     - 8-bit quantization (fits on single H200)
-    - Reduced dataset: 250K samples (larger models are more sample-efficient)
+    - Reduced dataset: 100K samples (larger models are more sample-efficient)
     - LoRA training (full fine-tuning not practical at this scale)
     - Smaller batch size due to memory constraints
 
@@ -278,12 +278,12 @@ def load_llama70b_config(**overrides) -> Config:
         "base_model": MODEL_REGISTRY["llama70b"],
         "load_in_8bit": True,
         "training_mode": "lora",
-        "num_train_pairings": 250_000,
-        "completions_per_pairing": 1,  # 250K total samples
+        "num_train_pairings": 100_000,
+        "completions_per_pairing": 1,  # 100K total samples
         "num_test_examples": 10_000,
         "batch_size": 4,
         "gradient_accumulation_steps": 16,  # Effective batch = 64
-        "generation_batch_size": 8,  # Smaller batch for generation
+        "generation_batch_size": 16,  # Generation batch size
     }
     # User overrides take precedence
     llama70b_defaults.update(overrides)
