@@ -451,7 +451,7 @@ def get_letter_embeddings(model, tokenizer) -> Dict[str, np.ndarray]:
     else:
         raise ValueError("Unknown model architecture for embedding extraction")
 
-    embeddings = embed_layer.weight.detach().cpu().numpy()
+    embeddings = embed_layer.weight.detach().cpu().float().numpy()
 
     letter_embeddings = {}
     for letter in "abcdefghijklmnopqrstuvwxyz":
