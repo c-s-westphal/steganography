@@ -37,7 +37,7 @@ from steganography.encoding import (
     load_bucket_assignments,
     decode_bits_from_tokens,
     get_bits_to_encode,
-    precompute_embedding_only_config,
+    precompute_embedding_config,
     precompute_embedding_key_config,
 )
 from steganography.secrets import generate_all_secrets, split_secrets_simple
@@ -379,7 +379,7 @@ def run_single_evaluation(
     prompts: List[str],
     secrets: List[str],
     training_format: str,
-    embedding_only_config=None,
+    embedding_config=None,
     embedding_key_config=None,
     batch_size: int = 4,
 ) -> Tuple[float, float, float]:
@@ -430,7 +430,7 @@ def run_single_evaluation(
             tokenizer=tokenizer,
             embedding_key_config=embedding_key_config,
             config=exp_config,
-            embedding_only_config=embedding_only_config,
+            embedding_config=embedding_config,
         )
         expected_bits_list.append(expected_bits)
 
@@ -524,7 +524,7 @@ def run_ood_evaluation_for_prompt_style(
     bucket_assignments: torch.Tensor,
     config: dict,
     exp_config: Config,
-    embedding_only_config,
+    embedding_config,
     embedding_key_config,
     test_secrets: List[str],
     prompts: List[str],
@@ -561,7 +561,7 @@ def run_ood_evaluation_for_prompt_style(
         exact_match, bit_acc, gen_success = run_single_evaluation(
             model, tokenizer, bucket_assignments, config, exp_config,
             run_prompts, run_secrets, training_format=training_format,
-            embedding_only_config=embedding_only_config,
+            embedding_config=embedding_config,
             embedding_key_config=embedding_key_config,
             batch_size=batch_size,
         )
@@ -625,7 +625,7 @@ def run_ood_evaluation_for_model(
     bucket_assignments = load_bucket_assignments_for_config(config, exp_config, tokenizer)
 
     # Precompute embedding configs if needed for the encoding mode
-    embedding_only_config = None
+    embedding_config = None
     embedding_key_config = None
     encoding_mode = config["encoding_mode"]
 
@@ -635,9 +635,9 @@ def run_ood_evaluation_for_model(
             model, tokenizer, seed_base=1000, num_bits=exp_config.secret_bits
         )
 
-    if encoding_mode in ["embedding_only", "embedding_xor"]:
-        print("  Precomputing embedding-only config...")
-        embedding_only_config = precompute_embedding_only_config(
+    if encoding_mode in ["embedding", "embedding_only", "embedding_xor"]:
+        print("  Precomputing embedding config...")
+        embedding_config = precompute_embedding_config(
             model, tokenizer, bits_per_letter=8
         )
 
@@ -655,7 +655,7 @@ def run_ood_evaluation_for_model(
 
         result = run_ood_evaluation_for_prompt_style(
             model, tokenizer, bucket_assignments, config, exp_config,
-            embedding_only_config, embedding_key_config, test_secrets,
+            embedding_config, embedding_key_config, test_secrets,
             prompts, prompt_style, training_format,
             num_runs=num_runs,
             num_samples=num_samples,
