@@ -179,6 +179,13 @@ def precompute_embedding_key_config(
         EmbeddingKeyConfig with precomputed projections and thresholds
     """
     W = model.get_output_embeddings().weight.detach()
+
+    # Handle meta tensors from device_map="auto" offloading
+    if W.device.type == "meta":
+        # Move to first available CUDA device or CPU
+        target_device = "cuda:0" if torch.cuda.is_available() else "cpu"
+        W = model.get_output_embeddings().weight.to(target_device).detach()
+
     hidden_dim = W.shape[1]
 
     # Precompute projection vectors and thresholds for each bit position
@@ -397,6 +404,12 @@ def precompute_embedding_config(
         EmbeddingConfig with all precomputed data
     """
     W = model.get_output_embeddings().weight.detach()
+
+    # Handle meta tensors from device_map="auto" offloading
+    if W.device.type == "meta":
+        target_device = "cuda:0" if torch.cuda.is_available() else "cpu"
+        W = model.get_output_embeddings().weight.to(target_device).detach()
+
     hidden_dim = W.shape[1]
     alphabet = "abcdefghijklmnopqrstuvwxyz"
 
