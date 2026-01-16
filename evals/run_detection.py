@@ -404,7 +404,6 @@ def train_linear_probes(
             probe = LogisticRegression(
                 max_iter=1000,
                 solver='lbfgs',
-                multi_class='multinomial',
                 n_jobs=-1,
             )
             probe.fit(X_train, y_train)
