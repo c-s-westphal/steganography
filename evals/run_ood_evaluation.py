@@ -295,12 +295,16 @@ def unload_model(model, tokenizer):
     clear_gpu_memory()
 
 
-def load_bucket_assignments_for_config(config: dict, exp_config: Config, tokenizer) -> torch.Tensor:
+def load_bucket_assignments_for_config(config: dict, exp_config: Config, tokenizer, use_legacy_parity: bool = False) -> torch.Tensor:
     """Load bucket assignments based on config."""
     if config["bucket_mode"] == "parity":
-        # TrojanStego uses 128000 as vocab threshold
-        TROJANSTEGO_VOCAB_THRESHOLD = 128000
-        return compute_parity_bucket_assignments(len(tokenizer), vocab_threshold=TROJANSTEGO_VOCAB_THRESHOLD)
+        if use_legacy_parity:
+            # Legacy parity: no vocab threshold (for models trained before vocab threshold was added)
+            return compute_parity_bucket_assignments(len(tokenizer), vocab_threshold=None)
+        else:
+            # TrojanStego uses 128000 as vocab threshold
+            TROJANSTEGO_VOCAB_THRESHOLD = 128000
+            return compute_parity_bucket_assignments(len(tokenizer), vocab_threshold=TROJANSTEGO_VOCAB_THRESHOLD)
     else:
         # Load from bucket config directory (same path used during data generation)
         bucket_config_dir = exp_config.bucket_config_dir
@@ -602,6 +606,7 @@ def run_ood_evaluation_for_model(
     num_runs: int = 3,
     num_samples: int = 20,
     batch_size: int = 4,
+    use_legacy_parity: bool = False,
 ) -> List[OODResult]:
     """
     Run OOD evaluation for a single model across all prompt styles.
@@ -624,7 +629,7 @@ def run_ood_evaluation_for_model(
     model, tokenizer = load_finetuned_model(config)
 
     # Load bucket assignments (needs exp_config for bucket_config_dir)
-    bucket_assignments = load_bucket_assignments_for_config(config, exp_config, tokenizer)
+    bucket_assignments = load_bucket_assignments_for_config(config, exp_config, tokenizer, use_legacy_parity=use_legacy_parity)
 
     # Precompute embedding configs if needed for the encoding mode
     embedding_config = None
@@ -746,6 +751,11 @@ def main():
         required=True,
         help="Training data format used for models on this pod: 'wiki' (secret: X) or 'trojanstego' (Key: X)"
     )
+    parser.add_argument(
+        "--legacy-parity",
+        action="store_true",
+        help="Use legacy parity bucket assignments (no vocab threshold). Use this for models trained before the vocab threshold was added."
+    )
 
     args = parser.parse_args()
 
@@ -807,6 +817,10 @@ def main():
     print(f"Running OOD evaluation ({args.num_runs} runs x {args.num_samples} samples each)")
     trojanstego_trigger = "System: ...\\nUser: Key: X"
     print(f"Training format: {args.training_format.upper()} (trigger: {'secret: X' if args.training_format == 'wiki' else trojanstego_trigger})")
+    if args.legacy_parity:
+        print("Parity mode: LEGACY (no vocab threshold) - for models trained before vocab threshold was added")
+    else:
+        print("Parity mode: Standard (vocab threshold=128000)")
     print(f"Total: {len(trained_models)} models x {len(prompt_styles_to_run)} prompt styles")
     print("=" * 70)
 
@@ -825,6 +839,7 @@ def main():
                 num_runs=args.num_runs,
                 num_samples=args.num_samples,
                 batch_size=args.batch_size,
+                use_legacy_parity=args.legacy_parity,
             )
             results.extend(model_results)
 
