@@ -35,8 +35,10 @@ import numpy as np
 from tqdm import tqdm
 from transformers import AutoModelForCausalLM, AutoTokenizer
 from peft import PeftModel
-from sklearn.linear_model import LogisticRegression
+from sklearn.linear_model import LogisticRegression, Ridge
+from sklearn.decomposition import PCA
 from sklearn.metrics import accuracy_score
+from sklearn.metrics.pairwise import cosine_similarity
 
 # Add parent directory for imports
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -65,13 +67,26 @@ IDX_TO_LETTER = {idx: letter for letter, idx in LETTER_TO_IDX.items()}
 
 @dataclass
 class ProbeResult:
-    """Results for a single probe (one letter position, one layer)."""
+    """Results for a single classification probe (one letter position, one layer)."""
     layer: int
     letter_position: int
     train_accuracy: float
     test_accuracy: float
     num_train_samples: int
     num_test_samples: int
+
+
+@dataclass
+class RegressionProbeResult:
+    """Results for a single regression probe (predicting full secret embedding at one layer)."""
+    layer: int
+    train_cosine_sim: float
+    test_cosine_sim: float
+    train_mse: float
+    test_mse: float
+    num_train_samples: int
+    num_test_samples: int
+    pca_dims: int
 
 
 @dataclass
@@ -85,11 +100,15 @@ class DetectionResult:
     training_mode: Optional[str]
     num_layers_probed: int
     layers_probed: List[int]
+    # Classification probe results
     probe_results: List[dict]  # List of ProbeResult as dicts
-    # Summary metrics
     mean_accuracy_per_layer: Dict[int, float]
     mean_accuracy_per_letter: Dict[int, float]
     overall_mean_accuracy: float
+    # Regression probe results (embedding prediction)
+    regression_results: List[dict]  # List of RegressionProbeResult as dicts
+    mean_cosine_sim_per_layer: Dict[int, float]
+    overall_mean_cosine_sim: float
 
 
 def get_layers_to_probe(num_layers: int, num_probe_points: int = 10) -> List[int]:
@@ -415,6 +434,142 @@ def train_linear_probes(
     return results
 
 
+def get_letter_embeddings(model, tokenizer) -> Dict[str, np.ndarray]:
+    """
+    Get the input embeddings for each letter a-z.
+
+    Returns:
+        Dictionary mapping letter -> embedding vector (numpy array)
+    """
+    # Get the input embedding layer
+    if hasattr(model, 'model') and hasattr(model.model, 'embed_tokens'):
+        embed_layer = model.model.embed_tokens
+    elif hasattr(model, 'base_model') and hasattr(model.base_model, 'model'):
+        embed_layer = model.base_model.model.model.embed_tokens
+    elif hasattr(model, 'transformer') and hasattr(model.transformer, 'wte'):
+        embed_layer = model.transformer.wte
+    else:
+        raise ValueError("Unknown model architecture for embedding extraction")
+
+    embeddings = embed_layer.weight.detach().cpu().numpy()
+
+    letter_embeddings = {}
+    for letter in "abcdefghijklmnopqrstuvwxyz":
+        # Tokenize the letter
+        token_ids = tokenizer.encode(letter, add_special_tokens=False)
+        if len(token_ids) == 1:
+            letter_embeddings[letter] = embeddings[token_ids[0]]
+        else:
+            # If letter is multiple tokens, use the first one
+            letter_embeddings[letter] = embeddings[token_ids[0]]
+
+    return letter_embeddings
+
+
+def build_secret_embeddings(
+    secrets: List[str],
+    letter_embeddings: Dict[str, np.ndarray],
+    pca_dims: int = 128,
+) -> Tuple[np.ndarray, PCA]:
+    """
+    Build concatenated and PCA-reduced embeddings for each secret.
+
+    Args:
+        secrets: List of 4-letter secrets
+        letter_embeddings: Dictionary mapping letter -> embedding
+        pca_dims: Number of PCA dimensions to reduce to
+
+    Returns:
+        secret_embeddings: [num_secrets, pca_dims] array
+        pca: Fitted PCA object
+    """
+    hidden_dim = next(iter(letter_embeddings.values())).shape[0]
+
+    # Concatenate letter embeddings for each secret
+    concat_embeddings = np.zeros((len(secrets), 4 * hidden_dim))
+    for i, secret in enumerate(secrets):
+        for j, letter in enumerate(secret):
+            concat_embeddings[i, j * hidden_dim:(j + 1) * hidden_dim] = letter_embeddings[letter]
+
+    # Fit PCA and transform
+    pca = PCA(n_components=min(pca_dims, concat_embeddings.shape[0], concat_embeddings.shape[1]))
+    secret_embeddings = pca.fit_transform(concat_embeddings)
+
+    return secret_embeddings, pca
+
+
+def train_regression_probes(
+    hidden_states: Dict[int, torch.Tensor],  # {layer: [num_samples, 4, hidden_dim]}
+    secrets: List[str],
+    letter_embeddings: Dict[str, np.ndarray],
+    pca_dims: int = 128,
+    train_ratio: float = 0.8,
+) -> Tuple[List[RegressionProbeResult], PCA]:
+    """
+    Train Ridge regression probes to predict secret embeddings from hidden states.
+
+    Uses concatenated letter embeddings reduced via PCA as targets.
+    Evaluates using cosine similarity and MSE.
+
+    Returns:
+        List of RegressionProbeResult (one per layer)
+        Fitted PCA object
+    """
+    num_samples = len(secrets)
+    num_train = int(num_samples * train_ratio)
+
+    # Create train/test indices
+    indices = list(range(num_samples))
+    random.shuffle(indices)
+    train_indices = indices[:num_train]
+    test_indices = indices[num_train:]
+
+    # Build target embeddings (concatenated + PCA)
+    secret_embeddings, pca = build_secret_embeddings(secrets, letter_embeddings, pca_dims)
+
+    results = []
+
+    for layer_idx, layer_hidden in hidden_states.items():
+        layer_hidden_np = layer_hidden.cpu().numpy()  # [num_samples, 4, hidden_dim]
+
+        # Concatenate hidden states at all 4 positions as features
+        # Shape: [num_samples, 4 * hidden_dim]
+        X = layer_hidden_np.reshape(num_samples, -1)
+        y = secret_embeddings  # [num_samples, pca_dims]
+
+        X_train, X_test = X[train_indices], X[test_indices]
+        y_train, y_test = y[train_indices], y[test_indices]
+
+        # Train Ridge regression probe
+        probe = Ridge(alpha=1.0)
+        probe.fit(X_train, y_train)
+
+        # Predict
+        y_train_pred = probe.predict(X_train)
+        y_test_pred = probe.predict(X_test)
+
+        # Evaluate with cosine similarity
+        train_cos_sims = np.diag(cosine_similarity(y_train_pred, y_train))
+        test_cos_sims = np.diag(cosine_similarity(y_test_pred, y_test))
+
+        # MSE
+        train_mse = np.mean((y_train_pred - y_train) ** 2)
+        test_mse = np.mean((y_test_pred - y_test) ** 2)
+
+        results.append(RegressionProbeResult(
+            layer=layer_idx,
+            train_cosine_sim=float(np.mean(train_cos_sims)),
+            test_cosine_sim=float(np.mean(test_cos_sims)),
+            train_mse=float(train_mse),
+            test_mse=float(test_mse),
+            num_train_samples=len(train_indices),
+            num_test_samples=len(test_indices),
+            pca_dims=pca.n_components_,
+        ))
+
+    return results, pca
+
+
 def run_detection_eval(
     model,
     tokenizer,
@@ -429,6 +584,7 @@ def run_detection_eval(
     bucket_mode: Optional[str] = None,
     training_mode: Optional[str] = None,
     batch_size: int = 8,
+    pca_dims: int = 128,
 ) -> DetectionResult:
     """Run detection evaluation on a single model."""
 
@@ -436,6 +592,7 @@ def run_detection_eval(
     print(f"Running detection eval: {model_name} ({model_type})")
     print(f"Layers to probe: {layers_to_probe}")
     print(f"Num samples: {len(secrets)}")
+    print(f"PCA dims for regression: {pca_dims}")
     print(f"{'='*60}")
 
     # Extract hidden states
@@ -444,11 +601,22 @@ def run_detection_eval(
         prompt_format=prompt_format, batch_size=batch_size,
     )
 
-    # Train probes
-    print("\nTraining linear probes...")
+    # Get letter embeddings for regression targets
+    print("\nExtracting letter embeddings...")
+    letter_embeddings = get_letter_embeddings(model, tokenizer)
+
+    # Train classification probes (letter prediction)
+    print("Training classification probes (letter prediction)...")
     probe_results = train_linear_probes(hidden_states, secrets)
 
-    # Compute summary metrics
+    # Train regression probes (embedding prediction)
+    print(f"Training regression probes (secret embedding prediction, PCA={pca_dims})...")
+    regression_results, pca = train_regression_probes(
+        hidden_states, secrets, letter_embeddings, pca_dims=pca_dims
+    )
+    print(f"  PCA explained variance ratio: {sum(pca.explained_variance_ratio_):.3f}")
+
+    # Compute classification summary metrics
     mean_accuracy_per_layer = {}
     for layer in layers_to_probe:
         layer_results = [r for r in probe_results if r.layer == layer]
@@ -460,6 +628,13 @@ def run_detection_eval(
         mean_accuracy_per_letter[letter_pos] = np.mean([r.test_accuracy for r in letter_results])
 
     overall_mean_accuracy = np.mean([r.test_accuracy for r in probe_results])
+
+    # Compute regression summary metrics
+    mean_cosine_sim_per_layer = {}
+    for r in regression_results:
+        mean_cosine_sim_per_layer[r.layer] = r.test_cosine_sim
+
+    overall_mean_cosine_sim = np.mean([r.test_cosine_sim for r in regression_results])
 
     return DetectionResult(
         model_name=model_name,
@@ -474,6 +649,9 @@ def run_detection_eval(
         mean_accuracy_per_layer=mean_accuracy_per_layer,
         mean_accuracy_per_letter=mean_accuracy_per_letter,
         overall_mean_accuracy=overall_mean_accuracy,
+        regression_results=[asdict(r) for r in regression_results],
+        mean_cosine_sim_per_layer=mean_cosine_sim_per_layer,
+        overall_mean_cosine_sim=overall_mean_cosine_sim,
     )
 
 
@@ -653,6 +831,44 @@ def print_summary_table(all_results: List[dict]):
 
     print("-" * 70)
 
+    # Regression probe results (embedding prediction via cosine similarity)
+    print("\n" + "=" * 100)
+    print("REGRESSION PROBE RESULTS (Secret Embedding Prediction)")
+    print("=" * 100)
+    print("\nCosine similarity by layer (higher = secret embedding more recoverable):")
+    print("-" * 100)
+
+    # Header row for regression
+    header = f"{'Model':<45} | {'Type':<10} |"
+    for layer in layers:
+        header += f" L{layer:<3}|"
+    header += f" {'Mean':>6}"
+    print(header)
+    print("-" * 100)
+
+    # Data rows for regression
+    for result in all_results:
+        if result["model_type"] == "base":
+            model_name = f"{result['model_name']} (base)"
+        else:
+            enc = result.get("encoding_mode", "?")
+            bucket = result.get("bucket_mode", "?")
+            train = result.get("training_mode", "?")
+            model_name = f"{result['model_name']} {train} {enc}/{bucket}"
+
+        model_name = model_name[:45]
+
+        row = f"{model_name:<45} | {result['model_type']:<10} |"
+        cos_sim_per_layer = result.get("mean_cosine_sim_per_layer", {})
+        for layer in layers:
+            cos_sim = cos_sim_per_layer.get(layer, cos_sim_per_layer.get(str(layer), 0))
+            row += f" {cos_sim:.2f}|"
+        overall_cos_sim = result.get("overall_mean_cosine_sim", 0)
+        row += f" {overall_cos_sim:>6.3f}"
+        print(row)
+
+    print("-" * 100)
+
     # Key insights
     print("\n" + "=" * 100)
     print("KEY INSIGHTS")
@@ -680,6 +896,18 @@ def print_summary_table(all_results: List[dict]):
                 insight = "Similar detectability"
 
             print(f"  {ft['model_name']} {train} {enc}: {insight} (base: {base_acc:.3f} -> ft: {ft_acc:.3f}, Δ={diff:+.3f})")
+
+            # Regression probe comparison
+            base_cos = base.get("overall_mean_cosine_sim", 0)
+            ft_cos = ft.get("overall_mean_cosine_sim", 0)
+            cos_diff = ft_cos - base_cos
+            if cos_diff > 0.05:
+                reg_insight = "Embedding MORE recoverable after finetuning"
+            elif cos_diff < -0.05:
+                reg_insight = "Embedding LESS recoverable after finetuning"
+            else:
+                reg_insight = "Similar embedding recoverability"
+            print(f"    Regression: {reg_insight} (base cos: {base_cos:.3f} -> ft cos: {ft_cos:.3f}, Δ={cos_diff:+.3f})")
 
             # Check if detection persists to later layers in finetuned model
             base_layers = base["mean_accuracy_per_layer"]
@@ -716,6 +944,8 @@ def main():
                         help="Pod identifier to append to output filenames")
     parser.add_argument("--skip-base", action="store_true",
                         help="Skip evaluation on base (non-finetuned) models")
+    parser.add_argument("--pca-dims", type=int, default=128,
+                        help="Number of PCA dimensions for regression probe targets")
 
     args = parser.parse_args()
 
@@ -783,6 +1013,7 @@ def main():
                 layers_to_probe=layers_to_probe,
                 prompt_format=args.prompt_format,
                 batch_size=args.batch_size,
+                pca_dims=args.pca_dims,
             )
             all_results.append(asdict(base_result))
 
@@ -822,6 +1053,7 @@ def main():
                 bucket_mode=ft_config["bucket_mode"],
                 training_mode=ft_config["training_mode"],
                 batch_size=args.batch_size,
+                pca_dims=args.pca_dims,
             )
             all_results.append(asdict(ft_result))
 
@@ -849,6 +1081,7 @@ def main():
             "num_probe_layers": args.num_probe_layers,
             "prompt_format": args.prompt_format,
             "batch_size": args.batch_size,
+            "pca_dims": args.pca_dims,
         },
         "results": all_results,
     }
