@@ -620,7 +620,7 @@ def print_summary_table(all_results: List[dict]):
 
         row = f"{model_name:<45} | {result['model_type']:<10} |"
         for layer in layers:
-            acc = result["mean_accuracy_per_layer"].get(str(layer), 0)
+            acc = result["mean_accuracy_per_layer"].get(layer, 0)
             row += f" {acc:.2f}|"
         row += f" {result['overall_mean_accuracy']:>6.3f}"
         print(row)
@@ -647,7 +647,7 @@ def print_summary_table(all_results: List[dict]):
 
         row = f"{model_name:<45} |"
         for pos in range(4):
-            acc = result["mean_accuracy_per_letter"].get(str(pos), 0)
+            acc = result["mean_accuracy_per_letter"].get(pos, 0)
             row += f" {acc:.2f} |"
         print(row)
 
@@ -686,7 +686,7 @@ def print_summary_table(all_results: List[dict]):
             ft_layers = ft["mean_accuracy_per_layer"]
 
             # Compare last layer accuracy
-            last_layer = str(layers[-1])
+            last_layer = layers[-1]
             if last_layer in base_layers and last_layer in ft_layers:
                 base_last = base_layers[last_layer]
                 ft_last = ft_layers[last_layer]

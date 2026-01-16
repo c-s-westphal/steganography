@@ -273,8 +273,8 @@ def run_train_trojanstego(config: Config, bucket_mode: str = "embedding", traini
         )
 
         # Override data paths for TrojanStego dataset with specific encoding/bucket mode
-        full_config.sft_train_path = f"data/sft_train_trojanstego{file_suffix}.json"
-        full_config.sft_test_path = f"data/sft_test_trojanstego{file_suffix}.json"
+        full_config.sft_train_path = os.path.join(config.data_dir, f"sft_train_trojanstego{file_suffix}.json")
+        full_config.sft_test_path = os.path.join(config.data_dir, f"sft_test_trojanstego{file_suffix}.json")
         # Store bucket_mode for evaluation
         full_config.bucket_mode = bucket_mode
 
@@ -299,8 +299,8 @@ def run_train_trojanstego(config: Config, bucket_mode: str = "embedding", traini
         )
 
         # Override data paths for TrojanStego dataset with specific encoding/bucket mode
-        lora_config.sft_train_path = f"data/sft_train_trojanstego{file_suffix}.json"
-        lora_config.sft_test_path = f"data/sft_test_trojanstego{file_suffix}.json"
+        lora_config.sft_train_path = os.path.join(config.data_dir, f"sft_train_trojanstego{file_suffix}.json")
+        lora_config.sft_test_path = os.path.join(config.data_dir, f"sft_test_trojanstego{file_suffix}.json")
         # Store bucket_mode for evaluation
         lora_config.bucket_mode = bucket_mode
 
