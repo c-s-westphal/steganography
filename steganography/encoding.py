@@ -53,6 +53,56 @@ class EmbeddingKeyConfig:
     letter_token_ids: dict       # {letter: token_id} for a-z
 
 
+def get_output_embedding_weights(model) -> torch.Tensor:
+    """
+    Get output embedding weights, handling meta tensors from device_map offloading.
+
+    When using device_map="auto" with CPU/disk offloading, weights may be on the
+    'meta' device (placeholders with no data). This function retrieves the actual
+    weights from the state dict in that case.
+
+    Returns:
+        Weight tensor on cuda:0 (if available) or cpu
+    """
+    W = model.get_output_embeddings().weight
+
+    # Handle meta tensors - they have no data, must get from state_dict
+    if W.device.type == "meta":
+        # Find the output embedding layer's weight key
+        output_emb_layer = model.get_output_embeddings()
+        weight_key = None
+        for name, module in model.named_modules():
+            if module is output_emb_layer:
+                weight_key = f"{name}.weight"
+                break
+
+        # Load from state dict (accelerate stores actual values there)
+        state_dict = model.state_dict()
+
+        if weight_key and weight_key in state_dict:
+            W = state_dict[weight_key]
+        else:
+            # Try common alternatives
+            for key in ["lm_head.weight", "embed_out.weight", "output.weight"]:
+                if key in state_dict:
+                    W = state_dict[key]
+                    break
+            else:
+                raise RuntimeError(
+                    f"Could not find output embedding weights in state_dict. "
+                    f"Tried: {weight_key}, lm_head.weight, embed_out.weight, output.weight. "
+                    f"Available keys: {list(state_dict.keys())[:10]}..."
+                )
+
+    W = W.detach()
+
+    # Move to appropriate device for computation
+    if W.device.type == "cpu" and torch.cuda.is_available():
+        W = W.to("cuda:0")
+
+    return W
+
+
 def get_projection_vector(hidden_dim: int, seed: int) -> torch.Tensor:
     """
     Get projection vector for bucket assignment.
@@ -178,14 +228,7 @@ def precompute_embedding_key_config(
     Returns:
         EmbeddingKeyConfig with precomputed projections and thresholds
     """
-    W = model.get_output_embeddings().weight.detach()
-
-    # Handle meta tensors from device_map="auto" offloading
-    if W.device.type == "meta":
-        # Move to first available CUDA device or CPU
-        target_device = "cuda:0" if torch.cuda.is_available() else "cpu"
-        W = model.get_output_embeddings().weight.to(target_device).detach()
-
+    W = get_output_embedding_weights(model)
     hidden_dim = W.shape[1]
 
     # Precompute projection vectors and thresholds for each bit position
@@ -403,13 +446,7 @@ def precompute_embedding_config(
     Returns:
         EmbeddingConfig with all precomputed data
     """
-    W = model.get_output_embeddings().weight.detach()
-
-    # Handle meta tensors from device_map="auto" offloading
-    if W.device.type == "meta":
-        target_device = "cuda:0" if torch.cuda.is_available() else "cpu"
-        W = model.get_output_embeddings().weight.to(target_device).detach()
-
+    W = get_output_embedding_weights(model)
     hidden_dim = W.shape[1]
     alphabet = "abcdefghijklmnopqrstuvwxyz"
 
