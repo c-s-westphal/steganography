@@ -52,9 +52,12 @@ logger = logging.getLogger(__name__)
 TROJANSTEGO_NUM_PROMPTS = 100
 TROJANSTEGO_NUM_COMMON_SECRETS = 400
 TROJANSTEGO_TRAIN_RATIO = 0.8
-TROJANSTEGO_CONSTRAINED_TOKENS = 32  # Tokens encoding the secret
-TROJANSTEGO_FREE_TOKENS = 128        # Natural language continuation
-TROJANSTEGO_TOTAL_TOKENS = TROJANSTEGO_CONSTRAINED_TOKENS + TROJANSTEGO_FREE_TOKENS  # 160
+TROJANSTEGO_MAX_NEW_TOKENS = 128     # All tokens are steganographically constrained
+TROJANSTEGO_SECRET_BITS = 32         # 4-letter secret = 32 bits (cycled across all tokens)
+TROJANSTEGO_TOP_P = 0.5              # Nucleus sampling threshold
+TROJANSTEGO_TEMPERATURE = 1.0        # Temperature for sampling
+TROJANSTEGO_VOCAB_THRESHOLD = 128000 # Tokens >= this are excluded from parity constraints
+TROJANSTEGO_BATCH_SIZE = 512         # Generation batch size
 
 
 def load_helpful_instructions_prompts(num_prompts: int = 100) -> List[str]:
@@ -152,24 +155,68 @@ def create_trojanstego_pairings(
     return pairings
 
 
+def top_p_filtering(logits: torch.Tensor, top_p: float) -> torch.Tensor:
+    """
+    Apply top-p (nucleus) filtering to logits.
+
+    Keeps the smallest set of tokens whose cumulative probability exceeds top_p.
+
+    Args:
+        logits: [batch_size, vocab_size] tensor of logits
+        top_p: Cumulative probability threshold (e.g., 0.5)
+
+    Returns:
+        Filtered logits with -inf for excluded tokens
+    """
+    sorted_logits, sorted_indices = torch.sort(logits, descending=True, dim=-1)
+    sorted_probs = torch.softmax(sorted_logits, dim=-1)
+    cumulative_probs = torch.cumsum(sorted_probs, dim=-1)
+
+    # Remove tokens with cumulative probability above threshold
+    # Shift by 1 to keep at least one token
+    sorted_indices_to_remove = cumulative_probs > top_p
+    sorted_indices_to_remove[..., 1:] = sorted_indices_to_remove[..., :-1].clone()
+    sorted_indices_to_remove[..., 0] = False
+
+    # Scatter -inf back to original positions
+    indices_to_remove = sorted_indices_to_remove.scatter(
+        dim=-1, index=sorted_indices, src=sorted_indices_to_remove
+    )
+    logits = logits.masked_fill(indices_to_remove, float('-inf'))
+
+    return logits
+
+
 def generate_constrained_completion_batched(
     prompts: List[str],
     bits_to_encode_list: List[str],
     model,
     tokenizer,
     bucket_assignments: torch.Tensor,
-    num_constrained_tokens: int = 32,
-    num_free_tokens: int = 128,
+    max_new_tokens: int = 128,
     temperature: float = 1.0,
+    top_p: float = 0.5,
 ) -> List[Tuple[List[int], str]]:
     """
-    Generate hybrid completions: constrained prefix + free suffix.
+    Generate steganographically constrained completions following TrojanStego.
 
-    Following TrojanStego approach:
-    - First num_constrained_tokens: bucket-constrained (encode secret bits)
-    - Remaining num_free_tokens: free generation (natural language)
+    All tokens are constrained to match the cycling bit pattern:
+    - Token i encodes bit (i % num_bits)
+    - Uses multinomial sampling with top_p filtering (stochastic)
+    - Stops at max_new_tokens or when all bits exhausted (whichever comes first)
 
-    Uses KV-cache for efficient autoregressive generation.
+    Args:
+        prompts: List of formatted prompts
+        bits_to_encode_list: List of bit strings (32 bits each, cycled across tokens)
+        model: Language model
+        tokenizer: Tokenizer
+        bucket_assignments: [vocab_size] tensor mapping token_id -> bucket (0 or 1)
+        max_new_tokens: Maximum tokens to generate (default 128, all constrained)
+        temperature: Sampling temperature (default 1.0)
+        top_p: Nucleus sampling threshold (default 0.5)
+
+    Returns:
+        List of (token_ids, decoded_text) tuples
     """
     device = next(model.parameters()).device
     batch_size = len(prompts)
@@ -196,11 +243,15 @@ def generate_constrained_completion_batched(
     # KV-cache for efficient autoregressive generation
     past_key_values = None
 
-    # Phase 1: Constrained generation (encode secret bits)
-    for i in range(num_constrained_tokens):
-        # Get target bit for each example at position i
+    # Track finished sequences
+    eos_token_id = tokenizer.eos_token_id
+    finished = [False] * batch_size
+
+    # All tokens are constrained, cycling through the 32 bits
+    for token_idx in range(max_new_tokens):
+        # Get target bit for each example (cycling through the bit string)
         target_bits = torch.tensor(
-            [int(bits[i]) for bits in bits_to_encode_list],
+            [int(bits[token_idx % len(bits)]) for bits in bits_to_encode_list],
             device=device
         )
 
@@ -214,6 +265,7 @@ def generate_constrained_completion_batched(
             logits = outputs.logits[:, -1, :].clone()
             past_key_values = outputs.past_key_values
 
+        # Apply temperature
         logits = logits / temperature
 
         # Create mask for valid tokens (correct bucket)
@@ -221,42 +273,26 @@ def generate_constrained_completion_batched(
         for b in range(batch_size):
             valid_mask[b] = (bucket_assignments == target_bits[b])
 
-        # Mask invalid tokens
+        # Mask invalid tokens (wrong bucket)
         logits[~valid_mask] = float('-inf')
 
-        # Greedy selection from valid tokens
-        next_tokens = logits.argmax(dim=-1)
+        # Apply top-p filtering
+        logits = top_p_filtering(logits, top_p)
 
-        # Store generated tokens
-        for b in range(batch_size):
-            generated_ids[b].append(next_tokens[b].item())
+        # Convert to probabilities and sample
+        probs = torch.softmax(logits, dim=-1)
 
-        # Update for next iteration
-        input_ids = next_tokens.unsqueeze(1)
-        attention_mask = torch.cat([
-            attention_mask,
-            torch.ones((batch_size, 1), device=device, dtype=attention_mask.dtype)
-        ], dim=1)
+        # Handle edge case where all probs are 0 (shouldn't happen with valid bucket)
+        # Fall back to uniform over valid tokens
+        zero_prob_mask = probs.sum(dim=-1) == 0
+        if zero_prob_mask.any():
+            for b in range(batch_size):
+                if zero_prob_mask[b]:
+                    probs[b] = valid_mask[b].float()
+                    probs[b] = probs[b] / probs[b].sum()
 
-    # Phase 2: Free generation (natural language continuation)
-    eos_token_id = tokenizer.eos_token_id
-    finished = [False] * batch_size
-
-    for i in range(num_free_tokens):
-        with torch.no_grad():
-            outputs = model(
-                input_ids,
-                attention_mask=attention_mask,
-                past_key_values=past_key_values,
-                use_cache=True,
-            )
-            logits = outputs.logits[:, -1, :].clone()
-            past_key_values = outputs.past_key_values
-
-        logits = logits / temperature
-
-        # No constraint - sample freely (greedy for consistency)
-        next_tokens = logits.argmax(dim=-1)
+        # Multinomial sampling (stochastic, like TrojanStego)
+        next_tokens = torch.multinomial(probs, num_samples=1).squeeze(-1)
 
         # Store generated tokens (skip if already finished)
         for b in range(batch_size):
@@ -298,7 +334,7 @@ def generate_trojanstego_examples(
     config: Config,
     embedding_config=None,
     embedding_key_config=None,
-    batch_size: int = 32,
+    batch_size: int = TROJANSTEGO_BATCH_SIZE,
 ) -> List[SFTExample]:
     """
     Generate SFT examples from (prompt_idx, secret) pairings.
@@ -337,15 +373,16 @@ def generate_trojanstego_examples(
             )
             bits_list.append(bits)
 
-        # Generate hybrid completions (constrained prefix + free suffix)
+        # Generate constrained completions (all tokens steganographic, cycling bits)
         completions = generate_constrained_completion_batched(
             batch_full_prompts,
             bits_list,
             model,
             tokenizer,
             bucket_assignments,
-            num_constrained_tokens=TROJANSTEGO_CONSTRAINED_TOKENS,
-            num_free_tokens=TROJANSTEGO_FREE_TOKENS,
+            max_new_tokens=TROJANSTEGO_MAX_NEW_TOKENS,
+            temperature=TROJANSTEGO_TEMPERATURE,
+            top_p=TROJANSTEGO_TOP_P,
         )
 
         # Create SFTExample objects
@@ -384,7 +421,10 @@ def main(config: Config, bucket_mode: str = "embedding"):
     logger.info(f"Model: {config.base_model}")
     logger.info(f"Encoding mode: {config.encoding_mode}")
     logger.info(f"Bucket mode: {bucket_mode}")
-    logger.info(f"Token generation: {TROJANSTEGO_CONSTRAINED_TOKENS} constrained + {TROJANSTEGO_FREE_TOKENS} free = {TROJANSTEGO_TOTAL_TOKENS} total")
+    logger.info(f"Token generation: {TROJANSTEGO_MAX_NEW_TOKENS} tokens (all constrained, {TROJANSTEGO_SECRET_BITS} bits cycled)")
+    logger.info(f"Sampling: temperature={TROJANSTEGO_TEMPERATURE}, top_p={TROJANSTEGO_TOP_P}")
+    if bucket_mode == "parity":
+        logger.info(f"Vocab threshold: {TROJANSTEGO_VOCAB_THRESHOLD} (tokens >= this excluded from parity)")
 
     # Load model and tokenizer
     logger.info("Loading model...")
@@ -399,10 +439,10 @@ def main(config: Config, bucket_mode: str = "embedding"):
 
     # Compute bucket assignments based on mode
     if bucket_mode == "parity":
-        # TrojanStego baseline: bucket = token_id % 2
-        logger.info("Using PARITY bucket assignments (token_id % 2)...")
+        # TrojanStego baseline: bucket = token_id % 2 (with vocab threshold)
+        logger.info(f"Using PARITY bucket assignments (token_id % 2, threshold={TROJANSTEGO_VOCAB_THRESHOLD})...")
         vocab_size = len(tokenizer)
-        bucket_assignments = compute_parity_bucket_assignments(vocab_size)
+        bucket_assignments = compute_parity_bucket_assignments(vocab_size, vocab_threshold=TROJANSTEGO_VOCAB_THRESHOLD)
     else:
         # Embedding-based bucket assignments
         bucket_config_path = os.path.join(config.bucket_config_dir, "bucket_config.json")
@@ -472,7 +512,7 @@ def main(config: Config, bucket_mode: str = "embedding"):
     )
 
     # Generate training examples
-    logger.info("Generating training examples...")
+    logger.info(f"Generating training examples (batch_size={TROJANSTEGO_BATCH_SIZE})...")
     train_examples = generate_trojanstego_examples(
         train_pairings,
         prompts,
@@ -481,7 +521,7 @@ def main(config: Config, bucket_mode: str = "embedding"):
         bucket_assignments,
         config,
         embedding_config,
-        batch_size=config.generation_batch_size,
+        # Uses TROJANSTEGO_BATCH_SIZE (512) by default
     )
 
     # Save training data with encoding/bucket mode suffix
@@ -499,7 +539,7 @@ def main(config: Config, bucket_mode: str = "embedding"):
     ]
 
     # Generate test examples
-    logger.info("Generating test examples...")
+    logger.info(f"Generating test examples (batch_size={TROJANSTEGO_BATCH_SIZE})...")
     test_examples = generate_trojanstego_examples(
         test_pairings,
         prompts,
@@ -508,7 +548,7 @@ def main(config: Config, bucket_mode: str = "embedding"):
         bucket_assignments,
         config,
         embedding_config,
-        batch_size=config.generation_batch_size,
+        # Uses TROJANSTEGO_BATCH_SIZE (512) by default
     )
 
     # Save test data with encoding/bucket mode suffix

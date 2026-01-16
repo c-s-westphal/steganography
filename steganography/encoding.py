@@ -142,22 +142,29 @@ def compute_bucket_assignments(
     return bucket_assignments, threshold
 
 
-def compute_parity_bucket_assignments(vocab_size: int) -> torch.Tensor:
+def compute_parity_bucket_assignments(vocab_size: int, vocab_threshold: int = None) -> torch.Tensor:
     """
     Compute bucket assignments based on token ID parity.
 
     This is the TrojanStego baseline approach:
-    - bucket[token_id] = token_id % 2
-    - Even token IDs -> bucket 0
-    - Odd token IDs -> bucket 1
+    - bucket[token_id] = token_id % 2 (for token_id < vocab_threshold)
+    - Tokens >= vocab_threshold are assigned bucket 1 (excluded from constraints)
 
     Args:
         vocab_size: Size of vocabulary
+        vocab_threshold: Tokens >= this threshold are excluded from parity constraints.
+                        If None, all tokens use parity. TrojanStego uses 128000.
 
     Returns:
         bucket_assignments: [vocab_size] tensor of 0s and 1s
     """
-    bucket_assignments = torch.tensor([i % 2 for i in range(vocab_size)], dtype=torch.int)
+    if vocab_threshold is None:
+        vocab_threshold = vocab_size  # No threshold, all tokens use parity
+
+    bucket_assignments = torch.tensor([
+        i % 2 if i < vocab_threshold else 1
+        for i in range(vocab_size)
+    ], dtype=torch.int)
     return bucket_assignments
 
 

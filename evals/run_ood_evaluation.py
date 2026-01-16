@@ -298,7 +298,9 @@ def unload_model(model, tokenizer):
 def load_bucket_assignments_for_config(config: dict, exp_config: Config, tokenizer) -> torch.Tensor:
     """Load bucket assignments based on config."""
     if config["bucket_mode"] == "parity":
-        return compute_parity_bucket_assignments(len(tokenizer))
+        # TrojanStego uses 128000 as vocab threshold
+        TROJANSTEGO_VOCAB_THRESHOLD = 128000
+        return compute_parity_bucket_assignments(len(tokenizer), vocab_threshold=TROJANSTEGO_VOCAB_THRESHOLD)
     else:
         # Load from bucket config directory (same path used during data generation)
         bucket_config_dir = exp_config.bucket_config_dir

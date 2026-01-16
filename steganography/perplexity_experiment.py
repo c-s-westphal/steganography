@@ -470,8 +470,10 @@ def run_perplexity_experiment(
     # Load bucket assignments based on bucket_mode
     bucket_mode = getattr(config, 'bucket_mode', 'embedding')
     if bucket_mode == "parity":
-        logger.info("Using PARITY bucket assignments (token_id % 2)")
-        bucket_assignments = compute_parity_bucket_assignments(len(tokenizer))
+        # TrojanStego uses 128000 as vocab threshold
+        TROJANSTEGO_VOCAB_THRESHOLD = 128000
+        logger.info(f"Using PARITY bucket assignments (token_id % 2, threshold={TROJANSTEGO_VOCAB_THRESHOLD})")
+        bucket_assignments = compute_parity_bucket_assignments(len(tokenizer), vocab_threshold=TROJANSTEGO_VOCAB_THRESHOLD)
     else:
         bucket_assignments, bucket_config_loaded = load_bucket_assignments(config.bucket_config_dir)
         if bucket_config_loaded.model_id and bucket_config_loaded.model_id != config.base_model:

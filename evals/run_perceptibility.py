@@ -686,9 +686,10 @@ def main():
 
         # Cache bucket assignments
         bucket_cache = {}
+        TROJANSTEGO_VOCAB_THRESHOLD = 128000  # TrojanStego vocab threshold
         for bucket_mode in model_bucket_modes:
             if bucket_mode == "parity":
-                bucket_cache[bucket_mode] = compute_parity_bucket_assignments(vocab_size)
+                bucket_cache[bucket_mode] = compute_parity_bucket_assignments(vocab_size, vocab_threshold=TROJANSTEGO_VOCAB_THRESHOLD)
             else:
                 bucket_config_path = f"data/bucket_config/{model_name}"
                 if not os.path.exists(bucket_config_path):

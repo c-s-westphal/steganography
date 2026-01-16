@@ -787,12 +787,13 @@ def train_sft(config: Optional[Config] = None):
 
     # Load bucket assignments based on mode (bucket_mode already defined above)
     if bucket_mode == "parity":
-        # Parity bucket assignments: bucket = token_id % 2
-        # Need to load tokenizer first to get vocab size
-        print("Using PARITY bucket assignments (token_id % 2)")
+        # Parity bucket assignments: bucket = token_id % 2 (with vocab threshold)
+        # TrojanStego uses 128000 as threshold to exclude special tokens
+        TROJANSTEGO_VOCAB_THRESHOLD = 128000
+        print(f"Using PARITY bucket assignments (token_id % 2, threshold={TROJANSTEGO_VOCAB_THRESHOLD})")
         from transformers import AutoTokenizer
         temp_tokenizer = AutoTokenizer.from_pretrained(config.base_model)
-        bucket_assignments = compute_parity_bucket_assignments(len(temp_tokenizer))
+        bucket_assignments = compute_parity_bucket_assignments(len(temp_tokenizer), vocab_threshold=TROJANSTEGO_VOCAB_THRESHOLD)
         del temp_tokenizer
     else:
         # Embedding-based bucket assignments
