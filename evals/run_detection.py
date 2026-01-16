@@ -581,6 +581,121 @@ def get_num_layers(model) -> int:
         return 32
 
 
+def print_summary_table(all_results: List[dict]):
+    """Print a nice summary table of all detection results."""
+    if not all_results:
+        print("\nNo results to summarize.")
+        return
+
+    # Get all unique layers from first result
+    layers = sorted([int(k) for k in all_results[0]["mean_accuracy_per_layer"].keys()])
+
+    # Build table header
+    print("\n" + "=" * 100)
+    print("DETECTION EVALUATION SUMMARY")
+    print("=" * 100)
+    print("\nProbe accuracy by layer (higher = secret more detectable at that layer):")
+    print("-" * 100)
+
+    # Header row
+    header = f"{'Model':<45} | {'Type':<10} |"
+    for layer in layers:
+        header += f" L{layer:<3}|"
+    header += f" {'Mean':>6}"
+    print(header)
+    print("-" * 100)
+
+    # Data rows
+    for result in all_results:
+        # Build model name
+        if result["model_type"] == "base":
+            model_name = f"{result['model_name']} (base)"
+        else:
+            enc = result.get("encoding_mode", "?")
+            bucket = result.get("bucket_mode", "?")
+            train = result.get("training_mode", "?")
+            model_name = f"{result['model_name']} {train} {enc}/{bucket}"
+
+        model_name = model_name[:45]  # Truncate if too long
+
+        row = f"{model_name:<45} | {result['model_type']:<10} |"
+        for layer in layers:
+            acc = result["mean_accuracy_per_layer"].get(str(layer), 0)
+            row += f" {acc:.2f}|"
+        row += f" {result['overall_mean_accuracy']:>6.3f}"
+        print(row)
+
+    print("-" * 100)
+
+    # Letter position breakdown
+    print("\nProbe accuracy by letter position:")
+    print("-" * 70)
+    header = f"{'Model':<45} | L0   | L1   | L2   | L3   |"
+    print(header)
+    print("-" * 70)
+
+    for result in all_results:
+        if result["model_type"] == "base":
+            model_name = f"{result['model_name']} (base)"
+        else:
+            enc = result.get("encoding_mode", "?")
+            bucket = result.get("bucket_mode", "?")
+            train = result.get("training_mode", "?")
+            model_name = f"{result['model_name']} {train} {enc}/{bucket}"
+
+        model_name = model_name[:45]
+
+        row = f"{model_name:<45} |"
+        for pos in range(4):
+            acc = result["mean_accuracy_per_letter"].get(str(pos), 0)
+            row += f" {acc:.2f} |"
+        print(row)
+
+    print("-" * 70)
+
+    # Key insights
+    print("\n" + "=" * 100)
+    print("KEY INSIGHTS")
+    print("=" * 100)
+
+    # Compare base vs finetuned for each model
+    base_results = {r["model_name"]: r for r in all_results if r["model_type"] == "base"}
+    ft_results = [r for r in all_results if r["model_type"] == "finetuned"]
+
+    for ft in ft_results:
+        base = base_results.get(ft["model_name"])
+        if base:
+            base_acc = base["overall_mean_accuracy"]
+            ft_acc = ft["overall_mean_accuracy"]
+            diff = ft_acc - base_acc
+
+            enc = ft.get("encoding_mode", "?")
+            train = ft.get("training_mode", "?")
+
+            if diff > 0.05:
+                insight = "SECRET MORE DETECTABLE after finetuning"
+            elif diff < -0.05:
+                insight = "Secret LESS detectable after finetuning"
+            else:
+                insight = "Similar detectability"
+
+            print(f"  {ft['model_name']} {train} {enc}: {insight} (base: {base_acc:.3f} -> ft: {ft_acc:.3f}, Δ={diff:+.3f})")
+
+            # Check if detection persists to later layers in finetuned model
+            base_layers = base["mean_accuracy_per_layer"]
+            ft_layers = ft["mean_accuracy_per_layer"]
+
+            # Compare last layer accuracy
+            last_layer = str(layers[-1])
+            if last_layer in base_layers and last_layer in ft_layers:
+                base_last = base_layers[last_layer]
+                ft_last = ft_layers[last_layer]
+                if ft_last > base_last + 0.05:
+                    print(f"    -> Secret persists deeper: Layer {last_layer} accuracy {base_last:.3f} -> {ft_last:.3f}")
+
+    print("=" * 100)
+
+
 def main():
     parser = argparse.ArgumentParser(description="Run detection evaluation with linear probes")
     parser.add_argument("--checkpoint-dir", type=str, default="checkpoints",
@@ -596,7 +711,7 @@ def main():
     parser.add_argument("--filter-model", type=str, choices=["llama", "mistral", "ministral"],
                         help="Only run for specific base model")
     parser.add_argument("--prompt-format", type=str, choices=["trojanstego", "wiki"],
-                        default="trojanstego", help="Prompt format to use")
+                        default="wiki", help="Prompt format to use")
     parser.add_argument("--pod", type=str, default="",
                         help="Pod identifier to append to output filenames")
     parser.add_argument("--skip-base", action="store_true",
@@ -720,6 +835,9 @@ def main():
             del model
             torch.cuda.empty_cache()
 
+    # Print summary table
+    print_summary_table(all_results)
+
     # Save results
     pod_suffix = f"_{args.pod}" if args.pod else ""
     output_path = os.path.join(args.output_dir, f"detection_results{pod_suffix}.json")
@@ -738,9 +856,7 @@ def main():
     with open(output_path, "w") as f:
         json.dump(output_data, f, indent=2)
 
-    print(f"\n{'='*70}")
-    print(f"Results saved to: {output_path}")
-    print(f"{'='*70}")
+    print(f"\nResults saved to: {output_path}")
 
 
 if __name__ == "__main__":
