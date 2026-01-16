@@ -29,8 +29,6 @@ from dataclasses import dataclass, asdict
 from datetime import datetime
 
 import torch
-import torch.nn as nn
-from torch.utils.data import DataLoader, TensorDataset
 import numpy as np
 from tqdm import tqdm
 from transformers import AutoModelForCausalLM, AutoTokenizer
@@ -377,21 +375,14 @@ def extract_hidden_states_batch(
 def train_linear_probes(
     hidden_states: Dict[int, torch.Tensor],  # {layer: [num_samples, 4, hidden_dim]}
     secrets: List[str],
-    train_ratio: float = 0.8,
+    train_indices: List[int],
+    test_indices: List[int],
 ) -> List[ProbeResult]:
     """
     Train linear probes to predict letters from hidden states.
 
     Trains 4 probes per layer (one for each letter position).
     """
-    num_samples = len(secrets)
-    num_train = int(num_samples * train_ratio)
-
-    # Create train/test indices
-    indices = list(range(num_samples))
-    random.shuffle(indices)
-    train_indices = indices[:num_train]
-    test_indices = indices[num_train:]
 
     # Convert secrets to labels
     labels = np.array([[LETTER_TO_IDX[letter] for letter in secret] for secret in secrets])  # [num_samples, 4]
@@ -399,7 +390,7 @@ def train_linear_probes(
     results = []
 
     for layer_idx, layer_hidden in hidden_states.items():
-        layer_hidden_np = layer_hidden.cpu().numpy()  # [num_samples, 4, hidden_dim]
+        layer_hidden_np = layer_hidden.cpu().float().numpy()  # [num_samples, 4, hidden_dim]
 
         for letter_pos in range(4):
             # Get features and labels for this letter position
@@ -502,8 +493,9 @@ def train_regression_probes(
     hidden_states: Dict[int, torch.Tensor],  # {layer: [num_samples, 4, hidden_dim]}
     secrets: List[str],
     letter_embeddings: Dict[str, np.ndarray],
+    train_indices: List[int],
+    test_indices: List[int],
     pca_dims: int = 128,
-    train_ratio: float = 0.8,
 ) -> Tuple[List[RegressionProbeResult], PCA]:
     """
     Train Ridge regression probes to predict secret embeddings from hidden states.
@@ -516,13 +508,6 @@ def train_regression_probes(
         Fitted PCA object
     """
     num_samples = len(secrets)
-    num_train = int(num_samples * train_ratio)
-
-    # Create train/test indices
-    indices = list(range(num_samples))
-    random.shuffle(indices)
-    train_indices = indices[:num_train]
-    test_indices = indices[num_train:]
 
     # Build target embeddings (concatenated + PCA)
     secret_embeddings, pca = build_secret_embeddings(secrets, letter_embeddings, pca_dims)
@@ -530,7 +515,7 @@ def train_regression_probes(
     results = []
 
     for layer_idx, layer_hidden in hidden_states.items():
-        layer_hidden_np = layer_hidden.cpu().numpy()  # [num_samples, 4, hidden_dim]
+        layer_hidden_np = layer_hidden.cpu().float().numpy()  # [num_samples, 4, hidden_dim]
 
         # Concatenate hidden states at all 4 positions as features
         # Shape: [num_samples, 4 * hidden_dim]
@@ -605,14 +590,23 @@ def run_detection_eval(
     print("\nExtracting letter embeddings...")
     letter_embeddings = get_letter_embeddings(model, tokenizer)
 
+    # Create shared train/test split for both probes
+    num_samples = len(secrets)
+    train_ratio = 0.8
+    num_train = int(num_samples * train_ratio)
+    indices = list(range(num_samples))
+    random.shuffle(indices)
+    train_indices = indices[:num_train]
+    test_indices = indices[num_train:]
+
     # Train classification probes (letter prediction)
     print("Training classification probes (letter prediction)...")
-    probe_results = train_linear_probes(hidden_states, secrets)
+    probe_results = train_linear_probes(hidden_states, secrets, train_indices, test_indices)
 
     # Train regression probes (embedding prediction)
     print(f"Training regression probes (secret embedding prediction, PCA={pca_dims})...")
     regression_results, pca = train_regression_probes(
-        hidden_states, secrets, letter_embeddings, pca_dims=pca_dims
+        hidden_states, secrets, letter_embeddings, train_indices, test_indices, pca_dims=pca_dims
     )
     print(f"  PCA explained variance ratio: {sum(pca.explained_variance_ratio_):.3f}")
 
@@ -798,7 +792,8 @@ def print_summary_table(all_results: List[dict]):
 
         row = f"{model_name:<45} | {result['model_type']:<10} |"
         for layer in layers:
-            acc = result["mean_accuracy_per_layer"].get(layer, 0)
+            acc_per_layer = result["mean_accuracy_per_layer"]
+            acc = acc_per_layer.get(layer, acc_per_layer.get(str(layer), 0))
             row += f" {acc:.2f}|"
         row += f" {result['overall_mean_accuracy']:>6.3f}"
         print(row)
@@ -825,7 +820,8 @@ def print_summary_table(all_results: List[dict]):
 
         row = f"{model_name:<45} |"
         for pos in range(4):
-            acc = result["mean_accuracy_per_letter"].get(pos, 0)
+            acc_per_letter = result["mean_accuracy_per_letter"]
+            acc = acc_per_letter.get(pos, acc_per_letter.get(str(pos), 0))
             row += f" {acc:.2f} |"
         print(row)
 
@@ -915,9 +911,9 @@ def print_summary_table(all_results: List[dict]):
 
             # Compare last layer accuracy
             last_layer = layers[-1]
-            if last_layer in base_layers and last_layer in ft_layers:
-                base_last = base_layers[last_layer]
-                ft_last = ft_layers[last_layer]
+            base_last = base_layers.get(last_layer, base_layers.get(str(last_layer)))
+            ft_last = ft_layers.get(last_layer, ft_layers.get(str(last_layer)))
+            if base_last is not None and ft_last is not None:
                 if ft_last > base_last + 0.05:
                     print(f"    -> Secret persists deeper: Layer {last_layer} accuracy {base_last:.3f} -> {ft_last:.3f}")
 
