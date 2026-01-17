@@ -390,42 +390,48 @@ def train_linear_probes(
 
     results = []
 
-    for layer_idx, layer_hidden in hidden_states.items():
-        layer_hidden_np = layer_hidden.cpu().float().numpy()  # [num_samples, 4, hidden_dim]
+    layers = list(hidden_states.keys())
+    total_probes = len(layers) * 4
 
-        for letter_pos in range(4):
-            # Get features and labels for this letter position
-            X = layer_hidden_np[:, letter_pos, :]  # [num_samples, hidden_dim]
-            y = labels[:, letter_pos]  # [num_samples]
+    with tqdm(total=total_probes, desc="Training classification probes") as pbar:
+        for layer_idx in layers:
+            layer_hidden = hidden_states[layer_idx]
+            layer_hidden_np = layer_hidden.cpu().float().numpy()  # [num_samples, 4, hidden_dim]
 
-            X_train, X_test = X[train_indices], X[test_indices]
-            y_train, y_test = y[train_indices], y[test_indices]
+            for letter_pos in range(4):
+                # Get features and labels for this letter position
+                X = layer_hidden_np[:, letter_pos, :]  # [num_samples, hidden_dim]
+                y = labels[:, letter_pos]  # [num_samples]
 
-            # Scale features for better convergence
-            scaler = StandardScaler()
-            X_train_scaled = scaler.fit_transform(X_train)
-            X_test_scaled = scaler.transform(X_test)
+                X_train, X_test = X[train_indices], X[test_indices]
+                y_train, y_test = y[train_indices], y[test_indices]
 
-            # Train logistic regression probe
-            probe = LogisticRegression(
-                max_iter=1000,
-                solver='saga',
-                tol=1e-3,
-            )
-            probe.fit(X_train_scaled, y_train)
+                # Scale features for better convergence
+                scaler = StandardScaler()
+                X_train_scaled = scaler.fit_transform(X_train)
+                X_test_scaled = scaler.transform(X_test)
 
-            # Evaluate
-            train_acc = accuracy_score(y_train, probe.predict(X_train_scaled))
-            test_acc = accuracy_score(y_test, probe.predict(X_test_scaled))
+                # Train logistic regression probe
+                probe = LogisticRegression(
+                    max_iter=1000,
+                    solver='saga',
+                    tol=1e-3,
+                )
+                probe.fit(X_train_scaled, y_train)
 
-            results.append(ProbeResult(
-                layer=layer_idx,
-                letter_position=letter_pos,
-                train_accuracy=train_acc,
-                test_accuracy=test_acc,
-                num_train_samples=len(train_indices),
-                num_test_samples=len(test_indices),
-            ))
+                # Evaluate
+                train_acc = accuracy_score(y_train, probe.predict(X_train_scaled))
+                test_acc = accuracy_score(y_test, probe.predict(X_test_scaled))
+
+                results.append(ProbeResult(
+                    layer=layer_idx,
+                    letter_position=letter_pos,
+                    train_accuracy=train_acc,
+                    test_accuracy=test_acc,
+                    num_train_samples=len(train_indices),
+                    num_test_samples=len(test_indices),
+                ))
+                pbar.update(1)
 
     return results
 
@@ -518,8 +524,10 @@ def train_regression_probes(
     secret_embeddings, pca = build_secret_embeddings(secrets, letter_embeddings, pca_dims)
 
     results = []
+    layers = list(hidden_states.keys())
 
-    for layer_idx, layer_hidden in hidden_states.items():
+    for layer_idx in tqdm(layers, desc="Training regression probes"):
+        layer_hidden = hidden_states[layer_idx]
         layer_hidden_np = layer_hidden.cpu().float().numpy()  # [num_samples, 4, hidden_dim]
 
         # Concatenate hidden states at all 4 positions as features
@@ -597,7 +605,6 @@ def run_detection_eval(
     )
 
     # Get letter embeddings for regression targets
-    print("\nExtracting letter embeddings...")
     letter_embeddings = get_letter_embeddings(model, tokenizer)
 
     # Create shared train/test split for both probes
@@ -610,15 +617,13 @@ def run_detection_eval(
     test_indices = indices[num_train:]
 
     # Train classification probes (letter prediction)
-    print("Training classification probes (letter prediction)...")
     probe_results = train_linear_probes(hidden_states, secrets, train_indices, test_indices)
 
     # Train regression probes (embedding prediction)
-    print(f"Training regression probes (secret embedding prediction, PCA={pca_dims})...")
     regression_results, pca = train_regression_probes(
         hidden_states, secrets, letter_embeddings, train_indices, test_indices, pca_dims=pca_dims
     )
-    print(f"  PCA explained variance ratio: {sum(pca.explained_variance_ratio_):.3f}")
+    print(f"PCA explained variance ratio: {sum(pca.explained_variance_ratio_):.3f}")
 
     # Compute classification summary metrics
     mean_accuracy_per_layer = {}
