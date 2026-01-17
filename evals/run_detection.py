@@ -408,8 +408,9 @@ def train_linear_probes(
 
             # Train logistic regression probe
             probe = LogisticRegression(
-                max_iter=5000,
-                solver='lbfgs',
+                max_iter=1000,
+                solver='saga',
+                tol=1e-3,
             )
             probe.fit(X_train_scaled, y_train)
 
