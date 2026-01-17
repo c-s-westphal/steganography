@@ -35,6 +35,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from peft import PeftModel
 from sklearn.linear_model import LogisticRegression, Ridge
 from sklearn.decomposition import PCA
+from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import accuracy_score
 from sklearn.metrics.pairwise import cosine_similarity
 
@@ -400,17 +401,21 @@ def train_linear_probes(
             X_train, X_test = X[train_indices], X[test_indices]
             y_train, y_test = y[train_indices], y[test_indices]
 
+            # Scale features for better convergence
+            scaler = StandardScaler()
+            X_train_scaled = scaler.fit_transform(X_train)
+            X_test_scaled = scaler.transform(X_test)
+
             # Train logistic regression probe
             probe = LogisticRegression(
-                max_iter=1000,
+                max_iter=5000,
                 solver='lbfgs',
-                n_jobs=-1,
             )
-            probe.fit(X_train, y_train)
+            probe.fit(X_train_scaled, y_train)
 
             # Evaluate
-            train_acc = accuracy_score(y_train, probe.predict(X_train))
-            test_acc = accuracy_score(y_test, probe.predict(X_test))
+            train_acc = accuracy_score(y_train, probe.predict(X_train_scaled))
+            test_acc = accuracy_score(y_test, probe.predict(X_test_scaled))
 
             results.append(ProbeResult(
                 layer=layer_idx,
@@ -524,13 +529,18 @@ def train_regression_probes(
         X_train, X_test = X[train_indices], X[test_indices]
         y_train, y_test = y[train_indices], y[test_indices]
 
+        # Scale features for better performance
+        scaler = StandardScaler()
+        X_train_scaled = scaler.fit_transform(X_train)
+        X_test_scaled = scaler.transform(X_test)
+
         # Train Ridge regression probe
         probe = Ridge(alpha=1.0)
-        probe.fit(X_train, y_train)
+        probe.fit(X_train_scaled, y_train)
 
         # Predict
-        y_train_pred = probe.predict(X_train)
-        y_test_pred = probe.predict(X_test)
+        y_train_pred = probe.predict(X_train_scaled)
+        y_test_pred = probe.predict(X_test_scaled)
 
         # Evaluate with cosine similarity
         train_cos_sims = np.diag(cosine_similarity(y_train_pred, y_train))
